@@ -547,10 +547,19 @@ async function doSearch(){
   document.getElementById('results-area').innerHTML='';
   try{
     const ctx=DB.map(b=>({id:b.id,brand:b.brand,pn:b.pn,type:b.type,bore:b.bore,od:b.od,w:b.w,sealing:b.sealing,apps:b.apps}));
-    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:800,messages:[{role:'user',content:`You are MYCELA's industrial bearing search engine. Given the database and query, return the best matching bearing IDs.\n\nDATABASE:\n${JSON.stringify(ctx)}\n\nQUERY: "${q}"\n\nReturn ONLY valid JSON (no markdown, no code blocks):\n{"matches":["id1","id2"],"explanation":"1-2 sentences","tips":["tip1","tip2"]}\n\nMatch by part number, dimensions, type, application, brand, or plain language. Return up to 6 best matches.`}]})});
-    const data=await res.json();
-    const raw=data.content?.find(c=>c.type==='text')?.text||'{}';
-    const parsed=JSON.parse(raw.replace(/```json|```/g,'').trim());
+const res = await fetch('https://mycela-backend.onrender.com/search', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({ query: q })
+});
+
+if (!res.ok) {
+  throw new Error('Backend error');
+}
+
+const parsed = await res.json();
     allR=(parsed.matches||[]).map(id=>DB.find(b=>b.id===id)).filter(Boolean);
     if(parsed.explanation){document.getElementById('ai-box-text').textContent=parsed.explanation;document.getElementById('ai-tips-row').innerHTML=(parsed.tips||[]).map(t=>`<span class="ai-tip">${t}</span>`).join('');document.getElementById('ai-box').style.display='block';}
   }catch(e){
