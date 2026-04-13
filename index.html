@@ -7,7 +7,6 @@
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
   gtag('js', new Date());
-
   gtag('config', 'G-PWR56SH2V5');
 </script>
 <meta charset="UTF-8"/>
@@ -117,17 +116,20 @@ input::placeholder,textarea::placeholder{color:#2a4030}
 .search-input{flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:13px 18px;color:#d0c890;font-size:14px;outline:none;transition:border-color .2s}
 .search-input:focus{border-color:var(--gold)}
 .search-btn{background:var(--gold);border:none;border-radius:8px;padding:13px 22px;color:#07090a;font-weight:700;font-size:13px;letter-spacing:.04em;min-width:100px;transition:all .2s}
-.search-btn.loading{background:var(--green-dk);color:#3a5040;cursor:default}
+.search-btn.ai-running{background:#0d1a10;color:#2a4030;cursor:default;border:1px solid #1a3020}
 .ai-box{background:rgba(200,168,76,.05);border:1px solid rgba(200,168,76,.16);border-radius:8px;padding:13px 17px;margin-bottom:16px}
-.ai-box-label{font-size:10px;color:var(--gold);font-weight:700;letter-spacing:.1em;margin-bottom:4px;text-transform:uppercase}
+.ai-box-label{font-size:10px;color:var(--gold);font-weight:700;letter-spacing:.1em;margin-bottom:4px;text-transform:uppercase;display:flex;align-items:center;gap:6px}
+.ai-dot{width:5px;height:5px;border-radius:50%;background:var(--gold);animation:blink 1.4s infinite}
 .ai-box-text{font-size:12px;color:#a89e72;line-height:1.55}
 .ai-tips-row{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}
 .ai-tip{font-size:10px;color:#7a7040;background:var(--bg3);border-radius:4px;padding:2px 8px;border:1px solid var(--border)}
 .filter-bar{display:flex;gap:6px;margin-bottom:16px;align-items:center;flex-wrap:wrap;padding:10px 14px;background:#060e08;border-radius:8px;border:1px solid var(--border)}
-.filter-lbl{font-size:10px;color:#6a6040;letter-spacing:.05em;text-transform:uppercase}
+.filter-lbl{font-size:10px;color:#6a6040;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap}
 .filter-sep{color:#0d1810;margin:0 4px}
-.filter-btn{background:transparent;border:1px solid var(--border);border-radius:16px;padding:4px 11px;font-size:10px;color:#6a6040;cursor:pointer;transition:all .15s}
+.filter-btn{background:transparent;border:1px solid var(--border);border-radius:16px;padding:4px 11px;font-size:10px;color:#6a6040;cursor:pointer;transition:all .15s;white-space:nowrap}
 .filter-btn.active{background:var(--border2);color:#8aaa94;border-color:var(--border2)}
+.results-count{font-size:11px;color:#3a5040;margin-bottom:12px;letter-spacing:.03em}
+.results-count span{color:#7a9e8a;font-family:'IBM Plex Mono',monospace}
 .results-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(265px,1fr));gap:11px}
 .empty-state{text-align:center;padding:80px 20px;color:#3a3010}
 .empty-icon{font-size:34px;margin-bottom:12px;opacity:.35}
@@ -219,10 +221,12 @@ input::placeholder,textarea::placeholder{color:#2a4030}
 .sec{padding:56px 20px}.modal{padding:20px 16px}
 .vision-card,.form-card{padding:28px 20px}.form-row{grid-template-columns:1fr}
 .sup-hero{padding:88px 22px 56px}.trust-bar{padding:15px 18px}.trust-inner{gap:18px}
-.cta-bg{padding:56px 22px}.hero-inner{padding:40px 18px}}
+.cta-bg{padding:56px 22px}.hero-inner{padding:40px 18px}
+.filter-bar{gap:4px}.filter-btn{padding:3px 8px;font-size:9px}}
 </style>
 </head>
 <body>
+
 <nav class="nav" id="main-nav">
   <div class="nav-brand">
     <svg width="24" height="24" viewBox="0 0 28 28" fill="none">
@@ -247,6 +251,7 @@ input::placeholder,textarea::placeholder{color:#2a4030}
   <button class="nav-cta" onclick="showPage('search')">Search Parts</button>
 </nav>
 
+<!-- HOME PAGE -->
 <div id="page-home" class="page active">
   <div class="hero">
     <canvas id="mycelium-canvas"></canvas>
@@ -276,9 +281,9 @@ input::placeholder,textarea::placeholder{color:#2a4030}
     <div class="trust-item"><span class="trust-dot"></span>AI Search</div>
   </div></div>
   <div class="stats-bar"><div class="stats-inner">
-    <div class="stat"><div class="stat-val">47+</div><div class="stat-label">Bearing SKUs</div></div>
+    <div class="stat"><div class="stat-val">1,700+</div><div class="stat-label">Bearing SKUs</div></div>
     <div class="stat"><div class="stat-val">2</div><div class="stat-label">Brands Live</div></div>
-    <div class="stat"><div class="stat-val">5</div><div class="stat-label">Bearing Types</div></div>
+    <div class="stat"><div class="stat-val">9</div><div class="stat-label">Bearing Types</div></div>
     <div class="stat"><div class="stat-val">AI</div><div class="stat-label">Search Engine</div></div>
   </div></div>
   <div class="hiw-bg"><div class="sec"><div class="sec-inner">
@@ -333,22 +338,26 @@ input::placeholder,textarea::placeholder{color:#2a4030}
   <div class="footer">© 2026 MYCELA Technologies &nbsp;·&nbsp; mycela.in &nbsp;·&nbsp; Pune, India</div>
 </div>
 
+<!-- SEARCH PAGE -->
 <div id="page-search" class="page">
   <div style="padding-top:62px"><div class="search-body">
-    <div class="search-head"><div class="search-head-title">Parts Search</div><div class="search-head-sub">Search by part number, dimensions, application or plain language</div></div>
+    <div class="search-head">
+      <div class="search-head-title">Parts Search</div>
+      <div class="search-head-sub">Search by part number, dimensions, application or plain language</div>
+    </div>
     <div class="search-bar-row">
-      <input id="search-input" class="search-input" placeholder='Part number, application or dimensions. e.g. "25mm bore sealed pump bearing"'/>
+      <input id="search-input" class="search-input" placeholder='Part number, application or dimensions — e.g. "25mm bore sealed pump bearing"'/>
       <button id="search-btn" class="search-btn" onclick="doSearch()">Search</button>
     </div>
     <div class="chips" style="justify-content:flex-start;margin-bottom:16px">
       <button class="chip" onclick="quickSearch('6205')">6205</button>
       <button class="chip" onclick="quickSearch('sealed food processing')">sealed food processing</button>
-      <button class="chip" onclick="quickSearch('30mm bore pump')">30mm bore pump</button>
-      <button class="chip" onclick="quickSearch('tapered roller automotive')">tapered roller automotive</button>
-      <button class="chip" onclick="quickSearch('spherical mining')">spherical mining</button>
+      <button class="chip" onclick="quickSearch('spherical roller mining')">spherical roller mining</button>
+      <button class="chip" onclick="quickSearch('tapered roller 30mm')">tapered roller 30mm</button>
+      <button class="chip" onclick="quickSearch('NU210')">NU210</button>
     </div>
     <div id="ai-box" style="display:none" class="ai-box">
-      <div class="ai-box-label">MYCELA AI</div>
+      <div class="ai-box-label"><span class="ai-dot"></span>MYCELA AI</div>
       <div id="ai-box-text" class="ai-box-text"></div>
       <div id="ai-tips-row" class="ai-tips-row"></div>
     </div>
@@ -360,16 +369,21 @@ input::placeholder,textarea::placeholder{color:#2a4030}
       <button class="filter-btn" onclick="setTF('Tapered Roller',this)">Tapered Roller</button>
       <button class="filter-btn" onclick="setTF('Spherical Roller',this)">Spherical Roller</button>
       <button class="filter-btn" onclick="setTF('Angular Contact Ball',this)">Angular Contact</button>
+      <button class="filter-btn" onclick="setTF('Needle Roller',this)">Needle Roller</button>
+      <button class="filter-btn" onclick="setTF('Self-Aligning Ball',this)">Self-Aligning</button>
+      <button class="filter-btn" onclick="setTF('Spherical Roller Thrust',this)">Thrust</button>
       <span class="filter-sep">|</span>
       <span class="filter-lbl">Brand</span>
       <button class="filter-btn active" onclick="setBF('All',this)">All</button>
       <button class="filter-btn" onclick="setBF('NTN',this)">NTN</button>
       <button class="filter-btn" onclick="setBF('SKF',this)">SKF</button>
     </div>
+    <div id="results-count" style="display:none" class="results-count"></div>
     <div id="results-area"></div>
   </div></div>
 </div>
 
+<!-- SUPPLIERS PAGE -->
 <div id="page-suppliers" class="page">
   <div style="padding-top:62px">
     <div class="sup-hero"><div class="sup-hero-inner">
@@ -454,6 +468,7 @@ input::placeholder,textarea::placeholder{color:#2a4030}
   </div>
 </div>
 
+<!-- MODAL -->
 <div id="modal-overlay" class="modal-overlay" onclick="closeModal(event)">
   <div class="modal">
     <div class="modal-top">
@@ -470,160 +485,382 @@ input::placeholder,textarea::placeholder{color:#2a4030}
   </div>
 </div>
 
+<!--
+  ═══════════════════════════════════════════════════════════
+  BEARING DATABASE  —  loaded from bearings_db.js
+  This file must be in the same folder as index.html.
+  It sets window.MYCELA_DB to an array of 1,719 bearings.
+  ═══════════════════════════════════════════════════════════
+-->
+<script src="bearings_db.js"></script>
+
 <script>
-const DB=[
-{id:"NTN-6200",brand:"NTN",pn:"6200",type:"Deep Groove Ball",bore:10,od:30,w:9,cr:5.1,c0r:2.36,rpm:22000,mass:20,sealing:"Open",apps:["electric motors","instruments","pumps"],alt:["SKF-6200"]},
-{id:"NTN-6201",brand:"NTN",pn:"6201",type:"Deep Groove Ball",bore:12,od:32,w:10,cr:6.89,c0r:3.1,rpm:20000,mass:30,sealing:"Open",apps:["electric motors","fans","pumps"],alt:["SKF-6201"]},
-{id:"NTN-6202",brand:"NTN",pn:"6202",type:"Deep Groove Ball",bore:15,od:35,w:11,cr:7.65,c0r:3.72,rpm:18000,mass:40,sealing:"Open",apps:["motors","conveyors","gearboxes"],alt:[]},
-{id:"NTN-6203",brand:"NTN",pn:"6203",type:"Deep Groove Ball",bore:17,od:40,w:12,cr:9.56,c0r:4.75,rpm:16000,mass:55,sealing:"Open",apps:["motors","pumps","gearboxes"],alt:[]},
-{id:"NTN-6204",brand:"NTN",pn:"6204",type:"Deep Groove Ball",bore:20,od:47,w:14,cr:12.8,c0r:6.55,rpm:14000,mass:90,sealing:"Open",apps:["motors","agriculture","conveyors"],alt:[]},
-{id:"NTN-6205",brand:"NTN",pn:"6205",type:"Deep Groove Ball",bore:25,od:52,w:15,cr:14.8,c0r:7.8,rpm:12000,mass:120,sealing:"Open",apps:["electric motors","pumps","fans","agriculture"],alt:["SKF-6205","NTN-6205LLU"]},
-{id:"NTN-6205LLU",brand:"NTN",pn:"6205LLU",type:"Deep Groove Ball",bore:25,od:52,w:15,cr:14.8,c0r:7.8,rpm:9000,mass:122,sealing:"Sealed (Non-contact)",apps:["food processing","motors","pumps"],alt:["SKF-6205-2RS1"]},
-{id:"NTN-6206",brand:"NTN",pn:"6206",type:"Deep Groove Ball",bore:30,od:62,w:16,cr:19.5,c0r:11.2,rpm:11000,mass:185,sealing:"Open",apps:["motors","gearboxes","construction machinery"],alt:["SKF-6206"]},
-{id:"NTN-6207",brand:"NTN",pn:"6207",type:"Deep Groove Ball",bore:35,od:72,w:17,cr:25.7,c0r:15.3,rpm:9500,mass:280,sealing:"Open",apps:["motors","gearboxes","textile machinery"],alt:["SKF-6207"]},
-{id:"NTN-6208",brand:"NTN",pn:"6208",type:"Deep Groove Ball",bore:40,od:80,w:18,cr:29,c0r:17.8,rpm:8500,mass:355,sealing:"Open",apps:["motors","pumps","mining equipment"],alt:["SKF-6208"]},
-{id:"NTN-6210",brand:"NTN",pn:"6210",type:"Deep Groove Ball",bore:50,od:90,w:20,cr:35,c0r:23.2,rpm:7500,mass:440,sealing:"Open",apps:["motors","gearboxes","industrial fans"],alt:["SKF-6210"]},
-{id:"NTN-6212",brand:"NTN",pn:"6212",type:"Deep Groove Ball",bore:60,od:110,w:22,cr:52.8,c0r:38,rpm:6000,mass:800,sealing:"Open",apps:["heavy motors","compressors","industrial equipment"],alt:["SKF-6212"]},
-{id:"SKF-6200",brand:"SKF",pn:"6200",type:"Deep Groove Ball",bore:10,od:30,w:9,cr:5.07,c0r:2.36,rpm:22000,mass:20,sealing:"Open",apps:["electric motors","instruments","pumps"],alt:["NTN-6200"]},
-{id:"SKF-6201",brand:"SKF",pn:"6201",type:"Deep Groove Ball",bore:12,od:32,w:10,cr:6.89,c0r:3.1,rpm:20000,mass:30,sealing:"Open",apps:["motors","fans","pumps"],alt:["NTN-6201"]},
-{id:"SKF-6205",brand:"SKF",pn:"6205",type:"Deep Groove Ball",bore:25,od:52,w:15,cr:14.8,c0r:7.8,rpm:12000,mass:120,sealing:"Open",apps:["motors","pumps","fans"],alt:["NTN-6205"]},
-{id:"SKF-6205-2RS1",brand:"SKF",pn:"6205-2RS1",type:"Deep Groove Ball",bore:25,od:52,w:15,cr:14.8,c0r:7.8,rpm:9000,mass:122,sealing:"Sealed (Contact)",apps:["food processing","motors","pumps","agriculture"],alt:["NTN-6205LLU"]},
-{id:"SKF-6206",brand:"SKF",pn:"6206",type:"Deep Groove Ball",bore:30,od:62,w:16,cr:19.5,c0r:11.2,rpm:11000,mass:185,sealing:"Open",apps:["motors","gearboxes"],alt:["NTN-6206"]},
-{id:"SKF-6207",brand:"SKF",pn:"6207",type:"Deep Groove Ball",bore:35,od:72,w:17,cr:25.7,c0r:15.3,rpm:9500,mass:280,sealing:"Open",apps:["motors","gearboxes"],alt:["NTN-6207"]},
-{id:"SKF-6208",brand:"SKF",pn:"6208",type:"Deep Groove Ball",bore:40,od:80,w:18,cr:29,c0r:17.8,rpm:8500,mass:355,sealing:"Open",apps:["motors","pumps"],alt:["NTN-6208"]},
-{id:"SKF-6210",brand:"SKF",pn:"6210",type:"Deep Groove Ball",bore:50,od:90,w:20,cr:35,c0r:23.2,rpm:7500,mass:440,sealing:"Open",apps:["motors","gearboxes"],alt:["NTN-6210"]},
-{id:"SKF-6212",brand:"SKF",pn:"6212",type:"Deep Groove Ball",bore:60,od:110,w:22,cr:52.8,c0r:38,rpm:6000,mass:800,sealing:"Open",apps:["heavy motors","compressors"],alt:["NTN-6212"]},
-{id:"NTN-NU205",brand:"NTN",pn:"NU205",type:"Cylindrical Roller",bore:25,od:52,w:15,cr:22.5,c0r:18,rpm:12000,mass:125,sealing:"Open",apps:["gearboxes","electric motors","machine tools"],alt:["SKF-NU205ECP"]},
-{id:"NTN-NU206",brand:"NTN",pn:"NU206",type:"Cylindrical Roller",bore:30,od:62,w:16,cr:33,c0r:27,rpm:10000,mass:200,sealing:"Open",apps:["gearboxes","motors","pumps"],alt:["SKF-NU206ECP"]},
-{id:"NTN-NU207",brand:"NTN",pn:"NU207",type:"Cylindrical Roller",bore:35,od:72,w:17,cr:40,c0r:32,rpm:8500,mass:300,sealing:"Open",apps:["gearboxes","heavy motors","compressors"],alt:[]},
-{id:"NTN-NU210",brand:"NTN",pn:"NU210",type:"Cylindrical Roller",bore:50,od:90,w:20,cr:52,c0r:45,rpm:7000,mass:480,sealing:"Open",apps:["gearboxes","machine tools","turbines"],alt:["SKF-NU210ECP"]},
-{id:"NTN-NU212",brand:"NTN",pn:"NU212",type:"Cylindrical Roller",bore:60,od:110,w:22,cr:76,c0r:68,rpm:5600,mass:870,sealing:"Open",apps:["heavy gearboxes","rolling mills","large motors"],alt:[]},
-{id:"SKF-NU205ECP",brand:"SKF",pn:"NU 205 ECP",type:"Cylindrical Roller",bore:25,od:52,w:15,cr:22.9,c0r:17.6,rpm:12000,mass:125,sealing:"Open",apps:["gearboxes","motors","machine tools"],alt:["NTN-NU205"]},
-{id:"SKF-NU206ECP",brand:"SKF",pn:"NU 206 ECP",type:"Cylindrical Roller",bore:30,od:62,w:16,cr:32.5,c0r:26,rpm:10000,mass:200,sealing:"Open",apps:["gearboxes","motors"],alt:["NTN-NU206"]},
-{id:"SKF-NU210ECP",brand:"SKF",pn:"NU 210 ECP",type:"Cylindrical Roller",bore:50,od:90,w:20,cr:53.9,c0r:46.5,rpm:7000,mass:480,sealing:"Open",apps:["gearboxes","machine tools"],alt:["NTN-NU210"]},
-{id:"NTN-30205",brand:"NTN",pn:"30205",type:"Tapered Roller",bore:25,od:52,w:16.25,cr:29.5,c0r:27,rpm:8500,mass:165,sealing:"Open",apps:["automotive","gearboxes","axles","differentials"],alt:["SKF-30205J2"]},
-{id:"NTN-30206",brand:"NTN",pn:"30206",type:"Tapered Roller",bore:30,od:62,w:17.25,cr:43,c0r:41,rpm:7500,mass:265,sealing:"Open",apps:["automotive","gearboxes","construction machinery"],alt:["SKF-30206J2"]},
-{id:"NTN-30207",brand:"NTN",pn:"30207",type:"Tapered Roller",bore:35,od:72,w:18.25,cr:55,c0r:55,rpm:6700,mass:390,sealing:"Open",apps:["automotive","heavy gearboxes","wheel hubs"],alt:[]},
-{id:"NTN-30210",brand:"NTN",pn:"30210",type:"Tapered Roller",bore:50,od:90,w:21.75,cr:72,c0r:76,rpm:5600,mass:600,sealing:"Open",apps:["automotive axles","gearboxes","construction"],alt:[]},
-{id:"SKF-30205J2",brand:"SKF",pn:"30205 J2",type:"Tapered Roller",bore:25,od:52,w:16.25,cr:29,c0r:26,rpm:8500,mass:165,sealing:"Open",apps:["automotive","gearboxes","axles"],alt:["NTN-30205"]},
-{id:"SKF-30206J2",brand:"SKF",pn:"30206 J2",type:"Tapered Roller",bore:30,od:62,w:17.25,cr:43,c0r:39,rpm:7500,mass:265,sealing:"Open",apps:["automotive","gearboxes"],alt:["NTN-30206"]},
-{id:"NTN-22205",brand:"NTN",pn:"22205B",type:"Spherical Roller",bore:25,od:52,w:18,cr:37.5,c0r:28,rpm:9500,mass:155,sealing:"Open",apps:["mining","paper mills","conveyors","vibrating screens"],alt:["SKF-22205E"]},
-{id:"NTN-22208",brand:"NTN",pn:"22208B",type:"Spherical Roller",bore:40,od:80,w:23,cr:71.5,c0r:56,rpm:7000,mass:430,sealing:"Open",apps:["mining","crushers","paper mills","heavy conveyors"],alt:["SKF-22208E"]},
-{id:"NTN-22210",brand:"NTN",pn:"22210B",type:"Spherical Roller",bore:50,od:90,w:23,cr:82.5,c0r:70,rpm:6300,mass:470,sealing:"Open",apps:["mining","steel plants","vibrating screens"],alt:["SKF-22210E"]},
-{id:"NTN-22212",brand:"NTN",pn:"22212B",type:"Spherical Roller",bore:60,od:110,w:28,cr:116,c0r:100,rpm:5300,mass:840,sealing:"Open",apps:["mining","paper mills","steel plants"],alt:[]},
-{id:"SKF-22205E",brand:"SKF",pn:"22205 E",type:"Spherical Roller",bore:25,od:52,w:18,cr:37.7,c0r:28.5,rpm:9500,mass:155,sealing:"Open",apps:["mining","paper mills","conveyors","vibrating equipment"],alt:["NTN-22205"]},
-{id:"SKF-22208E",brand:"SKF",pn:"22208 E",type:"Spherical Roller",bore:40,od:80,w:23,cr:73.5,c0r:58,rpm:7000,mass:430,sealing:"Open",apps:["mining","heavy conveyors","crushers"],alt:["NTN-22208"]},
-{id:"SKF-22210E",brand:"SKF",pn:"22210 E",type:"Spherical Roller",bore:50,od:90,w:23,cr:83.2,c0r:73.5,rpm:6300,mass:470,sealing:"Open",apps:["mining","steel plants","vibrating screens"],alt:["NTN-22210"]},
-{id:"NTN-7205B",brand:"NTN",pn:"7205B",type:"Angular Contact Ball",bore:25,od:52,w:15,cr:16.8,c0r:9.8,rpm:13000,mass:130,sealing:"Open",apps:["machine tools","high-speed spindles","compressors","pumps"],alt:["SKF-7205BECBM"]},
-{id:"NTN-7206B",brand:"NTN",pn:"7206B",type:"Angular Contact Ball",bore:30,od:62,w:16,cr:22,c0r:13.2,rpm:11000,mass:200,sealing:"Open",apps:["machine tools","spindles","pumps"],alt:[]},
-{id:"NTN-7210B",brand:"NTN",pn:"7210B",type:"Angular Contact Ball",bore:50,od:90,w:20,cr:36,c0r:25.5,rpm:8000,mass:470,sealing:"Open",apps:["machine tools","spindles","pumps"],alt:[]},
-{id:"SKF-7205BECBM",brand:"SKF",pn:"7205 BECBM",type:"Angular Contact Ball",bore:25,od:52,w:15,cr:17.2,c0r:10.4,rpm:13000,mass:130,sealing:"Open",apps:["machine tools","spindles","compressors","pumps"],alt:["NTN-7205B"]},
-{id:"SKF-7210BECBM",brand:"SKF",pn:"7210 BECBM",type:"Angular Contact Ball",bore:50,od:90,w:20,cr:38.2,c0r:27.5,rpm:8000,mass:470,sealing:"Open",apps:["machine tools","spindles"],alt:[]},
-];
-const BC={NTN:"#e8643a",SKF:"#0069b3"};
-const TI={"Deep Groove Ball":"◉","Cylindrical Roller":"▬","Tapered Roller":"◤","Spherical Roller":"◎","Angular Contact Ball":"◑"};
+// ─────────────────────────────────────────────────────────────────────────────
+// Constants
+// ─────────────────────────────────────────────────────────────────────────────
+const BC = { NTN:'#e8643a', SKF:'#0069b3' };
+const TI = {
+  'Deep Groove Ball':'◉',  'Cylindrical Roller':'▬',
+  'Tapered Roller':'◤',    'Spherical Roller':'◎',
+  'Angular Contact Ball':'◑', 'Needle Roller':'◆',
+  'Spherical Roller Thrust':'▲', 'Self-Aligning Ball':'◔',
+  'Insert (Y-Bearing)':'◈',
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Database initialisation
+// bearings_db.js loads first and sets window.MYCELA_DB
+// ─────────────────────────────────────────────────────────────────────────────
+const DB     = window.MYCELA_DB || [];
+const DB_MAP = {};
+DB.forEach(b => { DB_MAP[b.id] = b; });
+console.log(`MYCELA DB: ${DB.length} bearings loaded`);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Page routing
+// ─────────────────────────────────────────────────────────────────────────────
 function showPage(p){
   document.querySelectorAll('.page').forEach(e=>e.classList.remove('active'));
   document.getElementById('page-'+p).classList.add('active');
   document.querySelectorAll('.nav-link').forEach(e=>e.classList.remove('active'));
-  const nl=document.getElementById('nl-'+p);if(nl)nl.classList.add('active');
+  const nl=document.getElementById('nl-'+p); if(nl) nl.classList.add('active');
   window.scrollTo(0,0);
 }
-function heroSearch(){const q=document.getElementById('hero-input').value.trim();if(!q)return;showPage('search');document.getElementById('search-input').value=q;doSearch();}
-function quickHero(q){document.getElementById('hero-input').value=q;heroSearch();}
-function quickSearch(q){document.getElementById('search-input').value=q;doSearch();}
-document.getElementById('hero-input').addEventListener('keydown',e=>{if(e.key==='Enter')heroSearch();});
-let allR=[],tf='All',bf='All',searched=false;
-function setTF(v,el){tf=v;document.querySelectorAll('#filter-bar .filter-btn').forEach(b=>{if(b.textContent!=='All'&&b.textContent!=='NTN'&&b.textContent!=='SKF')b.classList.remove('active');});el.classList.add('active');render();}
-function setBF(v,el){bf=v;document.querySelectorAll('#filter-bar .filter-btn').forEach(b=>{if(b.textContent==='All'||b.textContent==='NTN'||b.textContent==='SKF')b.classList.remove('active');});el.classList.add('active');render();}
-async function doSearch(){
-  const q=document.getElementById('search-input').value.trim();if(!q)return;
-  searched=true;tf='All';bf='All';
-  document.querySelectorAll('#filter-bar .filter-btn').forEach((b,i)=>{b.classList.remove('active');if(b.textContent==='All')b.classList.add('active');});
-  const btn=document.getElementById('search-btn');
-  btn.textContent='Searching...';btn.classList.add('loading');
-  document.getElementById('ai-box').style.display='none';
-  document.getElementById('filter-bar').style.display='none';
-  document.getElementById('results-area').innerHTML='';
-  try{
-    const ctx=DB.map(b=>({id:b.id,brand:b.brand,pn:b.pn,type:b.type,bore:b.bore,od:b.od,w:b.w,sealing:b.sealing,apps:b.apps}));
-const res = await fetch('https://mycela-backend.onrender.com/search', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json'
-  },
-  body: JSON.stringify({ query: q })
-});
 
-if (!res.ok) {
-  throw new Error('Backend error');
+// ─────────────────────────────────────────────────────────────────────────────
+// Hero + quick-search helpers
+// ─────────────────────────────────────────────────────────────────────────────
+function heroSearch(){
+  const q=document.getElementById('hero-input').value.trim();
+  if(!q) return;
+  showPage('search');
+  document.getElementById('search-input').value=q;
+  doSearch();
 }
+function quickHero(q){ document.getElementById('hero-input').value=q; heroSearch(); }
+function quickSearch(q){ document.getElementById('search-input').value=q; doSearch(); }
+document.getElementById('hero-input')
+  .addEventListener('keydown',e=>{ if(e.key==='Enter') heroSearch(); });
 
-const parsed = await res.json();
-    allR=(parsed.matches||[]).map(id=>DB.find(b=>b.id===id)).filter(Boolean);
-    if(parsed.explanation){document.getElementById('ai-box-text').textContent=parsed.explanation;document.getElementById('ai-tips-row').innerHTML=(parsed.tips||[]).map(t=>`<span class="ai-tip">${t}</span>`).join('');document.getElementById('ai-box').style.display='block';}
-  }catch(e){
-    const lq=q.toLowerCase();
-    allR=DB.filter(b=>b.pn.toLowerCase().includes(lq)||b.type.toLowerCase().includes(lq)||b.brand.toLowerCase().includes(lq)||b.apps.some(a=>a.toLowerCase().includes(lq))||lq.includes(String(b.bore))).slice(0,6);
-    document.getElementById('ai-box-text').textContent='Showing keyword match results.';document.getElementById('ai-tips-row').innerHTML='';document.getElementById('ai-box').style.display='block';
-  }
-  btn.textContent='Search';btn.classList.remove('loading');
-  if(allR.length>0)document.getElementById('filter-bar').style.display='flex';
+// ─────────────────────────────────────────────────────────────────────────────
+// Filter state
+// ─────────────────────────────────────────────────────────────────────────────
+let allR=[], tf='All', bf='All', searched=false;
+
+function setTF(v,el){
+  tf=v;
+  // Reset type buttons only
+  document.querySelectorAll('#filter-bar .filter-btn').forEach(b=>{
+    if(!['All','NTN','SKF'].includes(b.textContent.trim()))
+      b.classList.remove('active');
+  });
+  el.classList.add('active');
   render();
 }
-document.getElementById('search-input').addEventListener('keydown',e=>{if(e.key==='Enter')doSearch();});
+function setBF(v,el){
+  bf=v;
+  // Reset brand buttons only
+  document.querySelectorAll('#filter-bar .filter-btn').forEach(b=>{
+    if(['All','NTN','SKF'].includes(b.textContent.trim()))
+      b.classList.remove('active');
+  });
+  el.classList.add('active');
+  render();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// fastSearch  — instant, no network, scored ranking
+// ─────────────────────────────────────────────────────────────────────────────
+function fastSearch(q, maxResults=30){
+  const qLow   = q.toLowerCase().trim();
+  const tokens = qLow.split(/\s+/).filter(t=>t.length>1);
+
+  // Extract numeric dimension hints ("25mm" or plain "25")
+  const nums = [];
+  tokens.forEach(t=>{
+    const n=parseFloat(t.replace(/mm$/,''));
+    if(!isNaN(n)&&n>0) nums.push(n);
+  });
+
+  const brandHint = /\bntн\b|\bntn\b/.test(qLow) ? 'NTN'
+                  : /\bskf\b/.test(qLow)          ? 'SKF' : null;
+
+  const scored = DB.map(b=>{
+    let s=0;
+    const pn=b.pn.toLowerCase();
+
+    // Part-number matching (highest weight)
+    if(pn===qLow)                                               s+=100;
+    else if(pn.replace(/[\s\-]/g,'')===qLow.replace(/[\s\-]/g,'')) s+=95;
+    else if(pn.startsWith(qLow))                                s+=70;
+    else if(pn.includes(qLow))                                  s+=50;
+    tokens.forEach(t=>{ if(pn.includes(t)) s+=12; });
+
+    // Brand
+    if(brandHint && b.brand===brandHint)     s+=20;
+    if(b.brand.toLowerCase()===qLow)         s+=18;
+
+    // Bearing type
+    const tl=b.type.toLowerCase();
+    tokens.forEach(t=>{ if(tl.includes(t)) s+=18; });
+    if(qLow.includes('deep groove')  && b.type==='Deep Groove Ball')       s+=25;
+    if(/\bdgbb\b/.test(qLow)         && b.type==='Deep Groove Ball')       s+=25;
+    if(qLow.includes('cylindrical')  && b.type==='Cylindrical Roller')     s+=25;
+    if(qLow.includes('tapered')      && b.type==='Tapered Roller')         s+=25;
+    if(qLow.includes('spherical')    && b.type.includes('Spherical'))      s+=22;
+    if(qLow.includes('angular')      && b.type==='Angular Contact Ball')   s+=25;
+    if(qLow.includes('needle')       && b.type==='Needle Roller')          s+=25;
+    if(qLow.includes('self-align')   && b.type==='Self-Aligning Ball')     s+=25;
+    if(qLow.includes('thrust')       && b.type.includes('Thrust'))         s+=22;
+
+    // Sealing
+    if(/(sealed|2rs|llu|food|waterproof)/.test(qLow) && b.sealing==='Sealed')   s+=16;
+    if(/(shield|2z|zz)/.test(qLow)                   && b.sealing==='Shielded') s+=16;
+    if(/\bopen\b/.test(qLow)                          && b.sealing==='Open')     s+=10;
+
+    // Application keywords
+    tokens.forEach(t=>{
+      if(b.apps && b.apps.some(a=>a.toLowerCase().includes(t))) s+=14;
+    });
+    if(qLow.includes('pump')        && b.apps.some(a=>a.includes('pump')))         s+=12;
+    if(qLow.includes('motor')       && b.apps.some(a=>a.includes('motor')))        s+=12;
+    if(qLow.includes('mining')      && b.apps.some(a=>a.includes('mining')))       s+=16;
+    if(qLow.includes('auto')        && b.apps.some(a=>a.includes('auto')))         s+=12;
+    if(qLow.includes('machine tool')&& b.apps.some(a=>a.includes('machine')))      s+=16;
+    if(qLow.includes('food')        && b.apps.some(a=>a.includes('food')))         s+=14;
+    if(qLow.includes('gearbox')     && b.apps.some(a=>a.includes('gearbox')))      s+=12;
+
+    // Dimensional hints
+    nums.forEach(n=>{
+      if(Math.abs(b.bore-n)<1)       s+=25;  // exact bore
+      else if(Math.abs(b.bore-n)<3)  s+=10;  // close bore
+      if(Math.abs(b.od-n)<1)         s+=15;  // exact OD
+    });
+
+    return {b, s};
+  });
+
+  return scored
+    .filter(x=>x.s>0)
+    .sort((a,c)=>c.s-a.s)
+    .slice(0, maxResults)
+    .map(x=>x.b);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// refineWithAI  — calls secure backend proxy, never exposes API key
+//
+// The backend (https://mycela-backend.onrender.com/search) holds the
+// Claude API key server-side.  This frontend only POSTs the query text.
+//
+// Expected response:
+//   { type?, bore?, od_min?, od_max?, sealing?, rpm_required?,
+//     application?, explanation?: string, tips?: string[] }
+// ─────────────────────────────────────────────────────────────────────────────
+async function refineWithAI(q){
+  try{
+    const res = await fetch('https://mycela-backend.onrender.com/search',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({query:q}),
+      signal:AbortSignal.timeout(12000),
+    });
+    if(!res.ok) return null;
+    return await res.json();
+  }catch(e){
+    return null;  // silently fall back — fast results remain visible
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// doSearch  — hybrid: instant local + async AI refinement
+// ─────────────────────────────────────────────────────────────────────────────
+async function doSearch(){
+  const q=document.getElementById('search-input').value.trim();
+  if(!q) return;
+
+  searched=true; tf='All'; bf='All';
+
+  // Reset ALL filter buttons
+  document.querySelectorAll('#filter-bar .filter-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('#filter-bar .filter-btn').forEach(b=>{
+    if(b.textContent.trim()==='All') b.classList.add('active');
+  });
+
+  const btn=document.getElementById('search-btn');
+
+  // ── STEP 1: Instant local results — render immediately ──────────────────
+  allR=fastSearch(q);
+  document.getElementById('ai-box').style.display='none';
+  document.getElementById('filter-bar').style.display=allR.length>0?'flex':'none';
+  render();
+
+  // ── STEP 2: AI refinement in parallel — never blocks UI ────────────────
+  btn.textContent='⟳ AI';
+  btn.classList.add('ai-running');
+
+  refineWithAI(q).then(resp=>{
+    btn.textContent='Search';
+    btn.classList.remove('ai-running');
+
+    if(!resp) return;  // backend failed — fast results stay visible
+
+    // Show explanation + tips box
+    if(resp.explanation){
+      document.getElementById('ai-box-text').textContent=resp.explanation;
+      document.getElementById('ai-tips-row').innerHTML=(resp.tips||[])
+        .map(t=>`<span class="ai-tip">${t}</span>`).join('');
+      document.getElementById('ai-box').style.display='block';
+    }
+
+    // Backend returns IDs like "NTN-6205" — look them up in the full 1,719-bearing DB
+    const matched=(resp.matches||[])
+      .map(id=>DB_MAP[id])
+      .filter(Boolean);
+
+    if(matched.length>0){
+      allR=matched;
+      document.getElementById('filter-bar').style.display='flex';
+      render();
+    }
+    // If no IDs matched in DB, fast results stay as-is — never show empty screen
+
+  }).catch(()=>{
+    btn.textContent='Search';
+    btn.classList.remove('ai-running');
+  });
+}
+
+document.getElementById('search-input')
+  .addEventListener('keydown',e=>{ if(e.key==='Enter') doSearch(); });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// render  — draws result grid with current filter state
+// ─────────────────────────────────────────────────────────────────────────────
 function render(){
   const fil=allR.filter(b=>(tf==='All'||b.type===tf)&&(bf==='All'||b.brand===bf));
+  const countEl=document.getElementById('results-count');
   const el=document.getElementById('results-area');
-  if(!searched){el.innerHTML='';return;}
-  if(!fil.length){el.innerHTML='<div class="empty-state"><div class="empty-icon">◎</div><div class="empty-title">No results found</div><div class="empty-sub">Try adjusting the filters or use different search terms</div></div>';return;}
+
+  if(!searched){ el.innerHTML=''; countEl.style.display='none'; return; }
+
+  if(!fil.length){
+    countEl.style.display='none';
+    el.innerHTML=`<div class="empty-state">
+      <div class="empty-icon">◎</div>
+      <div class="empty-title">No results found</div>
+      <div class="empty-sub">Try adjusting the filters, or search differently — e.g. "6205", "spherical roller", "40mm bore gearbox"</div>
+    </div>`;
+    return;
+  }
+
+  countEl.style.display='block';
+  countEl.innerHTML=`Showing <span>${fil.length}</span> result${fil.length!==1?'s':''} from <span>${DB.length.toLocaleString()}</span> indexed bearings`;
   el.innerHTML='<div class="results-grid">'+fil.map(cardHTML).join('')+'</div>';
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// cardHTML  — generates one result card
+// ─────────────────────────────────────────────────────────────────────────────
 function cardHTML(b){
-  const c=BC[b.brand]||'#aaa',ic=TI[b.type]||'◉';
+  const c=BC[b.brand]||'#aaa', ic=TI[b.type]||'◉';
   const xr=b.alt&&b.alt.length?'<span class="card-xref">Cross-ref</span>':'';
-  return `<div class="part-card" onclick='openModal("${b.id}")'>
-    <div class="card-top"><div><div class="card-pn">${b.pn}</div><div class="card-brand-lbl" style="color:${c}">${b.brand}</div></div><div class="card-type-badge">${ic} ${b.type}</div></div>
-    <div class="card-dims"><div><div class="dim-lbl">Bore</div><div class="dim-val">${b.bore}mm</div></div><div><div class="dim-lbl">OD</div><div class="dim-val">${b.od}mm</div></div><div><div class="dim-lbl">Width</div><div class="dim-val">${b.w}mm</div></div></div>
-    <div class="card-footer"><div class="card-cr">Cr <span>${b.cr} kN</span></div><div class="card-seal">${b.sealing}</div>${xr}</div>
+  const crText=b.cr!=null?`Cr <span>${b.cr} kN</span>`:'<span style="color:#2a3a28">—</span>';
+  // Escape id for use in onclick attribute
+  const safeId=b.id.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  return `<div class="part-card" onclick="openModal('${safeId}')">
+    <div class="card-top">
+      <div><div class="card-pn">${b.pn}</div><div class="card-brand-lbl" style="color:${c}">${b.brand}</div></div>
+      <div class="card-type-badge">${ic} ${b.type}</div>
+    </div>
+    <div class="card-dims">
+      <div><div class="dim-lbl">Bore</div><div class="dim-val">${b.bore}mm</div></div>
+      <div><div class="dim-lbl">OD</div><div class="dim-val">${b.od}mm</div></div>
+      <div><div class="dim-lbl">Width</div><div class="dim-val">${b.w}mm</div></div>
+    </div>
+    <div class="card-footer"><div class="card-cr">${crText}</div><div class="card-seal">${b.sealing}</div>${xr}</div>
   </div>`;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Modal
+// ─────────────────────────────────────────────────────────────────────────────
 function openModal(id){
-  const b=DB.find(p=>p.id===id);if(!b)return;
+  const b=DB_MAP[id]; if(!b) return;
   const c=BC[b.brand]||'#aaa';
   document.getElementById('modal-pn').textContent=b.pn;
   document.getElementById('modal-meta').innerHTML=`<span style="color:${c}">${b.brand}</span> &nbsp;·&nbsp; ${b.type}`;
-  document.getElementById('modal-specs').innerHTML=[['Bore',`${b.bore} mm`],['Outer Diameter',`${b.od} mm`],['Width',`${b.w} mm`],['Sealing',b.sealing],['Dynamic Load Cr',`${b.cr} kN`],['Static Load C0r',`${b.c0r} kN`],['Max Speed',`${b.rpm.toLocaleString()} rpm`],['Mass',`${b.mass} g`]].map(([k,v])=>`<div class="spec-cell"><div class="spec-lbl">${k}</div><div class="spec-val">${v}</div></div>`).join('');
-  document.getElementById('modal-apps').innerHTML=b.apps.map(a=>`<span class="app-tag">${a}</span>`).join('');
-  const alts=(b.alt||[]).map(id=>DB.find(p=>p.id===id)).filter(Boolean);
+  const specs=[
+    ['Bore (d)',          `${b.bore} mm`],
+    ['Outer Diameter (D)',`${b.od} mm`],
+    ['Width (B)',         `${b.w} mm`],
+    ['Sealing',           b.sealing],
+    ['Dynamic Load Cr',   b.cr  !=null?`${b.cr} kN` :'—'],
+    ['Static Load C0r',   b.c0r !=null?`${b.c0r} kN`:'—'],
+    ['Reference Speed',   b.rpm !=null?`${b.rpm.toLocaleString()} rpm`:'—'],
+    ['Mass',              b.mass!=null?`${b.mass} g`:'—'],
+  ];
+  document.getElementById('modal-specs').innerHTML=specs.map(([k,v])=>
+    `<div class="spec-cell"><div class="spec-lbl">${k}</div><div class="spec-val">${v}</div></div>`
+  ).join('');
+  document.getElementById('modal-apps').innerHTML=(b.apps||[]).map(a=>`<span class="app-tag">${a}</span>`).join('');
+  const alts=(b.alt||[]).map(aid=>DB_MAP[aid]).filter(Boolean);
   const xw=document.getElementById('modal-xref-wrap');
-  if(alts.length){xw.style.display='block';document.getElementById('modal-xref').innerHTML=alts.map(a=>`<button class="xref-btn" onclick="openModal('${a.id}')"><div class="xref-pn">${a.pn}</div><div class="xref-brand">${a.brand}</div></button>`).join('');}
-  else xw.style.display='none';
+  if(alts.length){
+    xw.style.display='block';
+    document.getElementById('modal-xref').innerHTML=alts.map(a=>{
+      const safeId=a.id.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      return `<button class="xref-btn" onclick="openModal('${safeId}')">
+        <div class="xref-pn">${a.pn}</div><div class="xref-brand">${a.brand}</div>
+      </button>`;
+    }).join('');
+  } else xw.style.display='none';
   document.getElementById('modal-overlay').classList.add('open');
 }
-function closeModal(e){if(e.target.id==='modal-overlay')closeModalDirect();}
-function closeModalDirect(){document.getElementById('modal-overlay').classList.remove('open');}
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModalDirect();});
+function closeModal(e){ if(e.target.id==='modal-overlay') closeModalDirect(); }
+function closeModalDirect(){ document.getElementById('modal-overlay').classList.remove('open'); }
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModalDirect(); });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Supplier form
+// ─────────────────────────────────────────────────────────────────────────────
 function submitForm(){
   const name=document.getElementById('f-name').value.trim();
   const email=document.getElementById('f-email').value.trim();
   const phone=document.getElementById('f-phone').value.trim();
-  if(!name||!email||!phone){alert('Please fill in Business Name, Email, and Phone Number to continue.');return;}
+  if(!name||!email||!phone){ alert('Please fill in Business Name, Email, and Phone Number to continue.'); return; }
   document.getElementById('reg-form-card').style.display='none';
   document.getElementById('success-email').textContent=email;
   document.getElementById('form-success').style.display='block';
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Mycelium canvas animation
+// ─────────────────────────────────────────────────────────────────────────────
 (function(){
-  const c=document.getElementById('mycelium-canvas');if(!c)return;
-  const ctx=c.getContext('2d'),hero=c.parentElement;
-  function resize(){c.width=hero.offsetWidth;c.height=hero.offsetHeight;}
-  resize();window.addEventListener('resize',resize);
-  const N=55,nodes=Array.from({length:N},()=>({x:Math.random()*c.width,y:Math.random()*c.height,vx:(Math.random()-.5)*.32,vy:(Math.random()-.5)*.32,r:Math.random()*1.4+.5,p:Math.random()*Math.PI*2}));
+  const c=document.getElementById('mycelium-canvas'); if(!c) return;
+  const ctx=c.getContext('2d'), hero=c.parentElement;
+  function resize(){ c.width=hero.offsetWidth; c.height=hero.offsetHeight; }
+  resize(); window.addEventListener('resize',resize);
+  const N=55,nodes=Array.from({length:N},()=>({
+    x:Math.random()*c.width,y:Math.random()*c.height,
+    vx:(Math.random()-.5)*.32,vy:(Math.random()-.5)*.32,
+    r:Math.random()*1.4+.5,p:Math.random()*Math.PI*2
+  }));
   function tick(){
     ctx.clearRect(0,0,c.width,c.height);
-    for(let i=0;i<N;i++)for(let j=i+1;j<N;j++){const dx=nodes[i].x-nodes[j].x,dy=nodes[i].y-nodes[j].y,d=Math.sqrt(dx*dx+dy*dy);if(d<130){ctx.beginPath();ctx.strokeStyle=`rgba(195,160,70,${(1-d/130)*.12})`;ctx.lineWidth=.7;ctx.moveTo(nodes[i].x,nodes[i].y);ctx.lineTo(nodes[j].x,nodes[j].y);ctx.stroke();}}
+    for(let i=0;i<N;i++) for(let j=i+1;j<N;j++){
+      const dx=nodes[i].x-nodes[j].x,dy=nodes[i].y-nodes[j].y,d=Math.sqrt(dx*dx+dy*dy);
+      if(d<130){ctx.beginPath();ctx.strokeStyle=`rgba(195,160,70,${(1-d/130)*.12})`;ctx.lineWidth=.7;ctx.moveTo(nodes[i].x,nodes[i].y);ctx.lineTo(nodes[j].x,nodes[j].y);ctx.stroke();}
+    }
     const t=Date.now()*.001;
-    nodes.forEach(n=>{ctx.beginPath();ctx.arc(n.x,n.y,n.r,0,Math.PI*2);ctx.fillStyle=`rgba(195,160,70,${.2+.17*Math.sin(t+n.p)})`;ctx.fill();n.x+=n.vx;n.y+=n.vy;if(n.x<0||n.x>c.width)n.vx*=-1;if(n.y<0||n.y>c.height)n.vy*=-1;});
+    nodes.forEach(n=>{
+      ctx.beginPath();ctx.arc(n.x,n.y,n.r,0,Math.PI*2);
+      ctx.fillStyle=`rgba(195,160,70,${.2+.17*Math.sin(t+n.p)})`;ctx.fill();
+      n.x+=n.vx;n.y+=n.vy;
+      if(n.x<0||n.x>c.width)n.vx*=-1;
+      if(n.y<0||n.y>c.height)n.vy*=-1;
+    });
     requestAnimationFrame(tick);
   }
   tick();
