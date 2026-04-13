@@ -569,82 +569,359 @@ function setBF(v,el){
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// fastSearch  — instant, no network, scored ranking
+// parseQuery — full natural language → structured intent
+// Handles: synonyms, units, loads, environment semantics, typo tolerance
 // ─────────────────────────────────────────────────────────────────────────────
-function fastSearch(q, maxResults=30){
-  const qLow   = q.toLowerCase().trim();
-  const tokens = qLow.split(/\s+/).filter(t=>t.length>1);
+function parseQuery(raw){
+  const q = raw.toLowerCase().trim();
+  const p = { tokens:[], apps:[], typeHints:[], envNotes:[] };
 
-  // Extract numeric dimension hints ("25mm" or plain "25")
-  const nums = [];
-  tokens.forEach(t=>{
-    const n=parseFloat(t.replace(/mm$/,''));
-    if(!isNaN(n)&&n>0) nums.push(n);
+  // ── Noise words stripped from PN-match tokens ────────────────────────────
+  const NOISE = new Set(['bearing','bearings','ball','roller','type','grade',
+    'a','an','the','for','with','want','need','find','get','show','me','i',
+    'please','should','be','can','that','will','work','in','on','of','at','to',
+    'and','or','but','is','are','have','has','rated','quality','suitable',
+    'something','range','between','from','size','approximately','about','around',
+    'roughly','exactly','minimum','maximum','min','max','mm','cm','m','meter',
+    'meters','inch','inches','kg','kn','rpm','n','kgf','id','od','bore',
+    'inner','outer','diameter','load','force','axial','radial','thrust',
+    'speed','self','lubricated','sealed','open','shielded','marine',
+    'environment','application','use','used','suitable','conditions']);
+
+  // ── Unit helpers ─────────────────────────────────────────────────────────
+  function toMM(v,u){
+    if(!u) return v; u=u.toLowerCase();
+    if(u==='m'||u==='meter'||u==='meters') return v*1000;
+    if(u==='cm'||u==='centimeter')         return v*10;
+    if(u==='in'||u==='inch'||u==='inches'||u==='"') return v*25.4;
+    return v;
+  }
+  function toKN(v,u){
+    if(!u) return v; u=u.toLowerCase();
+    if(u==='kg'||u==='kgf'||u==='kilogram') return v/101.97;
+    if(u==='n'||u==='newton')                return v/1000;
+    if(u==='lb'||u==='lbs'||u==='pound')     return v*0.00444822;
+    if(u==='kn') return v;
+    return v;
+  }
+
+  const consumed = new Set(); // numbers already parsed as dimensions
+  let m;
+
+  // ── Bore: id, inner dia, shaft size, bore, d= ─────────────────────────
+  const borePat = /(?:bore|inner\s*dia(?:meter)?|id\b|i\.d\.|shaft\s*(?:size|dia(?:meter)?)|internal\s*dia(?:meter)?)\s*(?:is|=|:|\bof\b|should\s+be|@)?\s*([0-9]*\.?[0-9]+)\s*(mm|cm|m\b|meter|meters|in\b|inch(?:es)?|")?/gi;
+  while((m=borePat.exec(q))!==null){ p.bore=toMM(parseFloat(m[1]),m[2]); consumed.add(+m[1]); }
+  // Also: "10mm id" / "id of 10" / "10 mm inner"
+  if(p.bore==null){
+    const b2=/\b([0-9]*\.?[0-9]+)\s*(mm|cm|m\b|in\b)?\s*(?:id\b|i\.d\.|bore\b|inner)/gi;
+    while((m=b2.exec(q))!==null){ p.bore=toMM(parseFloat(m[1]),m[2]); consumed.add(+m[1]); }
+  }
+
+  // ── OD: od, outer diameter ────────────────────────────────────────────
+  const odPat=/(?:od\b|o\.d\.|outer\s*dia(?:meter)?|external\s*dia(?:meter)?|outside\s*dia(?:meter)?)\s*(?:is|=|:|\bof\b|should\s+be|@)?\s*([0-9]*\.?[0-9]+)\s*(mm|cm|m\b|in\b|inch(?:es)?)?/gi;
+  while((m=odPat.exec(q))!==null){ p.od=toMM(parseFloat(m[1]),m[2]); consumed.add(+m[1]); }
+
+  // OD range — handles typos: "rang"/"range", "form"/"from", "upto"/"up to", units m/mm/cm
+  const odR=/(?:od\b|o\.d\.|outer\s*dia(?:meter)?)\s*(?:can\s+be\s+)?(?:in\s+(?:the\s+)?rang[e]?\s*(?:of|form|from)?|between|from|rang[e]?\s*(?:of|form|from)?|upto|up\s*to)?\s*([0-9]*\.?[0-9]+)\s*(mm|cm|m\b|meter|in\b|inch(?:es)?)?\s*(?:to|-|and)\s*([0-9]*\.?[0-9]+)\s*(mm|cm|m\b|meter|in\b|inch(?:es)?)?/gi;
+  while((m=odR.exec(q))!==null){ p.od_min=toMM(parseFloat(m[1]),m[2]); p.od_max=toMM(parseFloat(m[3]),m[4]); consumed.add(+m[1]); consumed.add(+m[3]); }
+
+  // ── Width ─────────────────────────────────────────────────────────────
+  const wPat=/(?:width|height|thickness|\bB\b|face\s*width)\s*(?:is|=|:|\bof\b)?\s*([0-9]*\.?[0-9]+)\s*(mm|cm|m\b|in\b)?/gi;
+  while((m=wPat.exec(q))!==null){ p.width=toMM(parseFloat(m[1]),m[2]); consumed.add(+m[1]); }
+
+  // ── RPM ───────────────────────────────────────────────────────────────
+  const rpmP=/([0-9,]+)\s*(?:rpm|r\.?p\.?m\.?|rev(?:s|olution)?s?\s*(?:per|\/)\s*min(?:ute)?)/gi;
+  while((m=rpmP.exec(q))!==null){ p.rpm=parseInt(m[1].replace(/,/g,'')); consumed.add(+m[1].replace(/,/g,'')); }
+
+  // ── Loads ─────────────────────────────────────────────────────────────
+  // "100 kg radial load" or "radial load of 100 kg"
+  const rL=/([0-9]*\.?[0-9]+)\s*(kg|kgf|kn|n\b|lbs?)\s*radial(?:\s+(?:load|force))?/gi;
+  while((m=rL.exec(q))!==null){ p.cr_min=toKN(parseFloat(m[1]),m[2]); consumed.add(+m[1]); }
+  const rL2=/radial(?:\s+(?:load|force))?\s+(?:of\s+)?([0-9]*\.?[0-9]+)\s*(kg|kgf|kn|n\b|lbs?)/gi;
+  while((m=rL2.exec(q))!==null){ p.cr_min=toKN(parseFloat(m[1]),m[2]); consumed.add(+m[1]); }
+  const aL=/([0-9]*\.?[0-9]+)\s*(kg|kgf|kn|n\b|lbs?)\s*(?:axial(?:\s+(?:load|force))?|thrust)/gi;
+  while((m=aL.exec(q))!==null){ p.c0r_min=toKN(parseFloat(m[1]),m[2]); consumed.add(+m[1]); }
+  const aL2=/(?:axial(?:\s+(?:load|force))?|thrust)\s+(?:of\s+)?([0-9]*\.?[0-9]+)\s*(kg|kgf|kn|n\b|lbs?)/gi;
+  while((m=aL2.exec(q))!==null){ p.c0r_min=toKN(parseFloat(m[1]),m[2]); consumed.add(+m[1]); }
+
+  // ── Bearing type keywords ─────────────────────────────────────────────
+  if(/deep\s*groove|dgbb/.test(q))               p.type='Deep Groove Ball';
+  else if(/cylindrical\s*roller/.test(q))        p.type='Cylindrical Roller';
+  else if(/tapered\s*roller/.test(q))            p.type='Tapered Roller';
+  else if(/spherical\s*roller\s*thrust/.test(q)) p.type='Spherical Roller Thrust';
+  else if(/spherical\s*roller/.test(q))          p.type='Spherical Roller';
+  else if(/angular\s*contact/.test(q))           p.type='Angular Contact Ball';
+  else if(/needle\s*roller|needle\s*bearing/.test(q)) p.type='Needle Roller';
+  else if(/self.?align/.test(q))                 p.type='Self-Aligning Ball';
+  else if(/thrust\s*ball/.test(q))               p.type='Thrust Ball';
+  else if(/\binsert\b|y.bearing/.test(q))        p.type='Insert (Y-Bearing)';
+
+  // ── Environment & condition → bearing properties (semantic layer) ──────
+  // This maps real-world conditions to engineering requirements even when
+  // those conditions are not mentioned in the catalog.
+  const ENV = [
+    { rx:/marine|offshore|sea\s*water|salt\s*water|naval|boat|ship|ocean|coastal/,
+      sealing:'Sealed', appHint:'marine',
+      note:'Marine / saltwater: sealed contact-lip bearings needed to resist corrosion. Stainless steel variants (SKF SS6xxx / NTN SS series) are ideal but may not be in this catalog — standard sealed DGBB is the closest available option.' },
+    { rx:/acid|corrosiv|chemical\s*resist|aggressive\s*env|harsh\s*chem/,
+      sealing:'Sealed',
+      note:'Corrosive / acidic environment: sealed bearings required. Standard chrome steel corrodes — specify stainless or ceramic hybrid bearings from the manufacturer directly.' },
+    // Broad food match — "food industry", "food plant", "food processing", "food grade"
+    { rx:/food|dairy|bakery|beverage|hygien|sanitar|wash.?down|fda|usda/,
+      sealing:'Sealed', appHint:'food processing',
+      note:'Food industry: sealed bearings required to prevent contamination. NSF H1 food-grade grease is mandatory. Prefer stainless steel or polymer housings for wash-down areas.' },
+    // Oil / lubricant exposure
+    { rx:/cover.*oil|oil.*cover|oil\s*splash|oil\s*mist|oily|submerged.*oil|oil\s*bath|oil\s*env/,
+      sealing:'Sealed',
+      note:'Oil-exposed environment: sealed bearings prevent external oil from washing out the bearing grease inside, which would cause premature failure.' },
+    { rx:/dust|dirty|outdoor|contamina|sandy|muddy/,
+      sealing:'Sealed',
+      note:'Dusty / contaminated environment: sealed or shielded bearings. Contact-lip sealed (2RS / LLU) preferred for heavy contamination.' },
+    { rx:/wet|humid|moisture|splash|water|rain|wash/,
+      sealing:'Sealed',
+      note:'Wet / humid conditions: contact-sealed bearings (2RS) to prevent water ingress and corrosion.' },
+    // Temperature — catches "100 degree", "100°C", "upto 100", "high temp"
+    { rx:/high\s*temp|furnace|oven|kiln|steam|[6-9]\d\s*deg|1\d\d\s*deg|[6-9]\d\s*°|1\d\d\s*°|above\s*[6-9]\d|above\s*1\d\d|upto\s*1\d\d|up\s*to\s*1\d\d/,
+      typeHints:['Cylindrical Roller','Spherical Roller','Deep Groove Ball'],
+      note:'High temperature (60°C+): standard grease degrades above 120°C. Specify bearings with high-temperature grease (e.g. Klüber Isoflex Topas NB 52) or request C3 internal clearance suffix for thermal expansion. For 100°C continuous, standard sealed bearings are borderline — open bearings with external HT grease are more reliable.' },
+    { rx:/high\s*speed|fast\s*rotat/,
+      typeHints:['Deep Groove Ball','Angular Contact Ball','Cylindrical Roller'],
+      note:'High-speed: deep groove ball or angular contact bearings with high rpm ratings preferred.' },
+    { rx:/heavy\s*(?:load|duty)|high\s*load|large\s*load|high\s*force/,
+      typeHints:['Spherical Roller','Cylindrical Roller','Tapered Roller'],
+      note:'Heavy loads: roller bearings (spherical, cylindrical, or tapered) offer higher load capacity than ball bearings.' },
+    { rx:/misalign|vibrat|shock\s*load|uneven|oscillat|deflect/,
+      typeHints:['Spherical Roller','Self-Aligning Ball'],
+      note:'Misalignment / vibration / shock: spherical roller or self-aligning ball bearings accommodate shaft deflection.' },
+    { rx:/combined\s*load|both.*(?:axial|radial)|axial.*radial|radial.*axial/,
+      typeHints:['Angular Contact Ball','Tapered Roller'],
+      note:'Combined axial + radial loads: angular contact ball or tapered roller bearings handle both directions.' },
+    { rx:/self.?lubricat|maintenance.?free|sealed.?for.?life|no.*re.?grease/,
+      sealing:'Sealed',
+      note:'Self-lubricating / maintenance-free: pre-greased sealed-for-life bearings (2RS / LLU suffix). No re-greasing needed.' },
+  ];
+
+  ENV.forEach(env=>{
+    if(env.rx.test(q)){
+      if(env.sealing && !p.sealing)     p.sealing=env.sealing;
+      if(env.typeHints)                 p.typeHints.push(...env.typeHints);
+      if(env.appHint && !p.apps.includes(env.appHint)) p.apps.push(env.appHint);
+      if(env.note)                      p.envNotes.push(env.note);
+    }
   });
 
-  const brandHint = /\bntн\b|\bntn\b/.test(qLow) ? 'NTN'
-                  : /\bskf\b/.test(qLow)          ? 'SKF' : null;
+  // Explicit sealing overrides environment (user knows what they want)
+  if(/\bsealed\b|2rs|llu|vv\b|ddu\b/.test(q))  p.sealing='Sealed';
+  else if(/shield|2z\b|zz\b/.test(q))           p.sealing='Shielded';
+  else if(/\bopen\b/.test(q))                    p.sealing='Open';
+
+  // ── Application keywords ──────────────────────────────────────────────
+  const APP_MAP=[
+    [/pump/,                    'pumps'],
+    [/motor|electric\s*motor/,  'electric motors'],
+    [/gearbox|gear\s*box|transmission/, 'gearboxes'],
+    [/mining|quarry|crusher/,   'mining'],
+    [/auto|vehicle|wheel\s*hub|differential|axle/, 'automotive'],
+    [/machine\s*tool|spindle|cnc/, 'machine tools'],
+    [/conveyor/,                'conveyors'],
+    [/steel\s*plant|rolling\s*mill/, 'steel plants'],
+    [/paper\s*mill|pulp/,       'paper mills'],
+    [/\bfan\b|blower/,          'fans'],
+    [/compressor/,              'compressors'],
+    [/turbine/,                 'turbines'],
+    [/agri|farm|tractor/,       'agriculture'],
+    [/textile/,                 'textile machinery'],
+  ];
+  APP_MAP.forEach(([rx,app])=>{ if(rx.test(q)&&!p.apps.includes(app)) p.apps.push(app); });
+
+  // ── Brand ─────────────────────────────────────────────────────────────
+  if(/\bntn\b/.test(q))      p.brand='NTN';
+  else if(/\bskf\b/.test(q)) p.brand='SKF';
+
+  // ── Build clean PN-match token list ───────────────────────────────────
+  // Strip noise words and already-consumed dimension numbers so "10" from
+  // "10mm bore" doesn't accidentally match "NU 1010" in the part number.
+  p.tokens = q
+    .replace(/[^a-z0-9\s]/g,' ')
+    .split(/\s+/)
+    .filter(t=>{
+      if(t.length<2) return false;
+      if(NOISE.has(t)) return false;
+      const n=parseFloat(t);
+      if(!isNaN(n) && consumed.has(n)) return false;
+      return true;
+    });
+
+  p.rawQ = q;
+  return p;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// fastSearch — instant scoring using parsed intent
+// ─────────────────────────────────────────────────────────────────────────────
+function fastSearch(q, maxResults=30){
+  const p = parseQuery(q);
 
   const scored = DB.map(b=>{
     let s=0;
-    const pn=b.pn.toLowerCase();
+    const pnRaw  = b.pn.toLowerCase();
+    const pnClean= pnRaw.replace(/[\s\-]/g,'');
+    const qClean = p.rawQ.replace(/[^a-z0-9]/g,'');
 
-    // Part-number matching (highest weight)
-    if(pn===qLow)                                               s+=100;
-    else if(pn.replace(/[\s\-]/g,'')===qLow.replace(/[\s\-]/g,'')) s+=95;
-    else if(pn.startsWith(qLow))                                s+=70;
-    else if(pn.includes(qLow))                                  s+=50;
-    tokens.forEach(t=>{ if(pn.includes(t)) s+=12; });
-
-    // Brand
-    if(brandHint && b.brand===brandHint)     s+=20;
-    if(b.brand.toLowerCase()===qLow)         s+=18;
-
-    // Bearing type
-    const tl=b.type.toLowerCase();
-    tokens.forEach(t=>{ if(tl.includes(t)) s+=18; });
-    if(qLow.includes('deep groove')  && b.type==='Deep Groove Ball')       s+=25;
-    if(/\bdgbb\b/.test(qLow)         && b.type==='Deep Groove Ball')       s+=25;
-    if(qLow.includes('cylindrical')  && b.type==='Cylindrical Roller')     s+=25;
-    if(qLow.includes('tapered')      && b.type==='Tapered Roller')         s+=25;
-    if(qLow.includes('spherical')    && b.type.includes('Spherical'))      s+=22;
-    if(qLow.includes('angular')      && b.type==='Angular Contact Ball')   s+=25;
-    if(qLow.includes('needle')       && b.type==='Needle Roller')          s+=25;
-    if(qLow.includes('self-align')   && b.type==='Self-Aligning Ball')     s+=25;
-    if(qLow.includes('thrust')       && b.type.includes('Thrust'))         s+=22;
-
-    // Sealing
-    if(/(sealed|2rs|llu|food|waterproof)/.test(qLow) && b.sealing==='Sealed')   s+=16;
-    if(/(shield|2z|zz)/.test(qLow)                   && b.sealing==='Shielded') s+=16;
-    if(/\bopen\b/.test(qLow)                          && b.sealing==='Open')     s+=10;
-
-    // Application keywords
-    tokens.forEach(t=>{
-      if(b.apps && b.apps.some(a=>a.toLowerCase().includes(t))) s+=14;
-    });
-    if(qLow.includes('pump')        && b.apps.some(a=>a.includes('pump')))         s+=12;
-    if(qLow.includes('motor')       && b.apps.some(a=>a.includes('motor')))        s+=12;
-    if(qLow.includes('mining')      && b.apps.some(a=>a.includes('mining')))       s+=16;
-    if(qLow.includes('auto')        && b.apps.some(a=>a.includes('auto')))         s+=12;
-    if(qLow.includes('machine tool')&& b.apps.some(a=>a.includes('machine')))      s+=16;
-    if(qLow.includes('food')        && b.apps.some(a=>a.includes('food')))         s+=14;
-    if(qLow.includes('gearbox')     && b.apps.some(a=>a.includes('gearbox')))      s+=12;
-
-    // Dimensional hints
-    nums.forEach(n=>{
-      if(Math.abs(b.bore-n)<1)       s+=25;  // exact bore
-      else if(Math.abs(b.bore-n)<3)  s+=10;  // close bore
-      if(Math.abs(b.od-n)<1)         s+=15;  // exact OD
+    // ── Part-number matching ─────────────────────────────────────────────
+    if(pnClean===qClean && qClean.length>=2)                         s+=100;
+    else if(pnRaw===p.rawQ)                                          s+=100;
+    else if(pnClean.startsWith(qClean) && qClean.length>=3)          s+=75;
+    else if(pnClean.includes(qClean)   && qClean.length>=3)          s+=50;
+    // Token-level: only clean tokens (no dimension numbers, no noise)
+    p.tokens.forEach(t=>{
+      if(t.length>=2 && pnClean.includes(t)) s+=8;
     });
 
-    return {b, s};
+    // ── Brand ────────────────────────────────────────────────────────────
+    if(p.brand && b.brand===p.brand)  s+=20;
+
+    // ── Bearing type ─────────────────────────────────────────────────────
+    if(p.type){
+      if(b.type===p.type)  s+=40;
+      else                 s-=10;
+    }
+    // Environment-inferred type hints
+    if(p.typeHints.length>0 && !p.type){
+      if(p.typeHints.includes(b.type)) s+=20;
+    }
+
+    // ── Bore — hard filter with strong penalty for wrong size ────────────
+    if(p.bore!=null){
+      const d=Math.abs(b.bore-p.bore);
+      if(d<0.5)       s+=60;
+      else if(d<1.5)  s+=35;
+      else if(d<3)    s+=10;
+      else if(d<8)    s-=30;
+      else            s-=60;  // completely wrong bore — bury it
+    }
+
+    // ── OD — exact or range ───────────────────────────────────────────────
+    if(p.od!=null){
+      const d=Math.abs(b.od-p.od);
+      if(d<0.5)    s+=35;
+      else if(d<2) s+=15;
+      else         s-=20;
+    }
+    if(p.od_min!=null && b.od < p.od_min-1) s-=40;
+    if(p.od_max!=null && b.od > p.od_max+1) s-=40;
+    if(p.od_min!=null && p.od_max!=null && b.od>=p.od_min && b.od<=p.od_max) s+=30;
+
+    // ── Width ─────────────────────────────────────────────────────────────
+    if(p.width!=null){
+      const d=Math.abs(b.w-p.width);
+      if(d<0.5) s+=20;
+      else if(d<2) s+=8;
+    }
+
+    // ── Dynamic load (radial Cr) ──────────────────────────────────────────
+    if(p.cr_min!=null){
+      if(b.cr!=null && b.cr>=p.cr_min)    s+=25;
+      else if(b.cr!=null)                 s-=20;
+    }
+
+    // ── Static load (axial C0r proxy) ─────────────────────────────────────
+    if(p.c0r_min!=null){
+      if(b.c0r!=null && b.c0r>=p.c0r_min)  s+=20;
+      else if(b.c0r!=null)                  s-=15;
+    }
+
+    // ── RPM ───────────────────────────────────────────────────────────────
+    if(p.rpm!=null){
+      if(b.rpm!=null && b.rpm>=p.rpm)         s+=20;
+      else if(b.rpm!=null && b.rpm<p.rpm*0.8) s-=15;
+    }
+
+    // ── Sealing ───────────────────────────────────────────────────────────
+    if(p.sealing){
+      if(b.sealing===p.sealing)                              s+=25;
+      else if(p.sealing==='Sealed'&&b.sealing==='Shielded') s+=5;
+      else                                                   s-=10;
+    }
+
+    // ── Applications ─────────────────────────────────────────────────────
+    p.apps.forEach(app=>{
+      if(b.apps && b.apps.some(a=>a.toLowerCase().includes(app))) s+=16;
+    });
+
+    return {b,s};
   });
 
   return scored
     .filter(x=>x.s>0)
     .sort((a,c)=>c.s-a.s)
-    .slice(0, maxResults)
+    .slice(0,maxResults)
     .map(x=>x.b);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// fallbackSearch — progressive constraint relaxation when fastSearch returns 0
+// Returns { results, note } explaining what was compromised
+// ─────────────────────────────────────────────────────────────────────────────
+function fallbackSearch(q){
+  const p = parseQuery(q);
+  const hasBore   = p.bore != null;
+  const hasODRange= p.od_min != null || p.od_max != null;
+  const hasSealing= !!p.sealing;
+  const hasType   = !!p.type;
+
+  // Stage 1 — relax OD range only, keep bore + sealing
+  if(hasBore && hasODRange){
+    const s1 = DB.filter(b=>{
+      const boreDiff = Math.abs(b.bore - p.bore);
+      if(boreDiff > 5) return false;
+      if(hasSealing && b.sealing !== p.sealing) return false;
+      return true;
+    }).sort((a,b)=>Math.abs(a.bore-p.bore)-Math.abs(b.bore-p.bore)).slice(0,8);
+    if(s1.length > 0) return {
+      results: s1,
+      note: `No bearing found with ${p.bore}mm bore in the OD ${p.od_min}–${p.od_max}mm range. Showing closest bore matches — OD range constraint relaxed. Consider these and verify OD fits your housing.`
+    };
+  }
+
+  // Stage 2 — relax sealing, keep bore
+  if(hasBore && hasSealing){
+    const s2 = DB.filter(b=>Math.abs(b.bore-p.bore)<=3)
+      .sort((a,b)=>Math.abs(a.bore-p.bore)-Math.abs(b.bore-p.bore)).slice(0,8);
+    if(s2.length > 0){
+      const avail = [...new Set(s2.map(b=>b.sealing))].join(', ');
+      return {
+        results: s2,
+        note: `No ${p.sealing.toLowerCase()} bearing found with exact ${p.bore}mm bore. Available sealings for this size: ${avail}. Consider ordering the Open variant and fitting an external seal, or requesting sealed variants direct from the supplier.`
+      };
+    }
+  }
+
+  // Stage 3 — bore only, no other constraints
+  if(hasBore){
+    const s3 = DB.filter(b=>Math.abs(b.bore-p.bore)<=5)
+      .sort((a,b)=>Math.abs(a.bore-p.bore)-Math.abs(b.bore-p.bore)).slice(0,8);
+    if(s3.length > 0) return {
+      results: s3,
+      note: `Exact specification not found in the current catalog (SKF + NTN, ${DB.length} bearings). Showing available bearings near ${p.bore}mm bore. For your full requirements, contact a specialized industrial distributor.`
+    };
+  }
+
+  // Stage 4 — type match only
+  if(hasType){
+    const s4 = DB.filter(b=>b.type===p.type).slice(0,8);
+    if(s4.length > 0) return {
+      results: s4,
+      note: `No bearing matched all your specifications. Showing all ${p.type} bearings in the catalog — check dimensions manually.`
+    };
+  }
+
+  // Stage 5 — last resort: most popular Deep Groove Ball bearings
+  const s5 = DB.filter(b=>b.type==='Deep Groove Ball').slice(0,6);
+  return {
+    results: s5,
+    note: `No match found for your query in the current catalog. This may be a specialized bearing not yet indexed. Showing common bearing types for reference. Try contacting NTN or SKF directly with your specifications.`
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -654,8 +931,7 @@ function fastSearch(q, maxResults=30){
 // Claude API key server-side.  This frontend only POSTs the query text.
 //
 // Expected response:
-//   { type?, bore?, od_min?, od_max?, sealing?, rpm_required?,
-//     application?, explanation?: string, tips?: string[] }
+//   { matches: string[], explanation?: string, tips?: string[] }
 // ─────────────────────────────────────────────────────────────────────────────
 async function refineWithAI(q){
   try{
@@ -673,13 +949,14 @@ async function refineWithAI(q){
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// doSearch  — hybrid: instant local + async AI refinement
+// doSearch  — hybrid: instant local + fallback + async AI refinement
 // ─────────────────────────────────────────────────────────────────────────────
 async function doSearch(){
   const q=document.getElementById('search-input').value.trim();
   if(!q) return;
 
   searched=true; tf='All'; bf='All';
+  let fallbackNote = null;
 
   // Reset ALL filter buttons
   document.querySelectorAll('#filter-bar .filter-btn').forEach(b=>b.classList.remove('active'));
@@ -691,7 +968,27 @@ async function doSearch(){
 
   // ── STEP 1: Instant local results — render immediately ──────────────────
   allR=fastSearch(q);
-  document.getElementById('ai-box').style.display='none';
+
+  // If no results, run fallback with relaxed constraints
+  if(allR.length===0){
+    const fb=fallbackSearch(q);
+    allR=fb.results;
+    fallbackNote=fb.note;
+  }
+
+  // Show environment/condition notes instantly
+  const qParsed=parseQuery(q);
+  const noteLines=[];
+  if(fallbackNote) noteLines.push(fallbackNote);
+  noteLines.push(...qParsed.envNotes);
+  if(noteLines.length>0){
+    document.getElementById('ai-box-text').textContent=noteLines.join(' ');
+    document.getElementById('ai-tips-row').innerHTML='';
+    document.getElementById('ai-box').style.display='block';
+  } else {
+    document.getElementById('ai-box').style.display='none';
+  }
+
   document.getElementById('filter-bar').style.display=allR.length>0?'flex':'none';
   render();
 
@@ -703,9 +1000,9 @@ async function doSearch(){
     btn.textContent='Search';
     btn.classList.remove('ai-running');
 
-    if(!resp) return;  // backend failed — fast results stay visible
+    if(!resp) return;
 
-    // Show explanation + tips box
+    // Show AI explanation (overrides fallback note if AI has better info)
     if(resp.explanation){
       document.getElementById('ai-box-text').textContent=resp.explanation;
       document.getElementById('ai-tips-row').innerHTML=(resp.tips||[])
@@ -713,17 +1010,14 @@ async function doSearch(){
       document.getElementById('ai-box').style.display='block';
     }
 
-    // Backend returns IDs like "NTN-6205" — look them up in the full 1,719-bearing DB
-    const matched=(resp.matches||[])
-      .map(id=>DB_MAP[id])
-      .filter(Boolean);
-
+    // Look up AI-matched IDs in full DB
+    const matched=(resp.matches||[]).map(id=>DB_MAP[id]).filter(Boolean);
     if(matched.length>0){
       allR=matched;
+      fallbackNote=null;
       document.getElementById('filter-bar').style.display='flex';
       render();
     }
-    // If no IDs matched in DB, fast results stay as-is — never show empty screen
 
   }).catch(()=>{
     btn.textContent='Search';
@@ -748,8 +1042,8 @@ function render(){
     countEl.style.display='none';
     el.innerHTML=`<div class="empty-state">
       <div class="empty-icon">◎</div>
-      <div class="empty-title">No results found</div>
-      <div class="empty-sub">Try adjusting the filters, or search differently — e.g. "6205", "spherical roller", "40mm bore gearbox"</div>
+      <div class="empty-title">No results for this filter</div>
+      <div class="empty-sub">The active type or brand filter has no matches. Click <strong>All</strong> in the filter bar to see all available results for your search.</div>
     </div>`;
     return;
   }
