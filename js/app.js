@@ -50,14 +50,11 @@
   // ── Search helpers ─────────────────────────────────────────────────────────
   function heroSearch() {
     const q = document.getElementById('hero-input').value.trim();
-    if (!q) return;
-    MYCELA.Router.showPage('search');
-    document.getElementById('search-input').value = q;
-    doSearch();
+    if (q) { MYCELA.Router.showPage('search'); document.getElementById('search-input').value = q; window.doSearch(); }
   }
 
   function quickHero(q)   { document.getElementById('hero-input').value   = q; heroSearch(); }
-  function quickSearch(q) { document.getElementById('search-input').value = q; doSearch(); }
+  function quickSearch(q) { document.getElementById('search-input').value = q; window.doSearch(); }
 
   // ── doSearch ───────────────────────────────────────────────────────────────
   async function doSearch() {
@@ -139,8 +136,6 @@
   });
 
   // ── Init ───────────────────────────────────────────────────────────────────
-  MYCELA.MyceliumCanvas.init('mycelium-canvas');
-
   // ── Public API ─────────────────────────────────────────────────────────────
   ns.App = { showPage, heroSearch, quickHero, quickSearch, doSearch, setTF, setBF, getState };
 
