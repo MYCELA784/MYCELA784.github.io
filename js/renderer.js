@@ -16,8 +16,7 @@
   function cardHTML(b) {
     const c      = MYCELA.BC[b.brand] || '#aaa';
     const ic     = MYCELA.TI[b.type]  || '◉';
-    const xr     = (b.alt && b.alt.length) ? '<span class="card-xref">Cross-ref</span>' : '';
-    const badge  = matchBadge(b._matchType);
+    const hasXref = b.alt && b.alt.length > 0;
     const crText = b.cr != null
       ? `Cr <span>${b.cr} kN</span>`
       : '<span style="color:#2a3a28">—</span>';
@@ -32,7 +31,11 @@
         <div><div class="dim-lbl">OD</div><div class="dim-val">${b.od}mm</div></div>
         <div><div class="dim-lbl">Width</div><div class="dim-val">${b.w}mm</div></div>
       </div>
-      <div class="card-footer"><div class="card-cr">${crText}</div><div class="card-seal">${b.sealing}</div>${xr}${badge}</div>
+      <div class="card-cr-row">${crText}<span class="card-seal">${b.sealing}</span></div>
+      <div class="card-btn-row">
+        ${hasXref ? `<button class="card-btn" onclick="event.stopPropagation();openModal('${safeId}')">Cross-ref</button>` : '<span></span>'}
+        <button class="card-btn" onclick="event.stopPropagation();openModal('${safeId}')">PN</button>
+      </div>
     </div>`;
   }
 

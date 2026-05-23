@@ -126,6 +126,12 @@
     });
   }
 
+  // ── Dark mode ─────────────────────────────────────────────────────────────
+  function toggleDarkMode() {
+    const isDark = document.body.classList.toggle('dark');
+    document.getElementById('nav-toggle-lbl').textContent = isDark ? 'Dark' : 'Light';
+  }
+
   // ── Event listeners ────────────────────────────────────────────────────────
   document.getElementById('hero-input')
     .addEventListener('keydown', e => { if (e.key === 'Enter') heroSearch(); });
@@ -151,4 +157,5 @@
   window.closeModal       = e => { if (e.target.id === 'modal-overlay') MYCELA.Renderer.closeModal(); };
   window.closeModalDirect = MYCELA.Renderer.closeModal;
   window.submitForm       = MYCELA.SupplierForm.submit;
+  window.toggleDarkMode   = toggleDarkMode;
 })(window.MYCELA = window.MYCELA || {});
