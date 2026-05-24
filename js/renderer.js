@@ -17,9 +17,7 @@
     const c      = MYCELA.BC[b.brand] || '#aaa';
     const ic     = MYCELA.TI[b.type]  || '◉';
     const hasXref = b.alt && b.alt.length > 0;
-    const crText = b.cr != null
-      ? `Cr <span>${b.cr} kN</span>`
-      : '<span style="color:#2a3a28">—</span>';
+    const crVal  = b.cr != null ? `${b.cr} kN` : '—';
     const safeId = b.id.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
     return `<div class="part-card" onclick="openModal('${safeId}')">
       <div class="card-top">
@@ -31,7 +29,7 @@
         <div><div class="dim-lbl">OD</div><div class="dim-val">${b.od}mm</div></div>
         <div><div class="dim-lbl">Width</div><div class="dim-val">${b.w}mm</div></div>
       </div>
-      <div class="card-cr-row">${crText}<span class="card-seal">${b.sealing}</span></div>
+      <div class="card-cr-row"><span class="card-cr-val">${crVal}</span><span class="card-seal">${b.sealing}</span></div>
       <div class="card-btn-row">
         ${hasXref ? `<button class="card-btn" onclick="event.stopPropagation();openModal('${safeId}')">Cross-ref</button>` : '<span></span>'}
         <button class="card-btn" onclick="event.stopPropagation();openModal('${safeId}')">PN</button>
