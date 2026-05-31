@@ -14,14 +14,13 @@
   }
 
   function cardHTML(b) {
-    const c      = MYCELA.BC[b.brand] || '#aaa';
     const ic     = MYCELA.TI[b.type]  || '◉';
     const hasXref = b.alt && b.alt.length > 0;
     const crVal  = b.cr != null ? `${b.cr} kN` : '—';
     const safeId = b.id.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
     return `<div class="part-card" onclick="openModal('${safeId}')">
       <div class="card-top">
-        <div><div class="card-pn">${b.pn}</div><div class="card-brand-lbl" style="color:${c}">${b.brand}</div></div>
+        <div><div class="card-pn">${b.pn}</div><div class="card-brand-lbl">${b.brand}</div></div>
         <div class="card-type-badge">${ic} ${b.type}</div>
       </div>
       <div class="card-dims">
