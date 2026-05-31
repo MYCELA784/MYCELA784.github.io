@@ -10,7 +10,7 @@ input::placeholder,textarea::placeholder{color:var(--border2)}
 .nav-sub{font-size:10px;color:rgba(255,255,255,.18);letter-spacing:.08em;font-weight:700;text-transform:uppercase;margin-left:4px}
 .nav-links{display:flex;align-items:center;gap:30px;margin-right:24px}
 .nav-link{font-size:13px;color:rgba(255,255,255,.72);cursor:pointer;transition:color .2s;background:none;border:none;padding:0;letter-spacing:.01em}
-.nav-link:hover,.nav-link.active{color:#ffffff}
+.nav-link:hover,.nav-link.active{color:rgba(255,255,255,.72)}
 .nav-cta{background:#002147;border:none;border-radius:7px;padding:8px 20px;color:#ffffff;font-weight:700;font-size:13px;letter-spacing:.04em;transition:transform .4s cubic-bezier(.34,1.56,.64,1),opacity .2s}
 .nav-cta:hover{transform:translateY(-2px) scale(1.04);opacity:.9}
 .page{display:none;background:var(--bg)}.page.active{display:block}
