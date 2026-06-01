@@ -205,6 +205,7 @@ input::placeholder,textarea::placeholder{color:var(--border2)}
 .dark{--bg:#0C0B08;--bg2:#141310;--bg3:#1A1915;--bg4:#1E1D19;--border:#2A2820;--border2:#3A3830;--rule:#2A2820;--white:#EDE9DF;--faint:#9A968C;--muted:#706C68;--ac:#5B8FAB;background:var(--bg);color:var(--white)}
 @keyframes blink{0%,100%{opacity:.38}50%{opacity:1}}
 @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(7px)}}
+.nav-cta,.hero-btn,.search-btn,.sup-btn-p,.sup-btn-s,.cta-btn,.form-submit{color:#ffffff !important}.search-btn{color:#002147 !important}
 @media(max-width:640px){
 .nav{padding:0 18px;height:52px}.nav-links{display:none}
 .stats-inner{grid-template-columns:repeat(2,1fr)}.stat:nth-child(2){border-right:none}
