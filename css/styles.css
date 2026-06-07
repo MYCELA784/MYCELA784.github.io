@@ -80,9 +80,10 @@ input::placeholder,textarea::placeholder{color:var(--border2)}
 .vp-next-v{font-size:13px;color:var(--muted)}
 .cta-bg{border-top:1px solid var(--border);background:#002147;padding:80px 40px;text-align:center}
 .cta-title{font-family:'Syncopate',sans-serif;font-size:clamp(16px,3vw,26px);font-weight:700;color:#ffffff;margin-bottom:14px;letter-spacing:-.01em}
-.cta-sub{font-size:14px;color:rgba(255,255,255,.75);margin-bottom:30px;line-height:1.7;max-width:420px;margin-left:auto;margin-right:auto}
+.cta-sub{font-size:14px;color:rgba(255,255,255,.8);margin-bottom:30px;line-height:1.7;max-width:420px;margin-left:auto;margin-right:auto}
 .cta-btn{background:#F4F1E8;border:none;border-radius:9px;padding:15px 44px;color:#002147;font-weight:700;font-size:14px;font-family:'Syncopate',sans-serif;letter-spacing:.04em;box-shadow:0 4px 20px rgba(0,33,71,.22);transition:transform .4s cubic-bezier(.34,1.56,.64,1),box-shadow .2s;cursor:pointer}
 .cta-btn:hover{transform:translateY(-2px) scale(1.04);box-shadow:0 8px 36px rgba(0,33,71,.34)}
+.dark .cta-btn{background:#ffffff;color:#002147}
 .cta-credit{margin-top:16px;font-size:11px;color:var(--border2)}
 .footer{padding:26px 40px;text-align:center;font-size:10px;color:var(--muted);border-top:1px solid var(--border);letter-spacing:.05em;text-transform:uppercase}
 .search-body{max-width:940px;margin:0 auto;padding:36px 24px}
