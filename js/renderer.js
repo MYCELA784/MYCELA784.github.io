@@ -74,9 +74,10 @@
       ['Dynamic Load Cr',    b.cr   != null ? `${b.cr} kN`                    : '—'],
       ['Static Load C0r',    b.c0r  != null ? `${b.c0r} kN`                   : '—'],
       ['Reference Speed',    b.rpm  != null ? `${b.rpm.toLocaleString()} rpm`  : '—'],
-      ['Mass',               b.mass != null ? `${b.mass} g`                   : '—'],
+      ['Mass',               (b.mass != null && b.mass > 0) ? (b.mass >= 1 ? `${b.mass.toFixed(2)} kg` : `${Math.round(b.mass * 1000)} g`) : null],
     ];
     document.getElementById('modal-specs').innerHTML = specs
+      .filter(([k, v]) => v != null)
       .map(([k, v]) => `<div class="spec-cell"><div class="spec-lbl">${k}</div><div class="spec-val">${v}</div></div>`)
       .join('');
     document.getElementById('modal-apps').innerHTML =
