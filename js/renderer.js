@@ -73,6 +73,12 @@
       ['Sealing',             b.sealing],
       ['Dynamic Load Cr',    b.cr   != null ? `${b.cr} kN`                    : '—'],
       ['Static Load C0r',    b.c0r  != null ? `${b.c0r} kN`                   : '—'],
+      ['Max Axial Load', (function() {
+        if (!b.c0r) return null;
+        const pn = b.pn || '';
+        const factor = /^6[12][89]/.test(pn) || /^600/.test(pn) ? 0.25 : 0.5;
+        return (b.c0r * factor).toFixed(2) + ' kN';
+      })()],
       ['Reference Speed',    b.rpm  != null ? `${b.rpm.toLocaleString()} rpm`  : '—'],
       ['Mass',               (b.mass != null && b.mass > 0) ? (b.mass >= 1 ? `${b.mass.toFixed(2)} kg` : `${Math.round(b.mass * 1000)} g`) : null],
     ];
