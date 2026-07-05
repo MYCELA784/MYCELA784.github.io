@@ -1,4 +1,4 @@
-(function (ns) {
+﻿(function (ns) {
   ns.DB = window.MYCELA_DB || [];
   ns.DB.forEach(b => {
     const pn = (b.pn || '').toUpperCase().replace(/\s+/g, '');
@@ -22,7 +22,7 @@
     if (bore<200 && od>bore*10)                           return false;
     if (w>od)                                             return false;
     if (w<1 && bore>5)                                    return false;
-    if (/^[\d.]+$/.test(pn))                              return false;
+    if (/^\d+\.\d+$/.test(pn))                              return false;
     if (cr>0 && cr<0.1 && bore>10)                        return false;
     if (bore>=20  && bore<50  && cr>0 && cr<0.5)         return false;
     if (bore>=50  && bore<100 && cr>0 && cr<bore*0.05)   return false;
