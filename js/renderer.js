@@ -39,10 +39,7 @@
         <div><div class="dim-lbl">Width</div><div class="dim-val">${b.w}<span class="dim-unit">mm</span></div></div>
       </div>
       <div class="card-cr-row"><span class="card-cr-val">${crVal}</span><span class="card-seal">${b.sealing || ''}</span></div>
-      <div class="card-btn-row">
-        ${hasXref ? `<button class="card-btn" onclick="event.stopPropagation();openModal('${safeId}')">Cross-ref</button>` : '<span></span>'}
-        <button class="card-btn" onclick="event.stopPropagation();openModal('${safeId}')">PN</button>
-      </div>
+      <div class="card-inq-row" id="cardbtn-${b.id}">${ns.Basket ? ns.Basket.btnHTML(b) : ''}</div>
     </div>`;
   }
 
@@ -213,12 +210,13 @@ ns.Renderer.cards = function (results, state) {
 
     // Actions + source (after xref)
     const actBox = ensureSection('modal-actions-box', 'modal-xref-wrap', 'afterend');
-    const copySafe = (b.brand + ' ' + b.pn).replace(/'/g, "\\'");
-   actBox.innerHTML =
+    ns._modalId = b.id;
+    actBox.innerHTML =
       `<div class="modal-actions">
-         <button class="modal-btn-wa" disabled title="Coming soon">WhatsApp Inquiry — Coming Soon</button>
+         ${ns.Basket ? ns.Basket.modalBtnHTML(b) : ''}
          <button class="modal-btn-sup" onclick="closeModalDirect();showPage('suppliers')">Find Suppliers</button>
        </div>
+       <div class="modal-actions"><button class="modal-btn-wa" disabled title="Coming soon">WhatsApp Inquiry — Coming Soon</button></div>
        <div class="modal-source">Source: ${b.source || 'Official manufacturer catalog'}</div>`;
        // Copy PN button in header, next to Close
     let copyBtn = document.getElementById('modal-copy-hdr');

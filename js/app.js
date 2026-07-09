@@ -58,6 +58,12 @@
 
   // ── doSearch ───────────────────────────────────────────────────────────────
   async function doSearch() {
+    // Dimension-intent routing (id/od synonyms + bore+od queries) — features.js
+    const _si = document.getElementById('search-input');
+    if (_si && ns.QueryPrep) {
+      _si.value = ns.QueryPrep.normalize(_si.value);
+      if (ns.QueryPrep.dimRoute(_si.value)) return;
+    }
     const q = document.getElementById('search-input').value.trim();
     if (!q) return;
 

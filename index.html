@@ -44,6 +44,7 @@
     <button class="nav-link active" id="nl-home" onclick="showPage('home')">Home</button>
     <button class="nav-link" id="nl-search" onclick="showPage('search')">Search Parts</button>
     <button class="nav-link" id="nl-suppliers" onclick="showPage('suppliers')">For Suppliers</button>
+    <button class="nav-link" onclick="showInquiry()">Inquiry <span id="inq-count" class="inq-badge">0</span></button>
   </div>
   <button class="nav-cta" onclick="showPage('search')">Search Parts</button>
   <div class="nav-toggle-wrap">
@@ -157,6 +158,16 @@
       <button class="chip" onclick="quickSearch('sealed 30mm bore')">sealed 30mm bore</button>
       <button class="chip" onclick="quickSearch('angular contact 25mm')">angular contact 25mm</button>
     </div>
+   <details class="dim-panel">
+      <summary>📏 Search by dimensions — measured a bearing?</summary>
+      <div class="dim-row">
+        <div><label>BORE MM</label><input id="dim-bore" type="number" step="1"/></div>
+        <div><label>OD MM</label><input id="dim-od" type="number" step="1"/></div>
+        <div><label>WIDTH MM</label><input id="dim-w" type="number" step="1" placeholder="any"/></div>
+        <div><label>± MM</label><select id="dim-tol"><option>0</option><option selected>1</option><option>2</option><option>5</option></select></div>
+        <button class="dim-go" onclick="dimFind()">Find bearings</button>
+      </div>
+    </details>
     <div id="ai-box" style="display:none" class="ai-box">
       <div class="ai-box-label"><span class="ai-dot"></span>MYCELA AI</div>
       <div id="ai-box-text" class="ai-box-text"></div>
@@ -308,6 +319,7 @@
 <script src="js/renderer.js"></script>
 <script src="js/router.js"></script>
 <script src="js/supplier-form.js"></script>
+<script src="js/features.js?v=2"></script>
 <script src="js/canvas.js"></script>
 <script src="js/app.js"></script>
 </body>
