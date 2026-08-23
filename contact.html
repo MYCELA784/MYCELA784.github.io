@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en" data-mode="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Contact MYCELA</title>
+<meta name="description" content="Get in touch about parts, dealer partnerships or requesting a new category.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="hdr" id="hdr">
+  <div class="wrap hdr-in">
+    <a class="logo" href="index.html"><span class="logo-mk">MC</span><span class="logo-wd">MYCELA</span></a>
+    <nav class="nav">
+      <a href="index.html#categories">Parts</a>
+      <a href="index.html#how">How it works</a>
+      <a href="dealers.html">For dealers</a>
+      <a href="contact.html" style="color:var(--ink);border-color:var(--accent)">Contact</a>
+    </nav>
+    <div class="hdr-act">
+      <button class="icon-btn sq" id="modeBtn" aria-label="Switch to dark mode" title="Switch theme">
+        <svg id="modeIc" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+      </button>
+      <a class="btn btn-sm" href="index.html" style="text-decoration:none">Search parts</a>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<div class="wrap page">
+  <div class="page-head">
+    <p class="eyebrow">Contact</p>
+    <h1>Get in touch.</h1>
+    <p class="lede">Looking for a part we don't list, want to join as a dealer, or have a question about the platform. Write to us and we'll reply within a working day.</p>
+  </div>
+
+  <div class="split">
+    <div>
+      <form class="form" id="contactForm" autocomplete="on">
+        <div class="frm-row">
+          <label for="c-topic">What's this about?</label>
+          <select id="c-topic" name="topic">
+            <option value="part">Sourcing a part</option>
+            <option value="request">Requesting a category we don't stock</option>
+            <option value="dealer">Dealer partnership</option>
+            <option value="other">Something else</option>
+          </select>
+        </div>
+        <div class="frm-row">
+          <label for="c-name">Your name</label>
+          <input id="c-name" name="name" type="text" required>
+        </div>
+        <div class="frm-row">
+          <label for="c-company">Company</label>
+          <input id="c-company" name="company" type="text">
+        </div>
+        <div class="frm-row">
+          <label for="c-email">Email</label>
+          <input id="c-email" name="email" type="email" required>
+          <p class="frm-hint">Company email addresses get a faster reply, but any working inbox is fine.</p>
+        </div>
+        <div class="frm-row">
+          <label for="c-phone">Phone or WhatsApp</label>
+          <input id="c-phone" name="phone" type="tel">
+        </div>
+        <div class="frm-row">
+          <label for="c-msg">Message</label>
+          <textarea id="c-msg" name="message" placeholder="Part numbers, quantities, delivery location, or whatever else is useful." required></textarea>
+        </div>
+        <input class="hp" name="website" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
+        <button class="btn" type="submit">Send message</button>
+        <p id="frm-status" role="status"></p>
+      </form>
+    </div>
+
+    <aside class="sidecard">
+      <h3>Direct</h3>
+      <p>Prefer email? Write to us at:</p>
+      <a class="mail" href="mailto:shaonak@mycela.in">shaonak@mycela.in</a>
+      <p style="margin-bottom:6px"><strong style="color:var(--ink)">Based in</strong><br>Pune, Maharashtra, India</p>
+      <p style="margin-bottom:0"><strong style="color:var(--ink)">Response time</strong><br>Within one working day.</p>
+    </aside>
+  </div>
+
+  <div class="prose" id="request" style="margin-top:56px">
+    <h2>Requesting a category</h2>
+    <p>We add categories in the order buyers ask for them. If you need something we don't list yet, whether that's fasteners, seals, belts or anything else, tell us what you're sourcing and roughly how often. It goes straight onto the list we work from.</p>
+  </div>
+</div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="f-in">
+      <div>
+        <div class="f-logo"><span class="logo-mk">MC</span><span class="logo-wd">MYCELA</span></div>
+        <p>Industrial parts sourcing for manufacturing MSMEs. We connect buyers to dealers who stock what you need, without the phone tag.</p>
+      </div>
+      <div><h4>Parts</h4>
+        <a href="index.html?cat=bearing">Bearings</a>
+        <a href="index.html?cat=linear">Linear motion</a>
+        <a href="index.html?cat=coupling">Couplings</a>
+        <a href="contact.html#request">Request a category</a></div>
+      <div><h4>Company</h4>
+        <a href="about.html">About</a>
+        <a href="dealers.html">For dealers</a>
+        <a href="contact.html">Contact</a>
+        <a href="mailto:shaonak@mycela.in">shaonak@mycela.in</a></div>
+    </div>
+    <div class="f-bot">&copy; 2026 MYCELA &middot; Pune, India</div>
+  </div>
+</footer>
+
+<script src="site.js"></script>
+<script src="contact.js"></script>
+</body>
+</html>
