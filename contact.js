@@ -2,7 +2,7 @@
    Paste your deployed web app URL below. */
 (function(){
   "use strict";
-  var ENDPOINT = "PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE";
+  var ENDPOINT = "https://script.google.com/macros/s/AKfycbxy_9LHxs0IbQRi7AD4g0bgD40vjV4FnLcCRoG_f8mDU6nEoMomjqZ219CEKeq-cOLb/exec";
 
   var DISPOSABLE = ["mailinator.com","tempmail.com","temp-mail.org","10minutemail.com",
     "guerrillamail.com","yopmail.com","throwawaymail.com","getnada.com","dispostable.com",
