@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="css/components.css">
 </head>
 <body>
 
@@ -70,6 +71,7 @@
       <div>
         <div class="rbar">
           <h2 id="rTitle">Results</h2><span class="sub" id="rSub"></span>
+          <button class="btn btn-line btn-sm" id="compareBtn" style="display:none">Compare (0)</button>
           <button class="btn btn-line btn-sm" id="clearSearch">Clear search</button>
         </div>
         <div class="grid" id="grid"></div>
@@ -117,6 +119,25 @@
 </footer>
 
 <div class="scrim" id="scrim"></div>
+
+<div id="modal-overlay" class="modal-overlay" onclick="closeModal(event)">
+  <div class="modal">
+    <div id="modal-detail">
+      <div class="modal-top">
+        <div><div id="modal-pn" class="modal-pn"></div><div id="modal-meta" class="modal-meta"></div></div>
+        <button class="modal-close" onclick="closeModalDirect()">Close</button>
+      </div>
+      <div id="modal-specs" class="modal-specs"></div>
+      <div class="m-sec-lbl">Typical Applications</div>
+      <div id="modal-apps" class="apps-row"></div>
+      <div id="modal-xref-wrap">
+        <div class="m-sec-lbl">Cross-Reference Equivalents</div>
+        <div id="modal-xref" class="xref-row"></div>
+      </div>
+    </div>
+    <div id="modal-compare"></div>
+  </div>
+</div>
 
 <aside class="sheet" id="basket" aria-hidden="true">
   <div class="sh-top"><h3>My list</h3><button class="x" data-close aria-label="Close">×</button></div>
