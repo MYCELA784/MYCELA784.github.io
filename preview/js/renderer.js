@@ -44,7 +44,7 @@
       <div class="specs">${specs}</div>
       ${xs.length ? `<div class="xr">Same fit from ${xs.map(x => `<button data-x="${x.pn}">${x.brand} <span class="p">${x.pn}</span></button>`).join(', ')}</div>` : ''}
       <div class="item-act">
-        <button class="btn btn-sm" data-add="${b.id}">Add to list</button>
+        <button class="btn btn-sm${ns.Basket && ns.Basket.has(b.id) ? ' added' : ''}" data-add="${b.id}">${ns.Basket && ns.Basket.has(b.id) ? 'Added to list' : 'Add to list'}</button>
         <button class="ghost" data-info="${b.id}">Details</button>
       </div>
     </article>`;

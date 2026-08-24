@@ -1,13 +1,17 @@
 /* PUBLIC API
- *   MYCELA.App.doSearch()  — read #q, run the real search pipeline, render into #grid
+ *   MYCELA.App.doSearch(queryOverride?, display?)
+ *     — read #q (or queryOverride), run the real search pipeline, render into #grid
  *
  * Glue for the redesigned preview/index.html. Owns pill/category chrome,
- * hero examples, the results filter rail state, modal/compare wiring, and
- * sheet open/close. Basket sheet contents / autocomplete / dimension finder
- * (STEP 3) land on top of this in a later commit.
+ * hero examples, the results filter rail state, modal/compare wiring, sheet
+ * open/close, the basket sheet, autocomplete, and the dimension finder.
+ *
+ * ?debug=1 — logs to console: parsed intent and per-result score breakdowns
+ *            for every search. No visible UI change.
  */
 (function (ns) {
   const $ = id => document.getElementById(id);
+  const DEBUG = new URLSearchParams(location.search).get('debug') === '1';
 
   // ── Category chrome (bearings are the only live category) ──────────────────
   const CATS = [
@@ -97,8 +101,8 @@
     MYCELA.Renderer.cards(results, { filters: { brand: fBrands, sealing: fSeals }, title, sub });
   }
 
-  async function doSearch() {
-    const q = $('q').value.trim();
+  async function doSearch(queryOverride, display) {
+    const q = (queryOverride != null ? queryOverride : $('q').value).trim();
     if (!q) { $('results').classList.remove('on'); return; }
 
     fBrands = new Set();
@@ -113,12 +117,23 @@
     }
 
     results = hits;
-    title   = `${hits.length} result${hits.length === 1 ? '' : 's'}`;
-    sub     = note || `for "${q}"`;
+    title   = (display && display.title) || `${hits.length} result${hits.length === 1 ? '' : 's'}`;
+    sub     = (display && display.sub)   || note || `for "${q}"`;
     renderResults();
+
+    if (DEBUG) {
+      const intent = MYCELA.SearchEngine.parse(q);
+      console.group(`MYCELA ?debug=1 — "${q}"`);
+      console.log('Parsed intent:', intent);
+      console.log('Results with scores:', hits.map(b => ({
+        pn: b.pn, brand: b.brand, score: b._score, matchType: b._matchType, breakdown: b._breakdown,
+      })));
+      console.groupEnd();
+    }
 
     MYCELA.AIRefiner.refine(q).then(resp => {
       if (!resp) return;
+      if (DEBUG) { console.group('MYCELA ?debug=1 — AI response'); console.log(resp); console.groupEnd(); }
       const matched = (resp.matches || []).map(id => MYCELA.DB_MAP[id]).filter(Boolean);
       if (matched.length > 0) {
         results = matched;
@@ -127,12 +142,52 @@
     }).catch(() => {});
   }
 
+  // ── Autocomplete ─────────────────────────────────────────────────────────
+  let acIdx = -1;
+  function closeAc() { $('ac').hidden = true; acIdx = -1; }
+  function renderAc(raw) {
+    const v = raw.trim().toUpperCase().replace(/\s+/g, '');
+    if (!v) { closeAc(); return; }
+    const hits = ns.DB.filter(b => b.pn.toUpperCase().replace(/\s+/g, '').includes(v)).slice(0, 6);
+    $('ac').innerHTML = hits.map(b =>
+      `<div class="aci" data-ac="${b.pn}"><span class="p">${b.pn}</span>
+       <span class="c">${b.type || ''}</span><span class="d">${b.brand}</span></div>`).join('');
+    $('ac').hidden = !hits.length;
+  }
+  function initAutocomplete() {
+    $('ac').addEventListener('click', e => {
+      const i = e.target.closest('[data-ac]');
+      if (!i) return;
+      $('q').value = i.dataset.ac;
+      doSearch();
+      closeAc();
+    });
+    $('q').addEventListener('keydown', e => {
+      const its = [...document.querySelectorAll('.aci')];
+      if ($('ac').hidden || !its.length) return;
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        acIdx = e.key === 'ArrowDown' ? (acIdx + 1) % its.length : (acIdx - 1 + its.length) % its.length;
+        its.forEach((x, i) => x.classList.toggle('on', i === acIdx));
+      } else if (e.key === 'Enter' && acIdx >= 0) {
+        e.preventDefault();
+        $('q').value = its[acIdx].dataset.ac;
+        doSearch();
+        closeAc();
+      } else if (e.key === 'Escape') {
+        closeAc();
+      }
+    });
+    document.addEventListener('click', e => { if (!e.target.closest('.searchbox')) closeAc(); });
+  }
+
   function initSearchBox() {
-    $('q').addEventListener('input', () => doSearch());
-    $('q').addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
+    $('q').addEventListener('input', () => { renderAc($('q').value); doSearch(); });
+    $('q').addEventListener('keydown', e => { if (e.key === 'Enter' && acIdx < 0) doSearch(); });
     $('clearSearch').addEventListener('click', () => {
       $('q').value = '';
       $('results').classList.remove('on');
+      closeAc();
       scrollTo({ top: 0, behavior: 'smooth' });
     });
   }
@@ -163,7 +218,8 @@
       if (e.target.id === 'fclear2') { fBrands.clear(); fSeals.clear(); renderResults(); return; }
       const info = e.target.closest('[data-info]');
       if (info) { closeSheets(); MYCELA.Renderer.modal(info.dataset.info); return; }
-      // data-add: wired in STEP 3 (basket)
+      const add = e.target.closest('[data-add]');
+      if (add) { window.toggleInquiry(add.dataset.add); return; }
     });
     $('grid').addEventListener('change', e => {
       const c = e.target.closest('[data-cmp]');
@@ -171,8 +227,64 @@
     });
   }
 
-  // ── Sheets (basket / find-by-size) — open/close chrome only; the sheet
-  //    contents themselves are wired in STEP 3 ────────────────────────────────
+  // ── Basket ───────────────────────────────────────────────────────────────
+  // Reads ns.Basket only (features.js — mycela_inquiry localStorage key).
+  function updateBCount() {
+    const n = ns.Basket.count();
+    $('bCount').textContent = n;
+    $('sendBtn').disabled = !n;
+  }
+  function renderBasketSheet() {
+    updateBCount();
+    const items = ns.Basket.items();
+    const ids = Object.keys(items);
+    if (!ids.length) {
+      $('bBody').innerHTML = `<div class="sh-empty"><svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4 7h16l-1.3 11.2a2 2 0 0 1-2 1.8H7.3a2 2 0 0 1-2-1.8L4 7Z"/><path d="M9 7V5a3 3 0 0 1 6 0v2"/></svg>
+        <p style="margin:0">Your list is empty.<br>Search for a part and add it here.</p></div>`;
+      return;
+    }
+    $('bBody').innerHTML = ids.map(id => {
+      const b = ns.DB_MAP[id];
+      if (!b) return '';
+      return `<div class="brow"><div class="n"><b>${b.pn}</b><span>${b.brand} · ${b.type || ''}</span></div>
+        <input class="qty" type="number" min="1" value="${items[id].qty}" data-q="${id}">
+        <button class="rm" data-rm="${id}" aria-label="Remove">×</button></div>`;
+    }).join('') + `<p style="margin-top:20px;font-size:14px;color:var(--body)">Add as many parts as you need. You'll get one consolidated quote back.</p>`;
+  }
+  // Called after any basket mutation, from whichever entry point triggered it
+  // (grid card, modal's own inquiry button) so #bCount / the grid's own
+  // "Add to list" buttons / the open basket sheet all stay in sync.
+  function syncBasketUI(id) {
+    updateBCount();
+    document.querySelectorAll(`[data-add="${id}"]`).forEach(btn => {
+      const has = ns.Basket.has(id);
+      btn.classList.toggle('added', has);
+      btn.textContent = has ? 'Added to list' : 'Add to list';
+    });
+    if ($('basket').classList.contains('on')) renderBasketSheet();
+  }
+  function initBasket() {
+    updateBCount();
+    // features.js's toggleInquiry already updates the modal's own inq button;
+    // wrap it so the grid + basket sheet stay in sync from every entry point.
+    const originalToggleInquiry = window.toggleInquiry;
+    window.toggleInquiry = function (id) {
+      originalToggleInquiry(id);
+      syncBasketUI(id);
+    };
+    $('bBody').addEventListener('click', e => {
+      const r = e.target.closest('[data-rm]');
+      if (!r) return;
+      ns.Basket.remove(r.dataset.rm);
+      syncBasketUI(r.dataset.rm);
+    });
+    $('bBody').addEventListener('change', e => {
+      const qi = e.target.closest('[data-q]');
+      if (qi) ns.Basket.setQty(qi.dataset.q, +qi.value || 1);
+    });
+  }
+
+  // ── Sheets (basket / find-by-size) ──────────────────────────────────────
   function openSheet(el) {
     MYCELA.Renderer.closeModal();
     $('scrim').classList.add('on'); el.classList.add('on'); el.setAttribute('aria-hidden', 'false');
@@ -182,11 +294,39 @@
     document.querySelectorAll('.sheet').forEach(s => { s.classList.remove('on'); s.setAttribute('aria-hidden', 'true'); });
   }
   function initSheets() {
-    $('openBasket').addEventListener('click', () => openSheet($('basket')));
+    $('openBasket').addEventListener('click', () => { renderBasketSheet(); openSheet($('basket')); });
     $('openSize').addEventListener('click', () => openSheet($('size')));
     $('helperSize').addEventListener('click', () => openSheet($('size')));
     $('scrim').addEventListener('click', closeSheets);
     document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeSheets));
+  }
+
+  // ── Dimension finder ─────────────────────────────────────────────────────
+  function initDimFinder() {
+    document.querySelectorAll('.fld input').forEach(i => {
+      i.addEventListener('focus', () => {
+        document.querySelectorAll('.dline').forEach(l => l.classList.add('dim'));
+        $(i.dataset.line).classList.remove('dim');
+      });
+      i.addEventListener('blur', () => document.querySelectorAll('.dline').forEach(l => l.classList.remove('dim')));
+      i.addEventListener('keydown', e => { if (e.key === 'Enter') $('findBtn').click(); });
+    });
+    $('findBtn').addEventListener('click', () => {
+      const d = +$('in-d').value, D = +$('in-D').value, B = +$('in-B').value;
+      if (!d && !D && !B) { $('in-d').focus(); return; }
+      const parts = [];
+      if (d) parts.push(`bore ${d}`);
+      if (D) parts.push(`od ${D}`);
+      if (B) parts.push(`width ${B}`);
+      const label = [];
+      if (d) label.push('d ' + d);
+      if (D) label.push('D ' + D);
+      if (B) label.push('B ' + B);
+      closeSheets();
+      $('q').value = '';
+      doSearch(parts.join(' '), { sub: label.join(' · ') + ' mm' });
+      $('results').scrollIntoView({ behavior: 'smooth' });
+    });
   }
 
   // ── Modal + compare ─────────────────────────────────────────────────────
@@ -214,11 +354,14 @@
   initTrust();
   initPills();
   initSearchBox();
+  initAutocomplete();
   initFilterRail();
   initGrid();
+  initBasket();
   initSheets();
   initModal();
   initEscape();
+  initDimFinder();
 
   // ── Public API ───────────────────────────────────────────────────────────
   ns.App = { doSearch };
