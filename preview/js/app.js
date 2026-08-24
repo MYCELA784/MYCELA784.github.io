@@ -13,6 +13,24 @@
   const $ = id => document.getElementById(id);
   const DEBUG = new URLSearchParams(location.search).get('debug') === '1';
 
+  // Same Apps Script endpoint as the root site's contact.js.
+  const ENDPOINT = 'https://script.google.com/macros/s/AKfycbxy_9LHxs0IbQRi7AD4g0bgD40vjV4FnLcCRoG_f8mDU6nEoMomjqZ219CEKeq-cOLb/exec';
+  const DISPOSABLE = ['mailinator.com', 'tempmail.com', 'temp-mail.org', '10minutemail.com',
+    'guerrillamail.com', 'yopmail.com', 'throwawaymail.com', 'getnada.com', 'dispostable.com',
+    'trashmail.com', 'sharklasers.com', 'maildrop.cc', 'fakeinbox.com', 'mintemail.com', 'tmail.ws'];
+  const PERSONAL = ['gmail.com', 'yahoo.com', 'yahoo.co.in', 'outlook.com', 'hotmail.com', 'live.com',
+    'rediffmail.com', 'icloud.com', 'protonmail.com', 'proton.me', 'aol.com', 'zoho.com'];
+
+  function mxOk(domain) {
+    const url  = 'https://dns.google/resolve?name=' + encodeURIComponent(domain) + '&type=MX';
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 4000);
+    return fetch(url, { signal: ctrl.signal })
+      .then(r => r.json())
+      .then(j => { clearTimeout(t); return j.Status !== 3; })
+      .catch(() => true); // fail open, never block a real buyer
+  }
+
   // ── Category chrome (bearings are the only live category) ──────────────────
   const CATS = [
     { id: 'bearing', name: 'Bearings', live: true,
@@ -101,6 +119,17 @@
     MYCELA.Renderer.cards(results, { filters: { brand: fBrands, sealing: fSeals }, title, sub });
   }
 
+  // ── Zero-result telemetry (deduped per browser session) ────────────────────
+  const ZERO_KEY = 'mycela_zero_reported';
+  function reportZeroResult(q) {
+    let seen = [];
+    try { seen = JSON.parse(sessionStorage.getItem(ZERO_KEY)) || []; } catch (e) {}
+    if (seen.includes(q)) return;
+    seen.push(q);
+    try { sessionStorage.setItem(ZERO_KEY, JSON.stringify(seen)); } catch (e) {}
+    fetch(ENDPOINT, { method: 'POST', body: JSON.stringify({ type: 'zero_result', query: q, pageUrl: location.href }) }).catch(() => {});
+  }
+
   async function doSearch(queryOverride, display) {
     const q = (queryOverride != null ? queryOverride : $('q').value).trim();
     if (!q) { $('results').classList.remove('on'); return; }
@@ -111,6 +140,7 @@
     let hits = MYCELA.SearchEngine.fast(q);
     let note = null;
     if (hits.length === 0) {
+      reportZeroResult(q);
       const fb = MYCELA.SearchEngine.fallback(q);
       hits = fb.results;
       note = fb.note;
@@ -220,6 +250,7 @@
       if (info) { closeSheets(); MYCELA.Renderer.modal(info.dataset.info); return; }
       const add = e.target.closest('[data-add]');
       if (add) { window.toggleInquiry(add.dataset.add); return; }
+      if (e.target.id === 'askBtn') { openInquiryForm(`Looking for: "${$('q').value.trim()}"`); return; }
     });
     $('grid').addEventListener('change', e => {
       const c = e.target.closest('[data-cmp]');
@@ -235,6 +266,7 @@
     $('sendBtn').disabled = !n;
   }
   function renderBasketSheet() {
+    $('sendBtn').closest('.sh-foot').style.display = '';
     updateBCount();
     const items = ns.Basket.items();
     const ids = Object.keys(items);
@@ -273,6 +305,7 @@
       syncBasketUI(id);
     };
     $('bBody').addEventListener('click', e => {
+      if (e.target.id === 'inqBack') { renderBasketSheet(); return; }
       const r = e.target.closest('[data-rm]');
       if (!r) return;
       ns.Basket.remove(r.dataset.rm);
@@ -282,6 +315,102 @@
       const qi = e.target.closest('[data-q]');
       if (qi) ns.Basket.setQty(qi.dataset.q, +qi.value || 1);
     });
+  }
+
+  // ── Lead capture ─────────────────────────────────────────────────────────
+  // #sendBtn swaps the basket sheet's item list for a small inquiry form;
+  // "Ask us to source it" (zero-results state) opens the same form directly.
+  function basketItemsPayload() {
+    const items = ns.Basket.items();
+    return Object.keys(items).map(id => {
+      const b = ns.DB_MAP[id];
+      return { brand: b ? b.brand : '', designation: b ? b.pn : id, qty: items[id].qty };
+    });
+  }
+
+  function showInquiryForm(prefillMessage) {
+    $('sendBtn').closest('.sh-foot').style.display = 'none';
+    $('bBody').innerHTML = `
+      <form class="form" id="inquiryForm" autocomplete="on">
+        <div class="frm-row"><label for="inq-name">Your name</label><input id="inq-name" name="name" type="text" required></div>
+        <div class="frm-row"><label for="inq-company">Company</label><input id="inq-company" name="company" type="text"></div>
+        <div class="frm-row"><label for="inq-email">Email</label><input id="inq-email" name="email" type="email" required>
+          <p class="frm-hint">Company email addresses get a faster reply, but any working inbox is fine.</p></div>
+        <div class="frm-row"><label for="inq-phone">Phone or WhatsApp</label><input id="inq-phone" name="phone" type="tel"></div>
+        <div class="frm-row"><label for="inq-city">City</label><input id="inq-city" name="city" type="text"></div>
+        <div class="frm-row"><label for="inq-msg">Message</label><textarea id="inq-msg" name="message" placeholder="Quantities, delivery location, or whatever else is useful."></textarea></div>
+        <input class="hp" name="website" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
+        <button class="btn" style="width:100%" type="submit">Send inquiry</button>
+        <button class="btn btn-line" style="width:100%;margin-top:8px" type="button" id="inqBack">← Back to list</button>
+        <p id="inq-status" role="status"></p>
+      </form>`;
+    if (prefillMessage) $('inq-msg').value = prefillMessage;
+    attachInquirySubmit($('inquiryForm'));
+    $('inq-name').focus();
+  }
+
+  function openInquiryForm(prefillMessage) {
+    openSheet($('basket'));
+    showInquiryForm(prefillMessage);
+  }
+
+  function attachInquirySubmit(form) {
+    const statusEl = $('inq-status');
+    function say(msg, bad) { statusEl.textContent = msg; statusEl.style.color = bad ? '#C0392B' : 'var(--body)'; }
+
+    form.addEventListener('submit', ev => {
+      ev.preventDefault();
+      if (form.website.value.trim() !== '') { say("Thanks, we'll be in touch."); return; }
+
+      const email = form.email.value.trim().toLowerCase();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) { say('Please enter a valid email address.', true); return; }
+      const domain = email.split('@')[1];
+      if (DISPOSABLE.indexOf(domain) !== -1) { say("Disposable email addresses aren't accepted. Please use a real inbox.", true); return; }
+
+      const btn = form.querySelector('button[type=submit]');
+      btn.disabled = true;
+      say('Checking email…');
+
+      const check = PERSONAL.indexOf(domain) !== -1 ? Promise.resolve(true) : mxOk(domain);
+      check.then(ok => {
+        if (!ok) { say("That email domain doesn't appear to exist. Please check for typos.", true); btn.disabled = false; return; }
+        say('Sending…');
+        return fetch(ENDPOINT, {
+          method: 'POST',
+          // no Content-Type header, so the browser sends a simple request and skips CORS preflight
+          body: JSON.stringify({
+            type: 'inquiry',
+            name: form.name.value.trim(),
+            company: form.company.value.trim(),
+            email: email,
+            phone: form.phone.value.trim(),
+            city: form.city.value.trim(),
+            message: form.message.value.trim(),
+            website: form.website.value.trim(),
+            items: basketItemsPayload(),
+            source: 'inquiry_basket',
+            pageUrl: location.href,
+          }),
+        }).then(r => r.json()).then(res => {
+          btn.disabled = false;
+          if (res && res.ok) {
+            Object.keys(ns.Basket.items()).forEach(id => ns.Basket.remove(id));
+            document.querySelectorAll('[data-add].added').forEach(el => { el.classList.remove('added'); el.textContent = 'Add to list'; });
+            updateBCount();
+            $('bBody').innerHTML = `<div class="sh-empty"><p style="margin:0">✓ Inquiry sent. We'll reply within a working day.</p></div>`;
+          } else {
+            say((res && res.error) || 'Something went wrong. Please try again.', true);
+          }
+        }).catch(() => {
+          say('Network error. Please try again, or email shaonak@mycela.in directly.', true);
+          btn.disabled = false;
+        });
+      });
+    });
+  }
+
+  function initLeadCapture() {
+    $('sendBtn').addEventListener('click', () => showInquiryForm());
   }
 
   // ── Sheets (basket / find-by-size) ──────────────────────────────────────
@@ -358,6 +487,7 @@
   initFilterRail();
   initGrid();
   initBasket();
+  initLeadCapture();
   initSheets();
   initModal();
   initEscape();
