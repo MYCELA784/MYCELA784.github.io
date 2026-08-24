@@ -414,18 +414,28 @@
   }
 
   // ── Sheets (basket / find-by-size) ──────────────────────────────────────
-  function openSheet(el) {
+  let sheetOpener = null;
+  function openSheet(el, opener) {
     MYCELA.Renderer.closeModal();
+    sheetOpener = opener || document.activeElement;
     $('scrim').classList.add('on'); el.classList.add('on'); el.setAttribute('aria-hidden', 'false');
   }
   function closeSheets() {
     $('scrim').classList.remove('on');
-    document.querySelectorAll('.sheet').forEach(s => { s.classList.remove('on'); s.setAttribute('aria-hidden', 'true'); });
+    document.querySelectorAll('.sheet').forEach(s => {
+      // aria-hidden="true" on an element that still contains focus is an
+      // accessibility violation (and logs a console warning) — move focus
+      // out first, ideally back to whatever opened the sheet.
+      if (s.contains(document.activeElement)) document.activeElement.blur();
+      s.classList.remove('on'); s.setAttribute('aria-hidden', 'true');
+    });
+    if (sheetOpener && typeof sheetOpener.focus === 'function') sheetOpener.focus();
+    sheetOpener = null;
   }
   function initSheets() {
-    $('openBasket').addEventListener('click', () => { renderBasketSheet(); openSheet($('basket')); });
-    $('openSize').addEventListener('click', () => openSheet($('size')));
-    $('helperSize').addEventListener('click', () => openSheet($('size')));
+    $('openBasket').addEventListener('click', () => { renderBasketSheet(); openSheet($('basket'), $('openBasket')); });
+    $('openSize').addEventListener('click', () => openSheet($('size'), $('openSize')));
+    $('helperSize').addEventListener('click', () => openSheet($('size'), $('helperSize')));
     $('scrim').addEventListener('click', closeSheets);
     document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeSheets));
   }

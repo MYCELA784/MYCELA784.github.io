@@ -16,6 +16,15 @@
 (function (ns) {
   ns.SearchEngine = ns.SearchEngine || {};
 
+  // Leading digit run, read from the *raw* (unstripped) string so a suffix
+  // that starts with a digit (2RS, 2Z, 2RSR, ...) can't glue onto the base
+  // designation once dashes/spaces are removed elsewhere — e.g. "6205-2rs"
+  // must read as base "6205", not "62052" (see partNumber() below).
+  function baseDesignation(raw) {
+    const m = /^[0-9]+/.exec(raw);
+    return m ? m[0] : '';
+  }
+
   ns.SearchEngine.Scorers = {
     partNumber(b, intent) {
       const CFG     = MYCELA.CONFIG.scoring;
@@ -29,6 +38,14 @@
         s += CFG.pnPrefix;
       } else if (pnClean.includes(qClean) && qClean.length >= 3) {
         s += CFG.pnIncludes;
+      } else {
+        // Query is a base designation plus a suffix/modifier that this pn
+        // doesn't literally contain (e.g. "6205-2RS" vs catalog pn "6205"
+        // or "6205-C-2Z"): an exact shared base designation must still
+        // outrank an unrelated pn that only coincidentally shares a short
+        // suffix substring (see the token loop below) plus a sealing match.
+        const qBase = baseDesignation(intent.rawQ);
+        if (qBase.length >= 3 && qBase === baseDesignation(pnRaw)) s += CFG.designationMatch;
       }
       intent.tokens.forEach(t => {
         if (t.length >= 2 && pnClean.includes(t)) s += CFG.pnToken;
