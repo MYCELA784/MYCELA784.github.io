@@ -2,9 +2,9 @@
  *   MYCELA.App.doSearch()  — read #q, run the real search pipeline, render into #grid
  *
  * Glue for the redesigned preview/index.html. Owns pill/category chrome,
- * hero examples, the results filter rail state, and sheet open/close.
- * Modal wiring (STEP 2) and basket/autocomplete/dimension-finder (STEP 3)
- * are added on top of this in later commits.
+ * hero examples, the results filter rail state, modal/compare wiring, and
+ * sheet open/close. Basket sheet contents / autocomplete / dimension finder
+ * (STEP 3) land on top of this in a later commit.
  */
 (function (ns) {
   const $ = id => document.getElementById(id);
@@ -160,14 +160,23 @@
     $('grid').addEventListener('click', e => {
       const x = e.target.closest('[data-x]');
       if (x) { $('q').value = x.dataset.x; doSearch(); return; }
-      if (e.target.id === 'fclear2') { fBrands.clear(); fSeals.clear(); renderResults(); }
-      // data-add / data-info: wired in STEP 2 (modal) and STEP 3 (basket)
+      if (e.target.id === 'fclear2') { fBrands.clear(); fSeals.clear(); renderResults(); return; }
+      const info = e.target.closest('[data-info]');
+      if (info) { closeSheets(); MYCELA.Renderer.modal(info.dataset.info); return; }
+      // data-add: wired in STEP 3 (basket)
+    });
+    $('grid').addEventListener('change', e => {
+      const c = e.target.closest('[data-cmp]');
+      if (c) MYCELA.Renderer.toggleCompare(c.dataset.cmp, c.checked);
     });
   }
 
   // ── Sheets (basket / find-by-size) — open/close chrome only; the sheet
   //    contents themselves are wired in STEP 3 ────────────────────────────────
-  function openSheet(el) { $('scrim').classList.add('on'); el.classList.add('on'); el.setAttribute('aria-hidden', 'false'); }
+  function openSheet(el) {
+    MYCELA.Renderer.closeModal();
+    $('scrim').classList.add('on'); el.classList.add('on'); el.setAttribute('aria-hidden', 'false');
+  }
   function closeSheets() {
     $('scrim').classList.remove('on');
     document.querySelectorAll('.sheet').forEach(s => { s.classList.remove('on'); s.setAttribute('aria-hidden', 'true'); });
@@ -178,7 +187,25 @@
     $('helperSize').addEventListener('click', () => openSheet($('size')));
     $('scrim').addEventListener('click', closeSheets);
     document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeSheets));
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheets(); });
+  }
+
+  // ── Modal + compare ─────────────────────────────────────────────────────
+  function initModal() {
+    $('compareBtn').addEventListener('click', () => MYCELA.Renderer.openCompare());
+    window.openModal        = MYCELA.Renderer.modal;
+    window.closeModal       = e => { if (e.target.id === 'modal-overlay') MYCELA.Renderer.closeModal(); };
+    window.closeModalDirect = MYCELA.Renderer.closeModal;
+  }
+
+  // Escape closes whichever overlay is currently open: the modal takes
+  // priority over a basket/size sheet, since opening the modal already
+  // closes any open sheet (see openSheet above).
+  function initEscape() {
+    document.addEventListener('keydown', e => {
+      if (e.key !== 'Escape') return;
+      if ($('modal-overlay').classList.contains('open')) { MYCELA.Renderer.closeModal(); return; }
+      closeSheets();
+    });
   }
 
   // ── Init ─────────────────────────────────────────────────────────────────
@@ -190,6 +217,8 @@
   initFilterRail();
   initGrid();
   initSheets();
+  initModal();
+  initEscape();
 
   // ── Public API ───────────────────────────────────────────────────────────
   ns.App = { doSearch };

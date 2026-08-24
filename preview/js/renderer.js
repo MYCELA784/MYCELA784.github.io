@@ -1,7 +1,9 @@
 /* PUBLIC API
  *   MYCELA.Renderer.cards(results, state) — render result grid
  *   MYCELA.Renderer.modal(id)             — open detail modal
- *   MYCELA.Renderer.closeModal()          — close modal
+ *   MYCELA.Renderer.closeModal()          — close modal (and compare view)
+ *   MYCELA.Renderer.toggleCompare(id, on) — add/remove a bearing from compare
+ *   MYCELA.Renderer.openCompare()         — open the compare table in #modal-compare
  */
 (function (ns) {
   ns.Renderer = ns.Renderer || {};
@@ -37,6 +39,7 @@
       <div class="item-top">
         <div><div class="pn">${b.pn}</div><div class="brandline">${brandBadge(b.brand)} ${b.type || ''}</div></div>
         <span class="catlab">Bearing</span>
+        <input type="checkbox" class="cmp-chk" data-cmp="${b.id}" ${ns._cmp && ns._cmp.has(b.id) ? 'checked' : ''} title="Add to compare">
       </div>
       <div class="specs">${specs}</div>
       ${xs.length ? `<div class="xr">Same fit from ${xs.map(x => `<button data-x="${x.pn}">${x.brand} <span class="p">${x.pn}</span></button>`).join(', ')}</div>` : ''}
@@ -156,6 +159,12 @@
     const b = ns.DB_MAP[id];
     if (!b) return;
 
+    // Always land on the detail view, even if compare was showing last.
+    const cmpEl    = document.getElementById('modal-compare');
+    const detailEl = document.getElementById('modal-detail');
+    if (cmpEl) cmpEl.classList.remove('open');
+    if (detailEl) detailEl.style.display = '';
+
     const pnEl = document.getElementById('modal-pn');
     if (pnEl) pnEl.textContent = b.pn;
 
@@ -239,7 +248,6 @@
     actBox.innerHTML =
       `<div class="modal-actions">
          ${ns.Basket ? ns.Basket.modalBtnHTML(b) : ''}
-         <button class="modal-btn-sup" onclick="closeModalDirect();showPage('suppliers')">Find Suppliers</button>
        </div>
        <div class="modal-actions"><button class="modal-btn-wa" disabled title="Coming soon">WhatsApp Inquiry — Coming Soon</button></div>
        <div class="modal-source">Source: ${b.source || 'Official manufacturer catalog'}</div>`;
@@ -260,6 +268,10 @@
   ns.Renderer.closeModal = function () {
     const ov = document.getElementById('modal-overlay');
     if (ov) ov.classList.remove('open');
+    const cmpEl    = document.getElementById('modal-compare');
+    const detailEl = document.getElementById('modal-detail');
+    if (cmpEl) cmpEl.classList.remove('open');
+    if (detailEl) detailEl.style.display = '';
   };
   ns.Renderer.aiBox = function (text, tips) {
     const box = document.getElementById('ai-box');
@@ -278,20 +290,24 @@
     const bar = document.getElementById('filter-bar');
     if (bar) bar.style.display = show ? '' : 'none';
   };
-  // ── Compare + helpers ──────────────────────────────────────────────────────
+  // ── Compare ──────────────────────────────────────────────────────────────
   ns._cmp = new Set();
 
-  window.toggleCompare = function (id, el) {
-    if (el.checked) ns._cmp.add(id); else ns._cmp.delete(id);
-    const btn = document.getElementById('compare-btn');
-    if (btn) {
-      btn.textContent = `Compare (${ns._cmp.size})`;
-      btn.disabled = ns._cmp.size < 2;
-      btn.style.display = ns._cmp.size ? '' : 'none';
-    }
+  function updateCompareBtn() {
+    const btn = document.getElementById('compareBtn');
+    if (!btn) return;
+    const n = ns._cmp.size;
+    btn.textContent = `Compare (${n})`;
+    btn.disabled = n < 2;
+    btn.style.display = n ? '' : 'none';
+  }
+
+  ns.Renderer.toggleCompare = function (id, on) {
+    if (on) ns._cmp.add(id); else ns._cmp.delete(id);
+    updateCompareBtn();
   };
 
-  window.openCompare = function () {
+  ns.Renderer.openCompare = function () {
     const bs = Array.from(ns._cmp).map(i => ns.DB_MAP[i]).filter(Boolean).slice(0, 4);
     if (bs.length < 2) return;
     const rows = [
@@ -306,15 +322,21 @@
       ['Sealing',  b => b.sealing || '—'],
       ['Source',   b => b.source || '—'],
     ];
-    const el = document.getElementById('results-area');
-    el.innerHTML =
-      '<button class="card-btn cmp-back" onclick="MYCELA.Renderer.cards(MYCELA._lastResults, MYCELA._lastState)">← Back to results</button>' +
-      '<div style="overflow-x:auto"><table class="cmp-table"><tr><th></th>' +
+    const cmpEl    = document.getElementById('modal-compare');
+    const detailEl = document.getElementById('modal-detail');
+    if (!cmpEl) return;
+    cmpEl.innerHTML =
+      `<div class="modal-top"><div class="modal-pn">Compare (${bs.length})</div>
+       <button class="modal-close" onclick="closeModalDirect()">Close</button></div>
+       <div style="overflow-x:auto"><table class="cmp-table"><tr><th></th>` +
       bs.map(b => `<th>${b.pn}</th>`).join('') + '</tr>' +
       rows.map(([lbl, fn]) =>
         `<tr><td class="cmp-lbl">${lbl}</td>` + bs.map(b => `<td>${fn(b)}</td>`).join('') + '</tr>'
       ).join('') +
       '</table></div>';
+    if (detailEl) detailEl.style.display = 'none';
+    cmpEl.classList.add('open');
+    document.getElementById('modal-overlay').classList.add('open');
   };
 
   window.setSort = function (v) {
