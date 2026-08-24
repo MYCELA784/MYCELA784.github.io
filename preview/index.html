@@ -39,10 +39,10 @@
     <div class="pills" id="pills">
       <button class="pill" data-cat="all" aria-pressed="true">Everything</button>
       <button class="pill" data-cat="bearing" aria-pressed="false">Bearings</button>
-      <button class="pill" data-cat="linear" aria-pressed="false">Linear motion</button>
-      <button class="pill" data-cat="coupling" aria-pressed="false">Couplings</button>
-      <button class="pill" data-cat="fastener" aria-pressed="false">Fasteners<span class="soon">soon</span></button>
-      <button class="pill" data-cat="seal" aria-pressed="false">Seals<span class="soon">soon</span></button>
+      <button class="pill" data-cat="linear" aria-pressed="false" disabled>Linear motion<span class="soon">soon</span></button>
+      <button class="pill" data-cat="coupling" aria-pressed="false" disabled>Couplings<span class="soon">soon</span></button>
+      <button class="pill" data-cat="fastener" aria-pressed="false" disabled>Fasteners<span class="soon">soon</span></button>
+      <button class="pill" data-cat="seal" aria-pressed="false" disabled>Seals<span class="soon">soon</span></button>
     </div>
 
     <div class="searchbox">
@@ -191,247 +191,22 @@
   <div class="sh-foot"><button class="btn" style="width:100%" id="findBtn">Show matching parts</button></div>
 </aside>
 
-
-
-<script>
-/* ---------------- data ---------------- */
-const CATS=[
- {id:"bearing",name:"Bearings",live:true,n:"3,715 parts",
-  desc:"Deep groove, tapered, spherical and cylindrical roller bearings from SKF, NTN and FAG.",
-  ic:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.4"/>'},
- {id:"linear",name:"Linear motion",live:true,n:"in pilot",
-  desc:"Profile rails, guide blocks and linear bushings, including Hiwin and THK interchange.",
-  ic:'<rect x="3" y="9" width="18" height="6" rx="1"/><path d="M7 9V6M12 9V6M17 9V6"/>'},
- {id:"coupling",name:"Couplings",live:true,n:"in pilot",
-  desc:"Jaw, spider and flexible shaft couplings matched by bore and torque rating.",
-  ic:'<rect x="3" y="7" width="7" height="10" rx="1.5"/><rect x="14" y="7" width="7" height="10" rx="1.5"/><path d="M10 12h4"/>'},
- {id:"fastener",name:"Fasteners",live:false,n:"coming soon",
-  desc:"Bolts, nuts and washers to DIN and ISO standards, matched by thread, grade and coating.",
-  ic:'<path d="M9 3h6l1 4H8l1-4Z"/><path d="M10 7h4v14l-2 1-2-1V7Z"/>'},
- {id:"seal",name:"Seals & gaskets",live:false,n:"coming soon",
-  desc:"Oil seals, O-rings and gaskets sized to the shaft and housing you already have.",
-  ic:'<ellipse cx="12" cy="12" rx="9" ry="5.5"/><ellipse cx="12" cy="12" rx="4" ry="2.2"/>'},
- {id:"tool",name:"Tools & consumables",live:false,n:"coming soon",
-  desc:"Pullers, induction heaters, greases and the shop-floor consumables that go with them.",
-  ic:'<path d="M14.5 4.5a4.5 4.5 0 0 0-6 5.9L4 15v4h4l4.6-4.6a4.5 4.5 0 0 0 5.9-6l-2.7 2.7-2.2-2.2 2.7-2.7Z"/>'}];
-const PLACEHOLDERS={all:"Search any part number…",bearing:"Try 6205-2RS1, 6305, 22205E…",
- linear:"Try HGH20CA, HGR20, SBR16UU…",coupling:"Try L-095, GS19, ROTEX 24…",
- fastener:"Try M8×40 8.8, DIN 933…",seal:"Try 25×47×7 TC, O-ring 20×2…"};
-const EXAMPLES={all:["6205-2RS1","HGH20CA","L-095","6305LLU"],
- bearing:["6205-2RS1","6305LLU","32005X","22205E"],linear:["HGH20CA","HGR20","SBR16UU"],
- coupling:["L-095","GS19","ROTEX 24"],fastener:["M8×40 8.8","DIN 933 M10"],seal:["25×47×7 TC","O-ring 20×2"]};
-const DB=[
- {pn:"6205",brand:"SKF",cat:"bearing",catName:"Bearing",d:25,D:52,B:15,seal:"Open",specs:[["Bore","25 mm"],["Outer","52 mm"],["Width","15 mm"],["Sealing","Open"]]},
- {pn:"6205-2RS1",brand:"SKF",cat:"bearing",catName:"Bearing",d:25,D:52,B:15,seal:"Sealed",specs:[["Bore","25 mm"],["Outer","52 mm"],["Width","15 mm"],["Sealing","Contact seal"]]},
- {pn:"6205-2Z",brand:"SKF",cat:"bearing",catName:"Bearing",d:25,D:52,B:15,seal:"Shielded",specs:[["Bore","25 mm"],["Outer","52 mm"],["Width","15 mm"],["Sealing","Shielded"]]},
- {pn:"6205LLU",brand:"NTN",cat:"bearing",catName:"Bearing",d:25,D:52,B:15,seal:"Sealed",specs:[["Bore","25 mm"],["Outer","52 mm"],["Width","15 mm"],["Sealing","Contact seal"]]},
- {pn:"6205ZZ",brand:"NTN",cat:"bearing",catName:"Bearing",d:25,D:52,B:15,seal:"Shielded",specs:[["Bore","25 mm"],["Outer","52 mm"],["Width","15 mm"],["Sealing","Shielded"]]},
- {pn:"6205-2RSR",brand:"FAG",cat:"bearing",catName:"Bearing",d:25,D:52,B:15,seal:"Sealed",specs:[["Bore","25 mm"],["Outer","52 mm"],["Width","15 mm"],["Sealing","Contact seal"]]},
- {pn:"6305",brand:"SKF",cat:"bearing",catName:"Bearing",d:25,D:62,B:17,seal:"Open",specs:[["Bore","25 mm"],["Outer","62 mm"],["Width","17 mm"],["Sealing","Open"]]},
- {pn:"6305LLU",brand:"NTN",cat:"bearing",catName:"Bearing",d:25,D:62,B:17,seal:"Sealed",specs:[["Bore","25 mm"],["Outer","62 mm"],["Width","17 mm"],["Sealing","Contact seal"]]},
- {pn:"6206-2RS1",brand:"SKF",cat:"bearing",catName:"Bearing",d:30,D:62,B:16,seal:"Sealed",specs:[["Bore","30 mm"],["Outer","62 mm"],["Width","16 mm"],["Sealing","Contact seal"]]},
- {pn:"32005X",brand:"FAG",cat:"bearing",catName:"Bearing",d:25,D:47,B:15,seal:"Open",specs:[["Bore","25 mm"],["Outer","47 mm"],["Width","15 mm"],["Type","Tapered roller"]]},
- {pn:"22205E",brand:"SKF",cat:"bearing",catName:"Bearing",d:25,D:52,B:18,seal:"Open",specs:[["Bore","25 mm"],["Outer","52 mm"],["Width","18 mm"],["Type","Spherical roller"]]},
- {pn:"HGH20CA",brand:"Hiwin",cat:"linear",catName:"Linear",specs:[["Rail width","20 mm"],["Block","Square flange"],["Height","30 mm"],["Load C","17.8 kN"]]},
- {pn:"HGW20CC",brand:"Hiwin",cat:"linear",catName:"Linear",specs:[["Rail width","20 mm"],["Block","Flange type"],["Height","30 mm"],["Load C","17.8 kN"]]},
- {pn:"SHS20C",brand:"THK",cat:"linear",catName:"Linear",specs:[["Rail width","20 mm"],["Block","Square flange"],["Height","30 mm"],["Load C","17.2 kN"]]},
- {pn:"SBR16UU",brand:"Generic",cat:"linear",catName:"Linear",specs:[["Shaft","16 mm"],["Type","Supported bushing"],["Length","37 mm"]]},
- {pn:"L-095",brand:"Lovejoy",cat:"coupling",catName:"Coupling",specs:[["Bore range","10-24 mm"],["Torque","19 Nm"],["Type","Jaw coupling"]]},
- {pn:"GS19",brand:"KTR",cat:"coupling",catName:"Coupling",specs:[["Bore range","10-24 mm"],["Torque","17 Nm"],["Type","Servo insert"]]},
- {pn:"ROTEX 24",brand:"KTR",cat:"coupling",catName:"Coupling",specs:[["Bore range","14-32 mm"],["Torque","35 Nm"],["Type","Jaw coupling"]]}];
-
-const sig=x=>x.cat==="bearing"?`${x.d}-${x.D}-${x.B}-${x.seal}`:x.specs.map(s=>s[1]).join("|");
-const xrefs=b=>DB.filter(x=>x.pn!==b.pn&&x.brand!==b.brand&&x.cat===b.cat&&sig(x)===sig(b));
-const $=id=>document.getElementById(id);
-
-let cat="all", basket=new Map();
-let baseList=[], baseTitle="", baseSub="";
-let fBrands=new Set(), fSeals=new Set();
-
-/* ---------------- categories ---------------- */
-$("cats").innerHTML=CATS.map(c=>`<button class="cat ${c.live?"":"off"}" data-gocat="${c.live?c.id:""}">
- <div class="cat-ic"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round">${c.ic}</svg></div>
- <h3>${c.name}</h3><p>${c.desc}</p>
- <div class="meta"><span class="tag ${c.live?"live":"soon"}">${c.live?"Live":"Soon"}</span>${c.n}</div></button>`).join("");
-$("cats").addEventListener("click",e=>{const b=e.target.closest("[data-gocat]");
- if(!b||!b.dataset.gocat)return;setCat(b.dataset.gocat);scrollTo({top:0,behavior:"smooth"});$("q").focus();});
-
-function setCat(c){cat=c;
- document.querySelectorAll(".pill").forEach(p=>p.setAttribute("aria-pressed",p.dataset.cat===c));
- $("q").placeholder=PLACEHOLDERS[c];
- $("egs").innerHTML=(EXAMPLES[c]||[]).map(e=>`<button class="eg">${e}</button>`).join("");
- $("helper").style.display=(c==="fastener"||c==="seal")?"none":"";
- if($("q").value.trim())search($("q").value);}
-$("pills").addEventListener("click",e=>{const p=e.target.closest(".pill");if(p)setCat(p.dataset.cat);});
-$("egs").addEventListener("click",e=>{const b=e.target.closest(".eg");if(!b)return;
- $("q").value=b.textContent;search(b.textContent);closeAc();});
-
-/* ---------------- search ---------------- */
-const norm=s=>s.toUpperCase().replace(/[\s\-\/×]/g,"");
-const pool=()=>cat==="all"?DB:DB.filter(x=>x.cat===cat);
-
-function setResults(list,title,sub){
-  baseList=list;baseTitle=title;baseSub=sub||"";
-  fBrands.clear();fSeals.clear();
-  $("results").classList.add("on");
-  renderRail();renderGrid();
-}
-function visible(){
-  return baseList.filter(b=>
-    (!fBrands.size||fBrands.has(b.brand)) &&
-    (!fSeals.size||(b.seal&&fSeals.has(b.seal))));
-}
-function renderRail(){
-  const brands={},seals={};
-  baseList.forEach(b=>{brands[b.brand]=(brands[b.brand]||0)+1;
-    if(b.seal)seals[b.seal]=(seals[b.seal]||0)+1;});
-  const bKeys=Object.keys(brands).sort(),sKeys=Object.keys(seals).sort();
-  let html="";
-  if(bKeys.length>1){
-    html+=`<div class="fgroup"><h4>Brand</h4>`+bKeys.map(k=>
-      `<label class="frow"><input type="checkbox" data-fb="${k}" ${fBrands.has(k)?"checked":""}>
-       ${k}<span class="n">${brands[k]}</span></label>`).join("")+`</div>`;}
-  if(sKeys.length>1){
-    html+=`<div class="fgroup"><h4>Sealing</h4>`+sKeys.map(k=>
-      `<label class="frow"><input type="checkbox" data-fs="${k}" ${fSeals.has(k)?"checked":""}>
-       ${k}<span class="n">${seals[k]}</span></label>`).join("")+`</div>`;}
-  const hasFilters=!!html;
-  if(fBrands.size||fSeals.size) html+=`<button class="fclear" id="fclear">Clear filters</button>`;
-  $("fbody").innerHTML=html;
-  // nothing to filter by → collapse the rail and narrow the container
-  $("results").classList.toggle("norail",!hasFilters);
-}
-/* figures get mono; words stay in Jakarta; units are quiet */
-function specValue(v){
-  const m=String(v).match(/^([\d.,]+(?:\s*-\s*[\d.,]+)?)\s*(.*)$/);
-  if(!m||!m[1]) return `<b>${v}</b>`;
-  return `<b class="num">${m[1]}</b>${m[2]?`<span class="u">${m[2]}</span>`:""}`;
-}
-function card(b){const xs=xrefs(b);
- return `<article class="item"><div class="item-top">
-  <div><div class="pn">${b.pn}</div><div class="brandline">${b.brand}</div></div>
-  <span class="catlab">${b.catName}</span></div>
-  <div class="specs">${b.specs.map(([k,v])=>`<span class="spec">${k} ${specValue(v)}</span>`).join("")}</div>
-  ${xs.length?`<div class="xr">Same fit from ${xs.map(x=>`<button data-x="${x.pn}">${x.brand} <span class="p">${x.pn}</span></button>`).join(", ")}</div>`:""}
-  <div class="item-act"><button class="btn btn-sm ${basket.has(b.pn)?"added":""}" data-add="${b.pn}">${basket.has(b.pn)?"Added to list":"Add to list"}</button>
-  <button class="ghost" data-info="${b.pn}">Details</button></div></article>`;}
-function renderGrid(){
-  const rows=visible();
-  const filtered=rows.length!==baseList.length;
-  $("rTitle").textContent=filtered?`${rows.length} of ${baseList.length}`:baseTitle;
-  $("rSub").textContent=baseSub;
-  $("grid").classList.toggle("few",rows.length>0&&rows.length<3);
-  $("grid").innerHTML=rows.length?rows.map(card).join("")
-   :`<div class="blank" style="grid-column:1/-1"><h3>${baseList.length?"Nothing matches those filters":"We don't have that one yet"}</h3>
-     <p>${baseList.length?"Try clearing a filter to widen the results."
-        :"Tell us what you're after and we'll source it, then add it to the catalogue for the next person looking."}</p>
-     ${baseList.length?'<button class="btn btn-line" id="fclear2">Clear filters</button>'
-        :'<button class="btn" id="askBtn">Ask us to source it</button>'}</div>`;
-}
-function search(raw){const v=norm(raw.trim());
- if(!v){$("results").classList.remove("on");return;}
- const hits=pool().filter(b=>norm(b.pn).includes(v)||norm(b.brand).includes(v));
- setResults(hits,`${hits.length} result${hits.length===1?"":"s"}`,
-  `for "${raw.trim()}"${cat!=="all"?" in "+CATS.find(c=>c.id===cat).name.toLowerCase():""}`);}
-
-$("fbody").addEventListener("change",e=>{
- const b=e.target.closest("[data-fb]"),s=e.target.closest("[data-fs]");
- if(b){b.checked?fBrands.add(b.dataset.fb):fBrands.delete(b.dataset.fb);}
- if(s){s.checked?fSeals.add(s.dataset.fs):fSeals.delete(s.dataset.fs);}
- renderRail();renderGrid();});
-$("fbody").addEventListener("click",e=>{
- if(e.target.id==="fclear"){fBrands.clear();fSeals.clear();renderRail();renderGrid();}});
-$("fmob").addEventListener("click",()=>{
- const r=$("frail"),open=!r.classList.toggle("shut");
- $("fmob").setAttribute("aria-expanded",open);
- $("fmob").querySelector("span").textContent=open?"−":"+";});
-
-/* autocomplete */
-let acIdx=-1;const closeAc=()=>{$("ac").hidden=true;acIdx=-1;};
-$("q").addEventListener("input",e=>{const raw=e.target.value.trim();
- if(!raw){closeAc();$("results").classList.remove("on");return;}
- const sug=pool().filter(b=>norm(b.pn).includes(norm(raw))).slice(0,6);
- $("ac").innerHTML=sug.map(b=>`<div class="aci" data-ac="${b.pn}"><span class="p">${b.pn}</span>
-  <span class="c">${b.catName}</span><span class="d">${b.brand}</span></div>`).join("");
- $("ac").hidden=!sug.length;search(raw);});
-$("q").addEventListener("keydown",e=>{const its=[...document.querySelectorAll(".aci")];if(!its.length)return;
- if(e.key==="ArrowDown"||e.key==="ArrowUp"){e.preventDefault();
-  acIdx=e.key==="ArrowDown"?(acIdx+1)%its.length:(acIdx-1+its.length)%its.length;
-  its.forEach((x,i)=>x.classList.toggle("on",i===acIdx));}
- else if(e.key==="Enter"&&acIdx>=0){e.preventDefault();$("q").value=its[acIdx].dataset.ac;search($("q").value);closeAc();}
- else if(e.key==="Escape")closeAc();});
-$("ac").addEventListener("click",e=>{const i=e.target.closest("[data-ac]");if(!i)return;
- $("q").value=i.dataset.ac;search($("q").value);closeAc();});
-document.addEventListener("click",e=>{if(!e.target.closest(".searchbox"))closeAc();});
-$("clearSearch").addEventListener("click",()=>{$("q").value="";$("results").classList.remove("on");scrollTo({top:0,behavior:"smooth"});});
-
-$("grid").addEventListener("click",e=>{
- const a=e.target.closest("[data-add]");
- if(a){const pn=a.dataset.add;basket.has(pn)?basket.delete(pn):basket.set(pn,1);
-  a.classList.toggle("added",basket.has(pn));a.textContent=basket.has(pn)?"Added to list":"Add to list";renderBasket();return;}
- const x=e.target.closest("[data-x]");
- if(x){$("q").value=x.dataset.x;search(x.dataset.x);return;}
- if(e.target.id==="fclear2"){fBrands.clear();fSeals.clear();renderRail();renderGrid();return;}
- if(e.target.id==="askBtn"||e.target.closest("[data-info]"))
-  alert("Prototype: wire to the inquiry form or part detail page.");});
-
-/* ---------------- basket ---------------- */
-function renderBasket(){$("bCount").textContent=basket.size;$("sendBtn").disabled=!basket.size;
- $("bBody").innerHTML=basket.size
-  ?[...basket.entries()].map(([pn,q])=>{const b=DB.find(x=>x.pn===pn);
-    return `<div class="brow"><div class="n"><b>${pn}</b><span>${b.brand} · ${b.catName}</span></div>
-     <input class="qty" type="number" min="1" value="${q}" data-q="${pn}">
-     <button class="rm" data-rm="${pn}" aria-label="Remove">×</button></div>`;}).join("")
-   +`<p style="margin-top:20px;font-size:14px;color:var(--body)">Add as many parts as you need. You'll get one consolidated quote back.</p>`
-  :`<div class="sh-empty"><svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4 7h16l-1.3 11.2a2 2 0 0 1-2 1.8H7.3a2 2 0 0 1-2-1.8L4 7Z"/><path d="M9 7V5a3 3 0 0 1 6 0v2"/></svg>
-    <p style="margin:0">Your list is empty.<br>Search for a part and add it here.</p></div>`;}
-$("bBody").addEventListener("click",e=>{const r=e.target.closest("[data-rm]");if(!r)return;
- basket.delete(r.dataset.rm);renderBasket();
- document.querySelectorAll("[data-add]").forEach(b=>{b.classList.toggle("added",basket.has(b.dataset.add));
-  b.textContent=basket.has(b.dataset.add)?"Added to list":"Add to list";});});
-$("bBody").addEventListener("change",e=>{const q=e.target.closest("[data-q]");
- if(q)basket.set(q.dataset.q,Math.max(1,+q.value||1));});
-$("sendBtn").addEventListener("click",()=>alert("Wire to inquiry.js with "+basket.size+" part(s) attached."));
-
-/* ---------------- sheets ---------------- */
-function open(el){$("scrim").classList.add("on");el.classList.add("on");el.setAttribute("aria-hidden","false");}
-function closeAll(){$("scrim").classList.remove("on");
- document.querySelectorAll(".sheet").forEach(s=>{s.classList.remove("on");s.setAttribute("aria-hidden","true");});}
-$("openBasket").addEventListener("click",()=>open($("basket")));
-$("openSize").addEventListener("click",()=>open($("size")));
-$("helperSize").addEventListener("click",()=>open($("size")));
-$("scrim").addEventListener("click",closeAll);
-document.querySelectorAll("[data-close]").forEach(b=>b.addEventListener("click",closeAll));
-document.addEventListener("keydown",e=>{if(e.key==="Escape")closeAll();});
-
-document.querySelectorAll(".fld input").forEach(i=>{
- i.addEventListener("focus",()=>{document.querySelectorAll(".dline").forEach(l=>l.classList.add("dim"));
-  $(i.dataset.line).classList.remove("dim");});
- i.addEventListener("blur",()=>document.querySelectorAll(".dline").forEach(l=>l.classList.remove("dim")));
- i.addEventListener("keydown",e=>{if(e.key==="Enter")$("findBtn").click();});});
-$("findBtn").addEventListener("click",()=>{
- const d=+$("in-d").value,D=+$("in-D").value,B=+$("in-B").value;
- if(!d&&!D&&!B){$("in-d").focus();return;}
- const near=(a,b)=>!b||Math.abs(a-b)<=.5;
- const hits=DB.filter(x=>x.cat==="bearing"&&near(x.d,d)&&near(x.D,D)&&near(x.B,B));
- const p=[];if(d)p.push("d "+d);if(D)p.push("D "+D);if(B)p.push("B "+B);
- closeAll();$("q").value="";
- setResults(hits,`${hits.length} match${hits.length===1?"":"es"}`,p.join(" · ")+" mm");
- $("results").scrollIntoView({behavior:"smooth"});});
-
-/* ---------------- theme ---------------- */
-const SUN='<circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.4M12 19.6V22M4.2 4.2l1.7 1.7M18.1 18.1l1.7 1.7M2 12h2.4M19.6 12H22M4.2 19.8l1.7-1.7M18.1 5.9l1.7-1.7"/>';
-const MOON='<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/>';
-$("modeBtn").addEventListener("click",()=>{
- const dark=document.documentElement.dataset.mode==="dark";
- document.documentElement.dataset.mode=dark?"light":"dark";
- $("modeIc").innerHTML=dark?MOON:SUN;
- $("modeBtn").setAttribute("aria-label",dark?"Switch to dark mode":"Switch to light mode");});
-
-addEventListener("scroll",()=>$("hdr").classList.toggle("stuck",scrollY>8));
-const urlCat=new URLSearchParams(location.search).get("cat");
-setCat(["bearing","linear","coupling","fastener","seal"].includes(urlCat)?urlCat:"all");
-renderBasket();
-</script>
+<script src="site.js"></script>
+<script src="bearings_db.js"></script>
+<script src="js/config.js"></script>
+<script src="js/constants.js"></script>
+<script src="js/db.js"></script>
+<script src="js/search/parsers.js"></script>
+<script src="js/search/rules.js"></script>
+<script src="js/search/scoring.js"></script>
+<script src="js/search/fallback.js"></script>
+<script src="js/search/engine.js"></script>
+<script src="js/ai-refiner.js"></script>
+<script src="js/renderer.js"></script>
+<script src="js/router.js"></script>
+<script src="js/supplier-form.js"></script>
+<script src="js/features.js"></script>
+<script src="js/canvas.js"></script>
+<script src="js/app.js"></script>
 </body>
 </html>

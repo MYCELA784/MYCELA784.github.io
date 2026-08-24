@@ -6,89 +6,114 @@
 (function (ns) {
   ns.Renderer = ns.Renderer || {};
 
-  function matchBadge(mt) {
-    if (mt === 'PN')   return '<span class="match-badge">PN</span>';
-    if (mt === 'DIMS') return '<span class="match-badge">DIMS</span>';
-    if (mt === 'APP')  return '<span class="match-badge">APP</span>';
-    return '';
-  }
-
   function brandBadge(brand) {
     const c = (ns.BRAND_COLORS && ns.BRAND_COLORS[brand]) || '#17150F';
     return `<span class="card-brand-badge" style="background:${c};color:#fff">${brand}</span>`;
   }
 
-  function cardHTML(b) {
-    const badge  = matchBadge(b._matchType);
-    const crVal  = b.cr != null ? `Cr <b>${b.cr}</b> kN` : '';
-    const safeId = b.id.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-    const icon   = (ns.TI && ns.TI[b.type]) || '';
-    const hasXref = b.alt && b.alt.length > 0;
-    return `<div class="part-card" onclick="openModal('${safeId}')">
-      <div class="card-top">
-        <div class="card-pn">${b.pn}</div>
-        <div class="card-type-badge">${icon} ${b.type}</div>
-        <input type="checkbox" class="cmp-chk" ${ns._cmp && ns._cmp.has(b.id) ? 'checked' : ''} onclick="event.stopPropagation();toggleCompare('${safeId}', this)" title="Add to compare">
-      </div>
-      <div class="card-brand-row">
-        ${brandBadge(b.brand)}${badge}
-      </div>
-      <div class="card-dims">
-        <div><div class="dim-lbl">Bore</div><div class="dim-val">${b.bore}<span class="dim-unit">mm</span></div></div>
-        <div><div class="dim-lbl">OD</div><div class="dim-val">${b.od}<span class="dim-unit">mm</span></div></div>
-        <div><div class="dim-lbl">Width</div><div class="dim-val">${b.w}<span class="dim-unit">mm</span></div></div>
-      </div>
-      <div class="card-cr-row"><span class="card-cr-val">${crVal}</span><span class="card-seal">${b.sealing || ''}</span></div>
-      <div class="card-inq-row" id="cardbtn-${b.id}">${ns.Basket ? ns.Basket.btnHTML(b) : ''}</div>
-    </div>`;
+  // ── Grid card (article.item) ────────────────────────────────────────────────
+  function specChip(label, value, unit) {
+    if (value == null || value === '') return '';
+    const val = unit ? `<b class="num">${value}</b><span class="u">${unit}</span>` : `<b>${value}</b>`;
+    return `<span class="spec">${label} ${val}</span>`;
   }
 
-ns.Renderer.cards = function (results, state) {
+  // "Same fit" uses the catalog's precomputed alt[] equivalents, not a fresh
+  // dimension scan — findXrefs() below (used by the modal) does that instead.
+  function altXrefs(b) {
+    return (b.alt || []).map(id => ns.DB_MAP[id]).filter(Boolean);
+  }
+
+  function cardHTML(b) {
+    const xs    = altXrefs(b);
+    const specs = [
+      specChip('Bore', b.bore, 'mm'),
+      specChip('OD',   b.od,   'mm'),
+      specChip('Width', b.w,   'mm'),
+      specChip('Sealing', b.sealing, null),
+      specChip('Cr', b.cr, 'kN'),
+    ].join('');
+    return `<article class="item">
+      <div class="item-top">
+        <div><div class="pn">${b.pn}</div><div class="brandline">${brandBadge(b.brand)} ${b.type || ''}</div></div>
+        <span class="catlab">Bearing</span>
+      </div>
+      <div class="specs">${specs}</div>
+      ${xs.length ? `<div class="xr">Same fit from ${xs.map(x => `<button data-x="${x.pn}">${x.brand} <span class="p">${x.pn}</span></button>`).join(', ')}</div>` : ''}
+      <div class="item-act">
+        <button class="btn btn-sm" data-add="${b.id}">Add to list</button>
+        <button class="ghost" data-info="${b.id}">Details</button>
+      </div>
+    </article>`;
+  }
+
+  // state: { filters: { brand: Set, sealing: Set }, title, sub }
+  ns.Renderer.cards = function (results, state) {
     ns._lastResults = results;
     ns._lastState   = state;
-    const countEl = document.getElementById('results-count');
-    const el      = document.getElementById('results-area');
-    if (!el) return;
+    const grid    = document.getElementById('grid');
+    const resWrap = document.getElementById('results');
+    const rTitle  = document.getElementById('rTitle');
+    const rSub    = document.getElementById('rSub');
+    const fbody   = document.getElementById('fbody');
+    if (!grid || !resWrap) return;
 
-    let filtered = (results || []).slice();
-    if (state && state.tf && state.tf !== 'All')
-      filtered = filtered.filter(b => b.type === state.tf);
-    if (state && state.bf && state.bf !== 'All')
-      filtered = filtered.filter(b => b.brand === state.bf);
+    const baseList = results || [];
+    const filters  = (state && state.filters) || {};
+    const fBrand   = filters.brand;
+    const fSeal    = filters.sealing;
 
-    const s = ns._sort || 'score';
-    filtered.sort((a, b) => {
-      if (s === 'cr')    return (b.cr || 0) - (a.cr || 0);
-      if (s === 'bore')  return (a.bore || 0) - (b.bore || 0);
-      if (s === 'brand') return (a.brand || '').localeCompare(b.brand || '');
-      return (b._score || 0) - (a._score || 0);
-    });
+    const filtered = baseList.filter(b =>
+      (!fBrand || !fBrand.size || fBrand.has(b.brand)) &&
+      (!fSeal  || !fSeal.size  || (b.sealing && fSeal.has(b.sealing))));
 
-    const n = ns._cmp ? ns._cmp.size : 0;
-    if (countEl) {
-      countEl.style.display = '';
-      countEl.innerHTML =
-        `Showing <b>${filtered.length}</b> results from <b>${ns.DB.length.toLocaleString()}</b> indexed bearings
-         <span class="results-tools">
-           <select id="sort-select" onchange="setSort(this.value)">
-             <option value="score" ${s==='score'?'selected':''}>Relevance</option>
-             <option value="cr"    ${s==='cr'?'selected':''}>Load rating</option>
-             <option value="bore"  ${s==='bore'?'selected':''}>Bore size</option>
-             <option value="brand" ${s==='brand'?'selected':''}>Brand</option>
-           </select>
-           <button id="compare-btn" onclick="openCompare()" ${n<2?'disabled':''} style="display:${n?'':'none'}">Compare (${n})</button>
-         </span>`;
+    resWrap.classList.add('on');
+
+    // ── Filter rail (built from the full, unfiltered result set) ─────────────
+    if (fbody) {
+      const brands = {}, seals = {};
+      baseList.forEach(b => {
+        brands[b.brand] = (brands[b.brand] || 0) + 1;
+        if (b.sealing) seals[b.sealing] = (seals[b.sealing] || 0) + 1;
+      });
+      const bKeys = Object.keys(brands).sort();
+      const sKeys = Object.keys(seals).sort();
+      let html = '';
+      if (bKeys.length > 1) {
+        html += `<div class="fgroup"><h4>Brand</h4>` + bKeys.map(k =>
+          `<label class="frow"><input type="checkbox" data-fb="${k}" ${fBrand && fBrand.has(k) ? 'checked' : ''}>
+           ${k}<span class="n">${brands[k]}</span></label>`).join('') + `</div>`;
+      }
+      if (sKeys.length > 1) {
+        html += `<div class="fgroup"><h4>Sealing</h4>` + sKeys.map(k =>
+          `<label class="frow"><input type="checkbox" data-fs="${k}" ${fSeal && fSeal.has(k) ? 'checked' : ''}>
+           ${k}<span class="n">${seals[k]}</span></label>`).join('') + `</div>`;
+      }
+      const hasFilters = !!html;
+      if ((fBrand && fBrand.size) || (fSeal && fSeal.size)) html += `<button class="fclear" id="fclear">Clear filters</button>`;
+      fbody.innerHTML = html;
+      resWrap.classList.toggle('norail', !hasFilters);
     }
 
+    // ── Header ─────────────────────────────────────────────────────────────
+    if (rTitle) {
+      rTitle.textContent = (filtered.length !== baseList.length)
+        ? `${filtered.length} of ${baseList.length}`
+        : (state && state.title) || `${baseList.length} result${baseList.length === 1 ? '' : 's'}`;
+    }
+    if (rSub) rSub.textContent = (state && state.sub) || '';
+
+    // ── Grid ───────────────────────────────────────────────────────────────
+    grid.classList.toggle('few', filtered.length > 0 && filtered.length < 3);
     if (!filtered.length) {
-      el.innerHTML = `<div class="empty-state">
-        <div class="empty-icon">◌</div>
-        <div class="empty-title">No bearings found</div>
-        <div class="empty-sub">Try a different part number, dimensions, or application.</div>
-      </div>`;
+      grid.innerHTML = `<div class="blank" style="grid-column:1/-1"><h3>${baseList.length ? 'Nothing matches those filters' : "We don't have that one yet"}</h3>
+        <p>${baseList.length ? 'Try clearing a filter to widen the results.'
+           : "Tell us what you're after and we'll source it, then add it to the catalogue for the next person looking."}</p>
+        ${baseList.length ? '<button class="btn btn-line" id="fclear2">Clear filters</button>'
+           : '<button class="btn" id="askBtn">Ask us to source it</button>'}</div>`;
       return;
     }
-    el.innerHTML = '<div class="results-grid">' + filtered.map(cardHTML).join('') + '</div>';
+    grid.innerHTML = filtered.map(cardHTML).join('');
   };
 
   // ── Modal ──────────────────────────────────────────────────────────────────
