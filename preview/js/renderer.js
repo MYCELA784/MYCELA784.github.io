@@ -26,6 +26,16 @@
     return (b.alt || []).map(id => ns.DB_MAP[id]).filter(Boolean);
   }
 
+  // A result that only matched via the base-designation fallback (see
+  // SearchEngine.isDesignationOnlyMatch) is the closest available part in
+  // that family, not necessarily the sealing arrangement the buyer asked
+  // for — flag it instead of presenting a different sealing type as exact.
+  function sealingMismatchNote(b) {
+    if (!b._designationOnly || !b._queriedSealing || !b.sealing) return '';
+    if (b.sealing === b._queriedSealing) return '';
+    return `<div class="xr">Closest match: ${b.sealing.toLowerCase()}, you searched ${b._queriedSealing.toLowerCase()}</div>`;
+  }
+
   function cardHTML(b) {
     const xs    = altXrefs(b);
     const specs = [
@@ -42,6 +52,7 @@
         <input type="checkbox" class="cmp-chk" data-cmp="${b.id}" ${ns._cmp && ns._cmp.has(b.id) ? 'checked' : ''} title="Add to compare">
       </div>
       <div class="specs">${specs}</div>
+      ${sealingMismatchNote(b)}
       ${xs.length ? `<div class="xr">Same fit from ${xs.map(x => `<button data-x="${x.pn}">${x.brand} <span class="p">${x.pn}</span></button>`).join(', ')}</div>` : ''}
       <div class="item-act">
         <button class="btn btn-sm${ns.Basket && ns.Basket.has(b.id) ? ' added' : ''}" data-add="${b.id}">${ns.Basket && ns.Basket.has(b.id) ? 'Added to list' : 'Add to list'}</button>
