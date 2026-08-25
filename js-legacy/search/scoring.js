@@ -12,63 +12,23 @@
  *   .rpm(b, intent)
  *   .sealing(b, intent)
  *   .applications(b, intent)
- *
- *   MYCELA.SearchEngine.isDesignationOnlyMatch(b, intent) → bool
- *     True when partNumber()'s score came from the base-designation
- *     fallback rather than an exact/prefix/includes string match — i.e.
- *     this result is "closest by designation", not a literal pn match.
  */
 (function (ns) {
   ns.SearchEngine = ns.SearchEngine || {};
 
-  // Leading digit run, read from the *raw* (unstripped) string so a suffix
-  // that starts with a digit (2RS, 2Z, 2RSR, ...) can't glue onto the base
-  // designation once dashes/spaces are removed elsewhere — e.g. "6205-2rs"
-  // must read as base "6205", not "62052" (see classifyPartNumberMatch()).
-  function baseDesignation(raw) {
-    const m = /^[0-9]+/.exec(raw);
-    return m ? m[0] : '';
-  }
-
-  // Single source of truth for which partNumber() branch applies, shared
-  // with ns.SearchEngine.isDesignationOnlyMatch() below so the renderer can
-  // tell a real string match apart from a base-designation-only fallback
-  // (e.g. "6205-2RS" vs catalog pn "6205") without re-deriving the logic.
-  function classifyPartNumberMatch(b, intent) {
-    const pnRaw   = b.pn.toLowerCase();
-    const pnClean = pnRaw.replace(/[\s-]/g, '');
-    const qClean  = intent.rawQ.replace(/[^a-z0-9]/g, '');
-    if ((pnClean === qClean && qClean.length >= 2) || pnRaw === intent.rawQ) return 'exact';
-    if (pnClean.startsWith(qClean) && qClean.length >= 3)                     return 'prefix';
-    if (pnClean.includes(qClean) && qClean.length >= 3)                      return 'includes';
-    // Query is a base designation plus a suffix/modifier that this pn
-    // doesn't literally contain (e.g. "6205-2RS" vs catalog pn "6205" or
-    // "6205-C-2Z"): an exact shared base designation must still outrank an
-    // unrelated pn that only coincidentally shares a short suffix substring
-    // (see the token loop in partNumber()) plus a sealing match.
-    const qBase = baseDesignation(intent.rawQ);
-    if (qBase.length >= 3 && qBase === baseDesignation(pnRaw)) return 'designation';
-    return null;
-  }
-
-  // Used by engine.js's fast() to flag results that only matched via the
-  // base-designation fallback — the renderer uses this to show a "closest
-  // match, different sealing than requested" note instead of presenting
-  // a different sealing type as if it were an exact match.
-  ns.SearchEngine.isDesignationOnlyMatch = function (b, intent) {
-    return classifyPartNumberMatch(b, intent) === 'designation';
-  };
-
   ns.SearchEngine.Scorers = {
     partNumber(b, intent) {
       const CFG     = MYCELA.CONFIG.scoring;
-      const pnClean = b.pn.toLowerCase().replace(/[\s-]/g, '');
+      const pnRaw   = b.pn.toLowerCase();
+      const pnClean = pnRaw.replace(/[\s-]/g, '');
+      const qClean  = intent.rawQ.replace(/[^a-z0-9]/g, '');
       let s = 0;
-      switch (classifyPartNumberMatch(b, intent)) {
-        case 'exact':       s += CFG.pnExact;         break;
-        case 'prefix':      s += CFG.pnPrefix;        break;
-        case 'includes':    s += CFG.pnIncludes;      break;
-        case 'designation': s += CFG.designationMatch; break;
+      if ((pnClean === qClean && qClean.length >= 2) || pnRaw === intent.rawQ) {
+        s += CFG.pnExact;
+      } else if (pnClean.startsWith(qClean) && qClean.length >= 3) {
+        s += CFG.pnPrefix;
+      } else if (pnClean.includes(qClean) && qClean.length >= 3) {
+        s += CFG.pnIncludes;
       }
       intent.tokens.forEach(t => {
         if (t.length >= 2 && pnClean.includes(t)) s += CFG.pnToken;

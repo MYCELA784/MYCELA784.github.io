@@ -1,312 +1,198 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-mode="light">
 <head>
-<!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-PWR56SH2V5"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-  gtag('config', 'G-PWR56SH2V5');
-</script>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>MYCELA | Industrial Parts Intelligence</title>
-<meta name="description" content="Search, compare and cross-reference industrial bearings from NTN, SKF and more. AI-powered parts intelligence for manufacturing teams."/>
-<meta name="robots" content="index, follow"/>
-<meta property="og:title" content="MYCELA | Industrial Parts Intelligence"/>
-<meta property="og:description" content="Find the right industrial part in seconds. AI-powered search across NTN, SKF and leading bearing brands."/>
-<meta property="og:url" content="https://mycela.in"/>
-<link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link href="https://fonts.googleapis.com/css2?family=Syncopate:wght@400;700&family=Jost:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="css/styles.css"/>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MYCELA | Industrial parts, sourced fast</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="css/components.css">
 </head>
 <body>
 
-<nav class="nav" id="main-nav">
-  <div class="nav-brand">
-    <svg width="24" height="24" viewBox="0 0 28 28" fill="none">
-      <circle cx="14" cy="14" r="3" fill="#c8a84c"/>
-      <circle cx="6" cy="8" r="2" fill="#c8a84c" opacity=".6"/>
-      <circle cx="22" cy="8" r="2" fill="#c8a84c" opacity=".6"/>
-      <circle cx="6" cy="20" r="2" fill="#c8a84c" opacity=".5"/>
-      <circle cx="22" cy="20" r="2" fill="#c8a84c" opacity=".5"/>
-      <line x1="14" y1="14" x2="6" y2="8" stroke="#c8a84c" stroke-width=".9" opacity=".45"/>
-      <line x1="14" y1="14" x2="22" y2="8" stroke="#c8a84c" stroke-width=".9" opacity=".45"/>
-      <line x1="14" y1="14" x2="6" y2="20" stroke="#c8a84c" stroke-width=".9" opacity=".32"/>
-      <line x1="14" y1="14" x2="22" y2="20" stroke="#c8a84c" stroke-width=".9" opacity=".32"/>
-    </svg>
-    <span class="nav-logo-text" onclick="showPage('home')">MYCELA</span>
-    <span class="nav-sub">Beta</span>
+<header class="hdr" id="hdr">
+  <div class="wrap hdr-in">
+    <a class="logo" href="index.html"><span class="logo-mk">MC</span><span class="logo-wd">MYCELA</span></a>
+    <nav class="nav"><a href="#categories">Parts</a><a href="#how">How it works</a><a href="dealers.html">For dealers</a><a href="contact.html">Contact</a></nav>
+    <div class="hdr-act">
+      <button class="icon-btn sq" id="modeBtn" aria-label="Switch to dark mode" title="Switch theme">
+        <svg id="modeIc" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+      </button>
+      <button class="icon-btn" id="openSize">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 8h18M3 8v8M21 8v8M7 8v3M11 8v3M15 8v3M19 8v3"/></svg>
+        <span class="lbl">Find by size</span></button>
+      <button class="icon-btn" id="openBasket">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 7h16l-1.3 11.2a2 2 0 0 1-2 1.8H7.3a2 2 0 0 1-2-1.8L4 7Z"/><path d="M9 7V5a3 3 0 0 1 6 0v2"/></svg>
+        <span class="lbl">My list</span> <span class="count" id="bCount">0</span></button>
+    </div>
   </div>
-  <div class="nav-links">
-    <button class="nav-link active" id="nl-home" onclick="showPage('home')">Home</button>
-    <button class="nav-link" id="nl-search" onclick="showPage('search')">Search Parts</button>
-    <button class="nav-link" id="nl-suppliers" onclick="showPage('suppliers')">For Suppliers</button>
-    <button class="nav-link" onclick="showInquiry()">Inquiry <span id="inq-count" class="inq-badge">0</span></button>
-  </div>
-  <button class="nav-cta" onclick="showPage('search')">Search Parts</button>
-  <div class="nav-toggle-wrap">
-    <span class="nav-toggle-lbl" id="nav-toggle-lbl">Light</span>
-    <button class="nav-toggle" id="nav-toggle" onclick="toggleDarkMode()" aria-label="Toggle dark mode"></button>
-  </div>
-</nav>
+</header>
 
-<!-- HOME PAGE -->
-<div id="page-home" class="page active">
-  <div class="hero">
-    <canvas id="mycelium-canvas"></canvas>
-    <div class="hero-glow"></div>
-    <div class="hero-inner">
-      <div class="hero-badge"><span class="badge-dot"></span><span class="badge-text">Live Demo &nbsp;·&nbsp; Bearing Intelligence</span></div>
-      <h1 class="hero-title">Find the right part.<br><span>In seconds, not hours.</span></h1>
-      <p class="hero-sub">Search SKF, NTN and FAG bearings by part number, shaft size, load rating, or application. Deep groove ball, cylindrical roller, spherical roller, angular contact, tapered roller, needle roller and more. MYCELA finds the right bearing instantly.</p>
-      <div class="hero-search">
-        <input id="hero-input" class="hero-input" placeholder="Try: 6205  or  40mm bore pump bearing  or  sealed food grade"/>
-        <button class="hero-btn" onclick="heroSearch()">Search</button>
-      </div>
-      <div class="chips">
-        <button class="chip" onclick="quickHero('6205-2RS1')">6205-2RS1</button>
-        <button class="chip" onclick="quickHero('spherical roller mining')">spherical roller mining</button>
-        <button class="chip" onclick="quickHero('NU 210 cylindrical roller')">NU 210 cylindrical roller</button>
-        <button class="chip" onclick="quickHero('40mm bore sealed pump')">40mm bore sealed pump</button>
-      </div>
+<main id="top">
+  <div class="hero wrap">
+    <span class="kicker"><span class="dotp"></span>Serving MSMEs across Pune &amp; Pimpri-Chinchwad</span>
+    <h1>Every part your line runs on.</h1>
+    <p class="lede">Search bearings, linear guides, couplings and fasteners across the brands you already trust. Add what you need to one list, and dealers quote you back, usually the same day.</p>
+
+    <div class="pills" id="pills">
+      <button class="pill" data-cat="all" aria-pressed="true">Everything</button>
+      <button class="pill" data-cat="bearing" aria-pressed="false">Bearings</button>
+      <button class="pill" data-cat="linear" aria-pressed="false" disabled>Linear motion<span class="soon">soon</span></button>
+      <button class="pill" data-cat="coupling" aria-pressed="false" disabled>Couplings<span class="soon">soon</span></button>
+      <button class="pill" data-cat="fastener" aria-pressed="false" disabled>Fasteners<span class="soon">soon</span></button>
+      <button class="pill" data-cat="seal" aria-pressed="false" disabled>Seals<span class="soon">soon</span></button>
     </div>
-    <div class="scroll-hint">SCROLL TO EXPLORE<span>↓</span></div>
+
+    <div class="searchbox">
+      <div class="sfield">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="q" type="search" autocomplete="off" placeholder="Search any part number…">
+      </div>
+      <div class="ac" id="ac" hidden></div>
+      <p class="helper" id="helper">Don't have the number? <button id="helperSize">Find it by size instead</button></p>
+      <div class="egs" id="egs"></div>
+    </div>
+
+    <div class="trust">
+      <div><b>3,715</b>parts listed</div><div><b>3</b>brands live</div>
+      <div><b>&lt;24h</b>typical quote time</div><div><b>Pune</b>dealer network</div>
+    </div>
   </div>
-  <div class="trust-bar"><div class="trust-inner">
-    <div class="trust-item"><span class="trust-dot"></span>SKF Official Catalog Data</div>
-    <div class="trust-item"><span class="trust-dot"></span>NTN Official Catalog Data</div>
-    <div class="trust-item"><span class="trust-dot"></span>FAG Official Catalog Data</div>
-    <div class="trust-item"><span class="trust-dot"></span>Validated Load Ratings</div>
-    <div class="trust-item"><span class="trust-dot"></span>AI-Assisted Search</div>
-  </div></div>
-  <div class="stats-bar"><div class="stats-inner">
-    <div class="stat"><div class="stat-val">3,700+</div><div class="stat-label">Bearing SKUs</div></div>
-    <div class="stat"><div class="stat-val">3</div><div class="stat-label">Brands Indexed</div></div>
-    <div class="stat"><div class="stat-val">9</div><div class="stat-label">Bearing Types</div></div>
-    <div class="stat"><div class="stat-val">AI</div><div class="stat-label">Search Engine</div></div>
-  </div></div>
-  <div class="hiw-bg"><div class="sec"><div class="sec-inner">
-    <div style="max-width:540px"><div class="eyebrow">How It Works</div><div class="sec-title">From what you know to what you need</div><div class="sec-sub">Most people searching for a bearing know the application or shaft size. Not always the part number. MYCELA bridges that gap.</div></div>
-    <div class="hiw-grid">
-      <div class="hiw-step" data-n="01"><div class="hiw-label">Step 01</div><div class="hiw-title">Describe what you need</div><div class="hiw-desc">Type in plain language. Part number, shaft size, application, sealing type. Any of these work.</div></div>
-      <div class="hiw-step" data-n="02"><div class="hiw-label">Step 02</div><div class="hiw-title">AI reads your intent</div><div class="hiw-desc">The search engine maps your query against real technical specifications, not just keywords.</div></div>
-      <div class="hiw-step" data-n="03"><div class="hiw-label">Step 03</div><div class="hiw-title">Review full spec sheets</div><div class="hiw-desc">Load ratings, RPM limits, sealing type, mass. Complete data so you can make a confident call.</div></div>
-      <div class="hiw-step" data-n="04"><div class="hiw-label">Step 04</div><div class="hiw-title">Find cross-references</div><div class="hiw-desc">One click shows equivalent parts across brands. Switch from NTN to SKF without any rework.</div></div>
-    </div>
-  </div></div></div>
-  <div class="sec"><div class="sec-inner">
-    <div style="max-width:540px"><div class="eyebrow">What MYCELA Does</div><div class="sec-title">Built for people who actually source parts</div></div>
-    <div class="features-grid">
-      <div class="feat-card"><div class="feat-icon">◉</div><div class="feat-title">Natural Language Search</div><div class="feat-desc">Write the way you think. "Sealed bearing for a 30mm food processing pump shaft" returns the right options without guessing at catalog numbers.</div></div>
-      <div class="feat-card"><div class="feat-icon">⇄</div><div class="feat-title">Brand Cross-Reference</div><div class="feat-desc">NTN to SKF and back. See equivalent parts across manufacturers in one click. Useful when your usual brand is out of stock.</div></div>
-      <div class="feat-card"><div class="feat-icon">◎</div><div class="feat-title">Complete Technical Data</div><div class="feat-desc">Dynamic load rating, static load rating, max RPM, mass, sealing type. Not just a part number and a price.</div></div>
-      <div class="feat-card"><div class="feat-icon">▦</div><div class="feat-title">Multi-Brand in One Place</div><div class="feat-desc">Search NTN, SKF and upcoming brands in a single query. One catalog instead of five browser tabs.</div></div>
-    </div>
-  </div></div>
-  <div class="brands-bg"><div class="sec"><div class="sec-inner">
-    <div class="eyebrow">Brands in the Catalog</div>
-    <div class="sec-title">Starting with the most searched</div>
-    <div class="sec-sub">More OEM data being added. If your brand is missing, let us know.</div>
-    <div class="brands-row">
-      <div class="brand-badge"><span class="brand-dot" style="background:#e8643a"></span><span class="brand-name">NTN</span><span class="brand-status live">Live</span></div>
-      <div class="brand-badge"><span class="brand-dot" style="background:#007A33"></span><span class="brand-name">FAG</span><span class="brand-status live">LIVE</span></div>
-      <div class="brand-badge"><span class="brand-dot" style="background:#0069b3"></span><span class="brand-name">SKF</span><span class="brand-status live">Live</span></div>
-      <div class="brand-badge"><span class="brand-dot" style="background:#6a6040"></span><span class="brand-name">NRB</span><span class="brand-status" style="color:#4a5030">Coming Soon</span></div>
-      <div class="brand-badge"><span class="brand-dot" style="background:#6a6040"></span><span class="brand-name">Timken</span><span class="brand-status" style="color:#4a5030">Coming Soon</span></div>
-      <div class="brand-badge"><span class="brand-dot" style="background:#6a6040"></span><span class="brand-name">Rollon</span><span class="brand-status" style="color:#4a5030">Coming Soon</span></div>
-    </div>
-  </div></div></div>
-  <div class="sec"><div class="sec-inner" style="text-align:center">
-    <div class="eyebrow" style="justify-content:center">What We Are Building</div>
-    <div class="vision-card">
-      <div class="vision-glow"></div>
-      <div class="sec-title" style="margin-bottom:12px;color:var(--white)">More than a search tool.</div>
-      <p style="font-size:14px;color:#6a6040;max-width:460px;margin:0 auto;line-height:1.7">MYCELA is building the intelligence layer for industrial sourcing. The search tool you see today is the first step.</p>
-      <div class="vision-pills">
-        <div class="vp-live"><div class="vp-live-l">Now Live</div><div class="vp-live-v">AI Parts Search and Cross-Reference</div></div>
-        <div class="vp-next"><div class="vp-next-l">In Progress</div><div class="vp-next-v">More capabilities coming...</div></div>
-      </div>
-    </div>
-  </div></div>
-  <div class="cta-bg"><div style="max-width:500px;margin:0 auto">
-    <h2 class="cta-title">Try it now. No signup needed.</h2>
-    <p class="cta-sub">Type a part number, a shaft size, or describe your application. The search works in plain English.</p>
-    <button class="cta-btn" onclick="showPage('search')">Search the Catalog</button>
-    <div class="cta-credit">NTN and SKF catalog data &nbsp;·&nbsp; AI search powered by Claude &nbsp;·&nbsp; mycela.in</div>
-  </div></div>
-  <div class="footer">© 2026 MYCELA Technologies &nbsp;·&nbsp; mycela.in &nbsp;·&nbsp; Pune, India</div>
-</div>
 
-<!-- SEARCH PAGE -->
-<div id="page-search" class="page">
-  <div style="padding-top:62px"><div class="search-body">
-    <div class="search-head">
-      <div class="search-head-title">Parts Search</div>
-      <div class="search-head-sub">Search by part number, dimensions, application or plain language</div>
-    </div>
-    <div class="search-bar-row">
-      <input id="search-input" class="search-input" placeholder='Part number, application or dimensions — e.g. "25mm bore sealed pump bearing"'/>
-      <button id="search-btn" class="search-btn" onclick="doSearch()">Search</button>
-    </div>
-    <div class="chips" style="justify-content:flex-start;margin-bottom:16px">
-      <button class="chip" onclick="quickSearch('6205')">6205</button>
-      <button class="chip" onclick="quickSearch('NU 210')">NU 210</button>
-      <button class="chip" onclick="quickSearch('22218 spherical roller')">22218 spherical roller</button>
-      <button class="chip" onclick="quickSearch('sealed 30mm bore')">sealed 30mm bore</button>
-      <button class="chip" onclick="quickSearch('angular contact 25mm')">angular contact 25mm</button>
-    </div>
-   <details class="dim-panel">
-      <summary>📏 Search by dimensions — measured a bearing?</summary>
-      <div class="dim-row">
-        <div><label>BORE MM</label><input id="dim-bore" type="number" step="1"/></div>
-        <div><label>OD MM</label><input id="dim-od" type="number" step="1"/></div>
-        <div><label>WIDTH MM</label><input id="dim-w" type="number" step="1" placeholder="any"/></div>
-        <div><label>± MM</label><select id="dim-tol"><option>0</option><option selected>1</option><option>2</option><option>5</option></select></div>
-        <button class="dim-go" onclick="dimFind()">Find bearings</button>
-      </div>
-    </details>
-    <div id="ai-box" style="display:none" class="ai-box">
-      <div class="ai-box-label"><span class="ai-dot"></span>MYCELA AI</div>
-      <div id="ai-box-text" class="ai-box-text"></div>
-      <div id="ai-tips-row" class="ai-tips-row"></div>
-    </div>
-    <div id="filter-bar" style="display:none" class="filter-bar">
-      <span class="filter-lbl">Type</span>
-      <button class="filter-btn active" onclick="setTF('All',this)">All</button>
-      <button class="filter-btn" onclick="setTF('Deep Groove Ball',this)">Deep Groove Ball</button>
-      <button class="filter-btn" onclick="setTF('Cylindrical Roller',this)">Cylindrical Roller</button>
-      <button class="filter-btn" onclick="setTF('Tapered Roller',this)">Tapered Roller</button>
-      <button class="filter-btn" onclick="setTF('Spherical Roller',this)">Spherical Roller</button>
-      <button class="filter-btn" onclick="setTF('Angular Contact Ball',this)">Angular Contact</button>
-      <button class="filter-btn" onclick="setTF('Needle Roller',this)">Needle Roller</button>
-      <button class="filter-btn" onclick="setTF('Self-Aligning Ball',this)">Self-Aligning</button>
-      <button class="filter-btn" onclick="setTF('Spherical Roller Thrust',this)">Thrust</button>
-      <span class="filter-sep">|</span>
-      <span class="filter-lbl">Brand</span>
-      <button class="filter-btn active" onclick="setBF('All',this)">All</button>
-      <button class="filter-btn" onclick="setBF('NTN',this)">NTN</button>
-      <button class="filter-btn" onclick="setBF('SKF',this)">SKF</button>
-      <button class="filter-btn" onclick="setBF('FAG',this)">FAG</button>
-    </div>
-    <div id="results-count" style="display:none" class="results-count"></div>
-    <div id="results-area"></div>
-  </div></div>
-</div>
-
-<!-- SUPPLIERS PAGE -->
-<div id="page-suppliers" class="page">
-  <div style="padding-top:62px">
-    <div class="sup-hero"><div class="sup-hero-inner">
-      <div class="hero-badge" style="margin-bottom:20px"><span class="badge-dot"></span><span class="badge-text">Supplier Program &nbsp;·&nbsp; Now Open</span></div>
-      <h1 class="sup-title">Get your inventory in front of the right buyers</h1>
-      <p class="sup-sub">MYCELA connects manufacturing teams with verified industrial suppliers. If you stock bearings, linear guides, or precision components, your catalog belongs here.</p>
-      <div class="sup-cta-row">
-        <button class="sup-btn-p" onclick="document.getElementById('supplier-form-section').scrollIntoView({behavior:'smooth'})">Register Your Business</button>
-        <button class="sup-btn-s" onclick="document.getElementById('how-listing').scrollIntoView({behavior:'smooth'})">See How It Works</button>
-      </div>
-    </div></div>
-    <div class="sec"><div class="sec-inner">
-      <div class="eyebrow">Why List on MYCELA</div>
-      <div class="sec-title">Buyers are already searching. Your parts should be findable.</div>
-      <div class="benefits-grid">
-        <div class="ben-card"><div class="ben-num">01</div><div class="ben-title">Reach verified industrial buyers</div><div class="ben-desc">MYCELA is used by procurement teams and engineers sourcing parts for active production. High intent, not casual browsing.</div></div>
-        <div class="ben-card"><div class="ben-num">02</div><div class="ben-title">Get found by application, not just part number</div><div class="ben-desc">Buyers search by shaft size, machine type, or industry. Your parts appear even when they do not know your catalog number.</div></div>
-        <div class="ben-card"><div class="ben-num">03</div><div class="ben-title">No listing fee during beta</div><div class="ben-desc">Early suppliers join at no cost while we build the network. Pricing is introduced only after you see value firsthand.</div></div>
-        <div class="ben-card"><div class="ben-num">04</div><div class="ben-title">Performance data you can actually use</div><div class="ben-desc">See which parts are being searched, which queries you are missing, and where demand is concentrated in your region.</div></div>
-        <div class="ben-card"><div class="ben-num">05</div><div class="ben-title">Fast payout on confirmed orders</div><div class="ben-desc">Orders confirmed through the platform come with escrow-backed payment. You get paid when the buyer confirms delivery.</div></div>
-        <div class="ben-card"><div class="ben-num">06</div><div class="ben-title">Simple onboarding, no technical setup</div><div class="ben-desc">Share your catalog as a PDF or Excel file. Our team handles extraction and indexing.</div></div>
-      </div>
-    </div></div>
-    <div class="sec" style="background:var(--bg2);border-top:1px solid #0c1710;border-bottom:1px solid #0c1710"><div class="sec-inner">
-      <div class="eyebrow">Who Can List</div>
-      <div class="sec-title">Open to distributors, dealers and direct manufacturers</div>
-      <div class="elig-grid">
-        <div class="elig-item"><div class="elig-icon">◉</div><div class="elig-text"><strong>Authorized Distributors</strong>NTN, SKF, FAG, NRB, Timken, Koyo and other OEM authorized dealers</div></div>
-        <div class="elig-item"><div class="elig-icon">▬</div><div class="elig-text"><strong>Trading Companies</strong>Multi-brand bearing traders with documented sourcing from verified manufacturers</div></div>
-        <div class="elig-item"><div class="elig-icon">◤</div><div class="elig-text"><strong>Direct Manufacturers</strong>Bearing makers and precision component producers with in-house production</div></div>
-        <div class="elig-item"><div class="elig-icon">⇄</div><div class="elig-text"><strong>Linear Motion Suppliers</strong>Linear guides, rail systems, actuators and precision motion components</div></div>
-        <div class="elig-item"><div class="elig-icon">▦</div><div class="elig-text"><strong>MRO Specialists</strong>Companies focused on maintenance, repair and operations parts for industrial facilities</div></div>
-        <div class="elig-item"><div class="elig-icon">◑</div><div class="elig-text"><strong>Regional Stockists</strong>City or state-level stockists with physical inventory and same-day dispatch capability</div></div>
-      </div>
-    </div></div>
-    <div class="sec" id="how-listing"><div class="sec-inner">
-      <div class="eyebrow">Onboarding Process</div>
-      <div class="sec-title">From registration to live listings in under a week</div>
-      <div class="listing-steps">
-        <div class="lst-step"><div><div class="lst-dot">01</div><div class="lst-line"></div></div><div class="lst-body"><div class="lst-title">Submit the registration form</div><div class="lst-desc">Basic business details, what you stock, and your service region. Takes under five minutes.</div></div></div>
-        <div class="lst-step"><div><div class="lst-dot">02</div><div class="lst-line"></div></div><div class="lst-body"><div class="lst-title">Verification call with our team</div><div class="lst-desc">A short call to confirm your inventory, brand authorizations, and dispatch capability.</div></div></div>
-        <div class="lst-step"><div><div class="lst-dot">03</div><div class="lst-line"></div></div><div class="lst-body"><div class="lst-title">Share your catalog</div><div class="lst-desc">PDF, Excel, or a simple list. We extract, clean, and index your parts. No special formatting needed.</div></div></div>
-        <div class="lst-step"><div><div class="lst-dot">04</div><div class="lst-line"></div></div><div class="lst-body"><div class="lst-title">Go live on MYCELA</div><div class="lst-desc">Your parts appear in search results. Buyers in your service region can find and request quotes directly.</div></div></div>
-        <div class="lst-step"><div><div class="lst-dot">05</div></div><div class="lst-body"><div class="lst-title">Receive and fulfill orders</div><div class="lst-desc">Inquiries and confirmed orders come through your supplier dashboard. You control pricing, availability, and dispatch.</div></div></div>
-      </div>
-    </div></div>
-    <div class="sec" style="background:var(--bg2);border-top:1px solid #0c1710" id="supplier-form-section"><div class="sec-inner">
-      <div style="text-align:center"><div class="eyebrow" style="justify-content:center">Register Your Business</div><div class="sec-title">Apply to list your inventory on MYCELA</div></div>
-      <div class="form-card" id="reg-form-card">
-        <div class="form-title">Supplier Registration</div>
-        <div class="form-sub">Fill in the details below. Our team will reach out within 2 business days to complete verification and walk you through the next steps.</div>
-        <div class="form-row">
-          <div class="form-group"><label class="form-lbl">Business Name</label><input class="form-input" id="f-name" placeholder="e.g. Sharma Bearings Pvt Ltd"/></div>
-          <div class="form-group"><label class="form-lbl">Your Name</label><input class="form-input" id="f-contact" placeholder="Contact person"/></div>
-          <div class="form-group"><label class="form-lbl">Phone Number</label><input class="form-input" id="f-phone" placeholder="+91 98765 43210" type="tel"/></div>
-          <div class="form-group"><label class="form-lbl">Email Address</label><input class="form-input" id="f-email" placeholder="you@business.com" type="email"/></div>
-          <div class="form-group"><label class="form-lbl">City</label><input class="form-input" id="f-city" placeholder="e.g. Pune, Mumbai, Ahmedabad"/></div>
-          <div class="form-group"><label class="form-lbl">Supplier Type</label>
-            <select class="form-select" id="f-type">
-              <option value="">Select type</option>
-              <option>Authorized Distributor</option>
-              <option>Trading Company</option>
-              <option>Direct Manufacturer</option>
-              <option>MRO Specialist</option>
-              <option>Regional Stockist</option>
-              <option>Other</option>
-            </select>
-          </div>
-          <div class="form-group full"><label class="form-lbl">Brands You Stock</label><input class="form-input" id="f-brands" placeholder="e.g. NTN, SKF, FAG, NRB, Timken"/></div>
-          <div class="form-group full"><label class="form-lbl">What products do you primarily stock?</label><textarea class="form-textarea" id="f-products" placeholder="e.g. Deep groove ball bearings 6000 to 6400 series, cylindrical roller bearings, linear guides..."></textarea></div>
+  <!-- results: wider container + left filter rail -->
+  <div class="results" id="results">
+    <div class="rwrap rlayout">
+      <aside class="frail" id="frail">
+        <button class="fmob" id="fmob" aria-expanded="true">Filters <span>−</span></button>
+        <div class="fbody" id="fbody"></div>
+      </aside>
+      <div>
+        <div class="rbar">
+          <h2 id="rTitle">Results</h2><span class="sub" id="rSub"></span>
+          <button class="btn btn-line btn-sm" id="compareBtn" style="display:none">Compare (0)</button>
+          <button class="btn btn-line btn-sm" id="clearSearch">Clear search</button>
         </div>
-        <button class="form-submit" onclick="submitForm()">Submit Registration</button>
-        <div class="form-note">No fees during the beta period. Your information is kept confidential and used only for the supplier onboarding process.</div>
+        <div class="grid" id="grid"></div>
       </div>
-      <div class="form-success" id="form-success">
-        <div class="form-success-icon">✓</div>
-        <div class="form-success-title">Registration received</div>
-        <div class="form-success-sub">We will reach out to <span id="success-email"></span> within 2 business days to complete verification and walk you through next steps.</div>
-      </div>
-    </div></div>
-    <div class="footer">© 2026 MYCELA Technologies &nbsp;·&nbsp; mycela.in &nbsp;·&nbsp; Pune, India</div>
+    </div>
   </div>
-</div>
 
-<!-- MODAL -->
+  <section id="categories" class="band">
+    <div class="wrap">
+      <div class="sechead">
+        <p class="eyebrow">What you can source</p>
+        <h2>One list for everything the machine needs</h2>
+        <p>Bearings are live today. The rest arrive as buyers ask for them. Every search that comes up empty tells us what to add next.</p>
+      </div>
+      <div class="cats" id="cats"></div>
+    </div>
+  </section>
+
+  <section id="how" class="wrap">
+    <div class="sechead">
+      <p class="eyebrow">How it works</p>
+      <h2>No calls, no chasing, no endless WhatsApp threads</h2>
+    </div>
+    <div class="steps">
+      <div class="step"><div class="step-n">STEP 01</div><h3>Find the part</h3>
+        <p>Search the number if you have it. If the markings are worn off, enter the dimensions and we'll match it.</p></div>
+      <div class="step"><div class="step-n">STEP 02</div><h3>Build one list</h3>
+        <p>Add everything you need across categories and set quantities. One list, not one enquiry per part.</p></div>
+      <div class="step"><div class="step-n">STEP 03</div><h3>Get quoted</h3>
+        <p>We route your list to dealers who actually stock it. Prices and availability come back to you.</p></div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="f-in">
+      <div><div class="f-logo"><span class="logo-mk">MC</span><span class="logo-wd">MYCELA</span></div>
+        <p>Industrial parts sourcing for manufacturing MSMEs. We connect buyers to dealers who stock what you need, without the phone tag.</p></div>
+      <div><h4>Parts</h4><a href="index.html?cat=bearing">Bearings</a><a href="index.html?cat=linear">Linear motion</a><a href="index.html?cat=coupling">Couplings</a><a href="contact.html#request">Request a category</a></div>
+      <div><h4>Company</h4><a href="about.html">About</a><a href="dealers.html">For dealers</a><a href="contact.html">Contact</a><a href="mailto:shaonak@mycela.in">shaonak@mycela.in</a></div>
+    </div>
+    <div class="f-bot">© 2026 MYCELA · Pune, India</div>
+  </div>
+</footer>
+
+<div class="scrim" id="scrim"></div>
+
 <div id="modal-overlay" class="modal-overlay" onclick="closeModal(event)">
   <div class="modal">
-    <div class="modal-top">
-      <div><div id="modal-pn" class="modal-pn"></div><div id="modal-meta" class="modal-meta"></div></div>
-      <button class="modal-close" onclick="closeModalDirect()">Close</button>
+    <div id="modal-detail">
+      <div class="modal-top">
+        <div><div id="modal-pn" class="modal-pn"></div><div id="modal-meta" class="modal-meta"></div></div>
+        <button class="modal-close" onclick="closeModalDirect()">Close</button>
+      </div>
+      <div id="modal-specs" class="modal-specs"></div>
+      <div class="m-sec-lbl">Typical Applications</div>
+      <div id="modal-apps" class="apps-row"></div>
+      <div id="modal-xref-wrap">
+        <div class="m-sec-lbl">Cross-Reference Equivalents</div>
+        <div id="modal-xref" class="xref-row"></div>
+      </div>
     </div>
-    <div id="modal-specs" class="modal-specs"></div>
-    <div class="m-sec-lbl">Typical Applications</div>
-    <div id="modal-apps" class="apps-row" style="margin-bottom:18px"></div>
-    <div id="modal-xref-wrap" style="display:none">
-      <div class="m-sec-lbl">Cross-Reference Equivalents</div>
-      <div id="modal-xref" class="xref-row"></div>
-    </div>
+    <div id="modal-compare"></div>
   </div>
 </div>
 
-<!--
-  ═══════════════════════════════════════════════════════════
-  BEARING DATABASE  —  loaded from bearings_db.js
-  This file must be in the same folder as index.html.
-  It sets window.MYCELA_DB to an array of 1,719 bearings.
-  ═══════════════════════════════════════════════════════════
--->
-<script src="bearings_db.js"></script>
+<aside class="sheet" id="basket" aria-hidden="true">
+  <div class="sh-top"><h3>My list</h3><button class="x" data-close aria-label="Close">×</button></div>
+  <div class="sh-body" id="bBody"></div>
+  <div class="sh-foot"><button class="btn" style="width:100%" id="sendBtn" disabled>Request quotes</button></div>
+</aside>
 
+<aside class="sheet" id="size" aria-hidden="true">
+  <div class="sh-top"><h3>Find by size</h3><button class="x" data-close aria-label="Close">×</button></div>
+  <div class="sh-body">
+    <p style="margin:0 0 20px;color:var(--body);font-size:15px">Measure the part with a vernier and enter any two dimensions. We'll match within ±0.5&nbsp;mm.</p>
+    <svg class="dwg" viewBox="0 0 230 215" role="img" aria-label="Cross-section showing bore, outer diameter and width">
+      <line x1="52" y1="112" x2="200" y2="112" stroke="currentColor" opacity=".3" stroke-width="1" stroke-dasharray="7 4 2 4"/>
+      <rect class="ringf" x="80" y="28" width="66" height="21" stroke-width="1.5"/>
+      <rect class="ringf" x="80" y="175" width="66" height="21" stroke-width="1.5"/>
+      <circle class="ballf" cx="113" cy="63" r="11" stroke-width="1.5"/>
+      <circle class="ballf" cx="113" cy="161" r="11" stroke-width="1.5"/>
+      <rect class="ringf" x="80" y="77" width="66" height="21" stroke-width="1.5"/>
+      <rect class="ringf" x="80" y="126" width="66" height="21" stroke-width="1.5"/>
+      <g class="dline" id="ln-d">
+        <line x1="66" y1="98" x2="66" y2="126" stroke="var(--accent)" stroke-width="1.7" marker-start="url(#u)" marker-end="url(#dn)"/>
+        <line x1="66" y1="98" x2="80" y2="98" stroke="var(--accent)" stroke-width=".9"/>
+        <line x1="66" y1="126" x2="80" y2="126" stroke="var(--accent)" stroke-width=".9"/>
+        <text x="57" y="117" text-anchor="end" font-size="14" font-weight="600" fill="var(--accent)">d</text>
+      </g>
+      <g class="dline" id="ln-D">
+        <line x1="163" y1="28" x2="163" y2="196" stroke="currentColor" stroke-width="1.7" marker-start="url(#u2)" marker-end="url(#dn2)"/>
+        <line x1="146" y1="28" x2="163" y2="28" stroke="currentColor" stroke-width=".9"/>
+        <line x1="146" y1="196" x2="163" y2="196" stroke="currentColor" stroke-width=".9"/>
+        <text x="172" y="117" font-size="14" font-weight="600" fill="currentColor">D</text>
+      </g>
+      <g class="dline" id="ln-B">
+        <line x1="80" y1="209" x2="146" y2="209" stroke="currentColor" opacity=".6" stroke-width="1.7" marker-start="url(#l)" marker-end="url(#r)"/>
+        <line x1="80" y1="196" x2="80" y2="209" stroke="currentColor" opacity=".6" stroke-width=".9"/>
+        <line x1="146" y1="196" x2="146" y2="209" stroke="currentColor" opacity=".6" stroke-width=".9"/>
+        <text x="113" y="205" text-anchor="middle" font-size="14" font-weight="600" fill="currentColor" opacity=".7">B</text>
+      </g>
+      <defs>
+        <marker id="u" markerWidth="7" markerHeight="7" refX="3.5" refY="6" orient="auto"><path d="M3.5 0 L7 7 L0 7 Z" fill="var(--accent)"/></marker>
+        <marker id="dn" markerWidth="7" markerHeight="7" refX="3.5" refY="1" orient="auto"><path d="M3.5 7 L0 0 L7 0 Z" fill="var(--accent)"/></marker>
+        <marker id="u2" markerWidth="7" markerHeight="7" refX="3.5" refY="6" orient="auto"><path d="M3.5 0 L7 7 L0 7 Z" fill="currentColor"/></marker>
+        <marker id="dn2" markerWidth="7" markerHeight="7" refX="3.5" refY="1" orient="auto"><path d="M3.5 7 L0 0 L7 0 Z" fill="currentColor"/></marker>
+        <marker id="l" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 3.5 L7 0 L7 7 Z" fill="currentColor"/></marker>
+        <marker id="r" markerWidth="7" markerHeight="7" refX="1" refY="3.5" orient="auto"><path d="M7 3.5 L0 0 L0 7 Z" fill="currentColor"/></marker>
+      </defs>
+    </svg>
+    <div class="fld"><label for="in-d">d</label><input id="in-d" type="number" placeholder="Bore" data-line="ln-d"><span class="u">mm</span></div>
+    <div class="fld"><label for="in-D">D</label><input id="in-D" type="number" placeholder="Outer diameter" data-line="ln-D"><span class="u">mm</span></div>
+    <div class="fld"><label for="in-B">B</label><input id="in-B" type="number" placeholder="Width" data-line="ln-B"><span class="u">mm</span></div>
+  </div>
+  <div class="sh-foot"><button class="btn" style="width:100%" id="findBtn">Show matching parts</button></div>
+</aside>
+
+<script src="site.js"></script>
+<script src="bearings_db.js"></script>
 <script src="js/config.js"></script>
 <script src="js/constants.js"></script>
 <script src="js/db.js"></script>
@@ -319,7 +205,7 @@
 <script src="js/renderer.js"></script>
 <script src="js/router.js"></script>
 <script src="js/supplier-form.js"></script>
-<script src="js/features.js?v=2"></script>
+<script src="js/features.js"></script>
 <script src="js/canvas.js"></script>
 <script src="js/app.js"></script>
 </body>

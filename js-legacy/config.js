@@ -18,11 +18,6 @@
       pnExact:    100,
       pnPrefix:    75,
       pnIncludes:  50,
-      // Shared base designation (query = designation + unmatched suffix,
-      // e.g. "6205-2RS" vs catalog pn "6205"). Must clearly outrank the
-      // worst-case noise a wrong-family pn can rack up from pnToken hits
-      // on a generic suffix fragment plus a full sealing match.
-      designationMatch: 60,
       pnToken:      8,
       // Brand
       brandMatch:  20,

@@ -1,7 +1,5 @@
 /* PUBLIC API
- *   MYCELA.SearchEngine.fast(q, maxResults?)
- *     → bearing[] with _matchType, _score, _breakdown, _designationOnly,
- *       _queriedSealing (the sealing preference parsed from the query, if any)
+ *   MYCELA.SearchEngine.fast(q, maxResults?)    → bearing[] with _matchType, _score, _breakdown
  *   MYCELA.SearchEngine.scoreBearing(b, intent) → { score, matchType, breakdown }
  *
  * Assembles parse (parsers.js), Scorers (scoring.js), fallback (fallback.js)
@@ -73,13 +71,6 @@
         return a.b.brand.localeCompare(c.b.brand);
       })
       .slice(0, maxResults)
-      .map(x => ({
-        ...x.b,
-        _matchType: x.matchType,
-        _score: x.score,
-        _breakdown: x.breakdown,
-        _designationOnly: ns.SearchEngine.isDesignationOnlyMatch(x.b, intent),
-        _queriedSealing: intent.sealing || null,
-      }));
+      .map(x => ({ ...x.b, _matchType: x.matchType, _score: x.score, _breakdown: x.breakdown }));
   };
 })(window.MYCELA = window.MYCELA || {});
