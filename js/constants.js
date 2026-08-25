@@ -24,6 +24,7 @@
     '2RS':'Sealed both sides (rubber contact seals)','2RS1':'Sealed both sides (NBR rubber)',
     '2RS2':'Sealed both sides (FKM high-temp)','2RSR':'Sealed both sides (FAG rubber)',
     '2RSH':'Sealed both sides (SKF high-performance)','2RSL':'Low-friction seals both sides',
+    '2RS5':'Sealed both sides (SKF spherical roller)','RS':'Sealed one side (contact seal)',
     '2RZ':'Low-friction non-contact seals','ZZ':'Shielded both sides (steel shields)',
     'LLU':'Contact sealed both sides (NTN)','LLB':'Non-contact sealed (NTN)',
     'LLH':'Low-torque sealed (NTN)','C':'FAG Generation C — optimized design',
