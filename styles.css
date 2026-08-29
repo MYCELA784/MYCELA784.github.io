@@ -245,15 +245,18 @@ footer a:hover{color:#fff}
 .page{padding:56px 0 88px}
 
 .page-head{max-width:680px;margin-bottom:44px}
-.page-head h1{font-size:clamp(33px,4.2vw,46px);line-height:1.1;letter-spacing:var(--ls);margin:0 0 16px}
-.page-head .lede{max-width:none;margin:0;text-align:left;font-size:19px;line-height:1.6;color:var(--body)}
+.page-head h1{font-size:clamp(33px,4.2vw,46px);line-height:1.1;letter-spacing:var(--ls);
+  margin:0 0 16px;text-wrap:balance}
+.page-head .lede{max-width:none;margin:0;text-align:left;font-size:19px;line-height:1.6;
+  color:var(--body);text-wrap:pretty}
 
-.prose{max-width:680px}
+.prose{max-width:none}   /* the grid column sets the measure */
 .prose > *:first-child{margin-top:0}
-.prose h2{font-size:25px;line-height:1.25;font-weight:800;letter-spacing:var(--ls);margin:46px 0 14px}
+.prose h2{font-size:25px;line-height:1.25;font-weight:800;letter-spacing:var(--ls);
+  margin:46px 0 14px;text-wrap:balance}
 .prose h3{font-size:19px;line-height:1.35;font-weight:700;letter-spacing:var(--ls);margin:32px 0 10px}
 .prose p,
-.prose li{font-size:17px;line-height:1.7;color:var(--body)}
+.prose li{font-size:17px;line-height:1.7;color:var(--body);text-wrap:pretty}
 .prose p{margin:0 0 18px}
 .prose ul{margin:0 0 18px;padding-left:22px}
 .prose li{margin-bottom:10px}
@@ -263,9 +266,14 @@ footer a:hover{color:#fff}
 .prose strong{color:var(--ink);font-weight:600}
 .prose a{color:var(--accent);font-weight:600;text-decoration:underline;text-underline-offset:3px}
 
-.split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,360px);gap:64px;align-items:start}
+/* Columns pushed to the outer edges so the slack sits in the gap
+   between them, not dangling at the right margin. */
+.split{display:grid;grid-template-columns:minmax(0,700px) minmax(0,360px);
+  justify-content:space-between;gap:64px;align-items:start}
 
-.sidecard{background:var(--soft);border:1px solid var(--hair);border-radius:var(--r-lg);padding:26px 24px}
+/* Travels down the page so the right column is never abandoned. */
+.sidecard{position:sticky;top:96px;background:var(--soft);border:1px solid var(--hair);
+  border-radius:var(--r-lg);padding:26px 24px}
 .sidecard h3{font-size:17px;line-height:1.35;font-weight:700;letter-spacing:var(--ls);margin:0 0 12px}
 .sidecard p{margin:0 0 14px;font-size:15px;line-height:1.6;color:var(--body)}
 .sidecard .mail{display:block;margin-bottom:16px;font-family:var(--data);font-size:14.5px;
@@ -293,6 +301,7 @@ footer a:hover{color:#fff}
 
 @media (max-width:900px){
   .split{grid-template-columns:1fr;gap:40px}
+  .sidecard{position:static}
   .page{padding:44px 0 64px}
   .prose h2{margin-top:38px}
 }
