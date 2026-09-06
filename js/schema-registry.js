@@ -40,11 +40,15 @@
 
   var MANIFEST = 'index.json';
 
+  // Bump alongside the ?v= on the <script> tags in index.html so a schema
+  // edit is never served stale (these XHRs are not covered by those tags).
+  var SCHEMA_VER = '2';
+
   // ── Browser: synchronous same-origin load ────────────────────────────────
   if (typeof XMLHttpRequest !== 'undefined') {
     var read = function (url) {
       var x = new XMLHttpRequest();
-      x.open('GET', url, false);
+      x.open('GET', url + (url.indexOf('?') === -1 ? '?' : '&') + 'v=' + SCHEMA_VER, false);
       x.send(null);
       if (x.status >= 400) throw new Error(url + ' -> HTTP ' + x.status);
       return JSON.parse(x.responseText);
