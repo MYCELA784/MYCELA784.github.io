@@ -31,7 +31,7 @@ if (!inputPath || !outputPath) {
 // listed here (clearance, cage, precision, etc.) never trigger a change.
 // Sealed is checked first: nothing in the current catalogue carries both,
 // but a contact seal implies more than a shield if that ever changes.
-const SEALED_CODES   = ['2RS', '2RS1', '2RS2', '2RSR', '2RSH', '2RSL', '2RZ', '2RS5', 'RS', 'LLU', 'LLB', 'LLH'];
+const SEALED_CODES   = ['2RS', '2RS1', '2RS2', '2RSR', '2RSH', '2RSL', '2RZ', '2RS5', '2HRS', 'RS', 'LLU', 'LLB', 'LLH'];
 const SHIELDED_CODES = ['2Z', 'Z', 'ZZ'];
 
 // Sanity check: every code above must actually exist in constants.js's
