@@ -62,6 +62,35 @@
     return classifyPartNumberMatch(b, intent) === 'designation';
   };
 
+  // Numeric weights come from the schema's scoring_hints (see STEP 4/5 of the
+  // refactor); the choice-field weights stay in MYCELA.CONFIG.scoring.
+  function hints() {
+    var S = MYCELA.Schemas;
+    var s = S && S.get && (S.get('bearing') || (S.primary && S.primary()));
+    return (s && s.scoring_hints) || {
+      prefer_exact_bonus: 30, in_range_bonus: 15,
+      out_of_range_penalty: -40, excluded_value_penalty: -1000,
+    };
+  }
+
+  // Score a numeric field ({prefer?, min?, max?}) against a catalog value.
+  //   exact preferred value  >  in range  >  out of range
+  function numericScore(val, f) {
+    if (val == null || !f) return 0;
+    var H = hints();
+    if (f.prefer != null && Math.abs(val - f.prefer) < 0.5) return H.prefer_exact_bonus;
+    if (f.min != null && f.max != null && val >= f.min - 0.5 && val <= f.max + 0.5) return H.in_range_bonus;
+    if (f.prefer != null) {
+      var d = Math.abs(val - f.prefer);
+      if (d <= Math.max(1.5, f.prefer * 0.05)) return H.in_range_bonus;
+      return H.out_of_range_penalty;
+    }
+    if ((f.min != null && val < f.min) || (f.max != null && val > f.max)) return H.out_of_range_penalty;
+    return 0;
+  }
+
+  function choiceHas(list, v) { return !!list && list.indexOf(v) !== -1; }
+
   ns.SearchEngine.Scorers = {
     partNumber(b, intent) {
       const CFG     = MYCELA.CONFIG.scoring;
@@ -80,52 +109,27 @@
     },
 
     brand(b, intent) {
-      return (intent.brand && b.brand === intent.brand) ? MYCELA.CONFIG.scoring.brandMatch : 0;
+      const f = intent.brand;
+      if (!f) return 0;
+      if (choiceHas(f.exclude, b.brand)) return hints().excluded_value_penalty;
+      if (choiceHas(f.accept, b.brand))  return MYCELA.CONFIG.scoring.brandMatch;
+      return 0;
     },
 
     bearingType(b, intent) {
       const CFG = MYCELA.CONFIG.scoring;
-      if (!intent.type) {
-        return (intent.typeHints.length > 0 && intent.typeHints.includes(b.type)) ? CFG.typeHint : 0;
+      const f = intent.type;
+      if (!f) {
+        return (intent.typeHints.length > 0 && intent.typeHints.indexOf(b.type) !== -1) ? CFG.typeHint : 0;
       }
-      return b.type === intent.type ? CFG.typeExact : CFG.typePenalty;
-    },
-
-    bore(b, intent) {
-      if (intent.bore == null) return 0;
-      const CFG = MYCELA.CONFIG.scoring;
-      const d = Math.abs(b.bore - intent.bore);
-      if (d < 0.5) return CFG.boreExact;
-      if (d < 1.5) return CFG.boreClose;
-      if (d < 3)   return CFG.boreNear;
-      if (d < 8)   return CFG.boreFar;
-      return CFG.boreWrong;
-    },
-
-    od(b, intent) {
-      const CFG = MYCELA.CONFIG.scoring;
-      let s = 0;
-      if (intent.od != null) {
-        const d = Math.abs(b.od - intent.od);
-        if      (d < 0.5) s += CFG.odExact;
-        else if (d < 2)   s += CFG.odClose;
-        else              s += CFG.odPenalty;
-      }
-      if (intent.od_min != null && b.od < intent.od_min - 1) s += CFG.odRangePenalty;
-      if (intent.od_max != null && b.od > intent.od_max + 1) s += CFG.odRangePenalty;
-      if (intent.od_min != null && intent.od_max != null &&
-          b.od >= intent.od_min && b.od <= intent.od_max)    s += CFG.odRangeMatch;
-      return s;
-    },
-
-    width(b, intent) {
-      if (intent.width == null) return 0;
-      const CFG = MYCELA.CONFIG.scoring;
-      const d = Math.abs(b.w - intent.width);
-      if (d < 0.5) return CFG.widthExact;
-      if (d < 2)   return CFG.widthClose;
+      if (choiceHas(f.exclude, b.type)) return hints().excluded_value_penalty;
+      if (f.accept && f.accept.length)  return choiceHas(f.accept, b.type) ? CFG.typeExact : CFG.typePenalty;
       return 0;
     },
+
+    bore(b, intent)  { return numericScore(b.bore, intent.bore); },
+    od(b, intent)    { return numericScore(b.od, intent.od); },
+    width(b, intent) { return numericScore(b.w, intent.width); },
 
     loads(b, intent) {
       const CFG = MYCELA.CONFIG.scoring;
@@ -148,11 +152,30 @@
     },
 
     sealing(b, intent) {
-      if (!intent.sealing) return 0;
+      const f = intent.sealing;
+      if (!f) return 0;
       const CFG = MYCELA.CONFIG.scoring;
-      if (b.sealing === intent.sealing)                              return CFG.sealingExact;
-      if (intent.sealing === 'Sealed' && b.sealing === 'Shielded')  return CFG.sealingPartial;
-      return CFG.sealingPenalty;
+      if (choiceHas(f.exclude, b.sealing)) {
+        // A pn / designation match is the user's own identifier — keep it
+        // (demoted) so the renderer can flag "closest match, different
+        // sealing". Anything else with an excluded value is removed.
+        return classifyPartNumberMatch(b, intent) ? CFG.sealingPenalty : hints().excluded_value_penalty;
+      }
+      if (choiceHas(f.accept, b.sealing)) return CFG.sealingExact;
+      if (choiceHas(f.accept, 'Sealed') && b.sealing === 'Shielded') return CFG.sealingPartial;
+      if (f.accept && f.accept.length) return CFG.sealingPenalty;
+      return 0;
+    },
+
+    clearance(b, intent) {
+      const f = intent.clearance;
+      if (!f) return 0;
+      const CFG = MYCELA.CONFIG.scoring;
+      const toks = String(b.pn).toUpperCase().split(/[-\/\s]+/);
+      const has = v => toks.indexOf(String(v).toUpperCase()) !== -1;
+      if (f.exclude && f.exclude.some(has)) return hints().excluded_value_penalty;
+      if (f.accept && f.accept.some(has))   return CFG.clearanceMatch;
+      return 0;
     },
 
     applications(b, intent) {

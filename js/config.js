@@ -57,6 +57,8 @@
       sealingExact:    25,
       sealingPartial:   5,  // Sealed query → Shielded result
       sealingPenalty: -10,
+      // Clearance grade (inferred from the pn suffix — DB has no clearance field)
+      clearanceMatch:  15,
       // Applications
       appMatch:    16,  // per matching application tag
     },

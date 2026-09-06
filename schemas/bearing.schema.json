@@ -36,7 +36,7 @@
     },
     "width": {
       "type": "number", "unit": "mm", "min": 1, "max": 500,
-      "aliases": ["width", "w", "b", "thickness", "height", "chaudai"]
+      "aliases": ["width", "wide", "w", "b", "thickness", "thick", "height", "chaudai"]
     },
     "sealing": {
       "type": "choice", "multi": true,

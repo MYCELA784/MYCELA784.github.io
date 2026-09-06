@@ -37,14 +37,15 @@
       loads: S.loads(b, intent),
       rpm:   S.rpm(b, intent),
       seal:  S.sealing(b, intent),
+      clr:   S.clearance(b, intent),
       apps:  S.applications(b, intent),
     };
     const score = Object.values(breakdown).reduce((a, v) => a + v, 0);
 
     let matchType = null;
-    if (breakdown.pn >= MYCELA.CONFIG.scoring.pnPrefix)                        matchType = 'PN';
-    else if (intent.bore != null || intent.od != null || intent.width != null)  matchType = 'DIMS';
-    else if (intent.apps && intent.apps.length > 0)                             matchType = 'APP';
+    if (breakdown.pn >= MYCELA.CONFIG.scoring.pnPrefix)                matchType = 'PN';
+    else if (intent.bore || intent.od || intent.width)                matchType = 'DIMS';
+    else if (intent.apps && intent.apps.length > 0)                   matchType = 'APP';
 
     return { score, matchType, breakdown };
   };
@@ -69,7 +70,10 @@
         if (aType !== cType) return aType - cType;
         // Tiebreaker 2: width ascending (slimmer/standard first)
         if (a.b.w !== c.b.w) return a.b.w - c.b.w;
-        // Tiebreaker 3: brand alphabetical (deterministic last resort)
+        // Tiebreaker 3: shorter pn first — the plain designation (6205)
+        // outranks a suffixed variant (6205-C) on a bare dimensional query
+        if (a.b.pn.length !== c.b.pn.length) return a.b.pn.length - c.b.pn.length;
+        // Tiebreaker 4: brand alphabetical (deterministic last resort)
         return a.b.brand.localeCompare(c.b.brand);
       })
       .slice(0, maxResults)
@@ -79,7 +83,7 @@
         _score: x.score,
         _breakdown: x.breakdown,
         _designationOnly: ns.SearchEngine.isDesignationOnlyMatch(x.b, intent),
-        _queriedSealing: intent.sealing || null,
+        _queriedSealing: (intent.sealing && intent.sealing.accept && intent.sealing.accept[0]) || null,
       }));
   };
 })(window.MYCELA = window.MYCELA || {});

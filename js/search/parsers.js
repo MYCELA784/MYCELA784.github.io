@@ -1,18 +1,19 @@
 /* PUBLIC API (consumed by engine.js via MYCELA.SearchEngine.parse)
  *   MYCELA.SearchEngine.parse(raw)
- *     → { tokens, bore, od, od_min, od_max, width, rpm, cr_min, c0r_min,
- *          type, brand, sealing, clearance, typeHints[], apps[], envNotes[], rawQ }
+ *     → { tokens, rawQ,
+ *          bore, od, width,            // {prefer?, min?, max?}  (a bare number → prefer==min==max)
+ *          type, brand, sealing, clearance,   // {accept:[], exclude:[]}
+ *          designation,                // {family, core, suffix, normalized}
+ *          rpm, cr_min, c0r_min,       // scalars (load/speed — not schema-modelled)
+ *          typeHints[], apps[], envNotes[] }
  *
  * Vocabulary (brand / sealing / type / clearance terms, field aliases, unit
- * words) is read from MYCELA.Schemas — nothing about a specific bearing
- * family is hardcoded here. Adding a brand / type / clearance grade / alias
- * is a data edit in schemas/bearing.schema.json.
+ * words) and the query modifiers (range / approximate / maximum / minimum /
+ * disjunction / negation) are read from MYCELA.Schemas. Nothing about a
+ * specific bearing family is hardcoded here — adding a brand, type,
+ * clearance grade, alias or family code is a data edit in
+ * schemas/bearing.schema.json.
  *
- * Bug fixes vs. original:
- *   - Compact "15x32x9" / "15×32×9" format: parsed before token pipeline
- *   - Number-first OD: "72mm OD", "72 outer diameter"
- *   - Number-first width: "17mm wide", "9mm width"
- *   - FAG (and any future brand) recognised — brand list comes from the schema
  * Reads EnvironmentRules and ApplicationRules from MYCELA.SearchEngine (rules.js).
  */
 (function (ns) {
@@ -22,12 +23,19 @@
   function schema() {
     var S = ns.Schemas;
     if (!S) return null;
-    return S.get && (S.get('bearing') || (S.primary && S.primary())) || null;
+    return (S.get && (S.get('bearing') || (S.primary && S.primary()))) || null;
   }
   function fieldOf(name) {
     var s = schema();
     return (s && s.fields && s.fields[name]) || null;
   }
+  function modWords(kind) {
+    var s = schema();
+    return (((s && s.modifiers && s.modifiers[kind]) || {}).words || [])
+      .map(function (w) { return String(w).toLowerCase(); });
+  }
+  function escapeRe(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+  function byLenDesc(a, b) { return b.length - a.length; }
 
   // Flat, longest-term-first alias list for a choice field:
   //   [{ value: 'FAG', term: 'schaeffler' }, { value: 'FAG', term: 'fag' }, ...]
@@ -43,22 +51,9 @@
     return out;
   }
 
-  function escapeRe(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
-
-  // A term matches on token boundaries; internal spaces match any whitespace
-  // run so multi-word aliases ("deep groove") work regardless of spacing.
   function termMatches(term, q) {
     var body = escapeRe(term).replace(/\\?\s+/g, '\\s+');
     return new RegExp('(?:^|[^a-z0-9])' + body + '(?![a-z0-9])', 'i').test(q);
-  }
-
-  // First schema value whose alias appears in the query (longest alias wins).
-  function detectChoice(fieldName, q) {
-    var terms = choiceTerms(fieldName);
-    for (var i = 0; i < terms.length; i++) {
-      if (termMatches(terms[i].term, q)) return terms[i].value;
-    }
-    return null;
   }
 
   function brandAliasSet() {
@@ -67,17 +62,40 @@
     return set;
   }
 
+  // ── Choice-field parsing: {accept:[], exclude:[]} ────────────────────────
+  //   - disjunction ("metal or seal") naturally yields multiple accepts
+  //   - a negation word within ~3 words before an alias moves it to exclude
+  //   - for a multi:true field, an explicit accept list excludes the rest
+  function choiceRich(fieldName, text) {
+    var f = fieldOf(fieldName);
+    if (!f || !f.values) return null;
+    var neg = modWords('negation');
+    var terms = choiceTerms(fieldName);
+    var work = ' ' + String(text).toLowerCase() + ' ';
+    var accept = [], exclude = [];
+    terms.forEach(function (t) {
+      var body = escapeRe(t.term).replace(/\\?\s+/g, '\\s+');
+      var re = new RegExp('(^|[^a-z0-9])(' + body + ')(?![a-z0-9])', 'ig');
+      var mm, guard = 0;
+      while ((mm = re.exec(work)) && guard++ < 40) {
+        var at = mm.index + mm[1].length;
+        var preWords = work.slice(0, mm.index).split(/[^a-z]+/).filter(Boolean).slice(-3);
+        var negated = preWords.some(function (w) { return neg.indexOf(w) !== -1; });
+        (negated ? exclude : accept).push(t.value);
+        var end = at + mm[2].length;
+        work = work.slice(0, at) + new Array(mm[2].length + 1).join(' ') + work.slice(end);
+        re.lastIndex = end;
+      }
+    });
+    accept = accept.filter(function (v, i) { return accept.indexOf(v) === i && exclude.indexOf(v) === -1; });
+    exclude = exclude.filter(function (v, i) { return exclude.indexOf(v) === i; });
+    if (!accept.length && !exclude.length) return null;
+    return { accept: accept, exclude: exclude };
+  }
+
   // ── Designation extraction ───────────────────────────────────────────────
   // Parse ONE identifier (a query, or a catalog pn) into its designation:
   //   { family, core, suffix, normalized }  |  null
-  // Rules (all data, from schema.designation):
-  //   - scan tokens left-to-right, skip a standalone brand token
-  //   - strip a brand alias glued to the digits  ("skf6205" -> "6205")
-  //   - family = leading letters in the token, OR a preceding letter token
-  //     but only if it is a known family_code ("na 4900" -> family "na")
-  //   - absorb trailing short tokens as suffix    ("6205 2rs", "na 4900 rs")
-  //   - trim a 5-digit core to 4 only when the suffix starts rs / z / rz
-  //     ("62052rs" -> 6205 ; "618002rs" -> 61800)
   ns.SearchEngine.designationOf = function (str) {
     if (str == null) return null;
     var d = (schema() && schema().designation) || {};
@@ -121,7 +139,19 @@
     return null;
   };
 
-  // ── Unit conversion (unit words from the schema) ──────────────────────────
+  // ── Units (words from the schema) ────────────────────────────────────────
+  function unitAlternation() {
+    var s = schema(), words = ['mm', 'cm', 'm', 'meter', 'meters'];
+    if (s && s.units) {
+      Object.keys(s.units).forEach(function (k) {
+        if (k === 'conversion_to_mm') return;
+        words.push(k);
+        (s.units[k] || []).forEach(function (w) { words.push(String(w).toLowerCase()); });
+      });
+    }
+    words = words.filter(function (w, i) { return w && words.indexOf(w) === i; }).sort(byLenDesc);
+    return '(?:' + words.map(escapeRe).join('|') + ')';
+  }
   function unitFactor(u) {
     if (!u) return 1;
     u = u.toLowerCase().replace(/[^a-z"']/g, '');
@@ -131,42 +161,209 @@
       var keys = Object.keys(s.units).filter(function (k) { return k !== 'conversion_to_mm'; });
       for (var i = 0; i < keys.length; i++) {
         var k = keys[i];
-        var words = (s.units[k] || []).map(function (w) { return String(w).toLowerCase().replace(/[^a-z"']/g, ''); });
-        if (k === u || words.indexOf(u) !== -1) return conv[k] != null ? conv[k] : 1;
+        var w = (s.units[k] || []).map(function (x) { return String(x).toLowerCase().replace(/[^a-z"']/g, ''); });
+        if (k === u || w.indexOf(u) !== -1) return conv[k] != null ? conv[k] : 1;
       }
     }
-    // Fallbacks for unit tokens not modelled in the schema.
     if (u === 'm' || u === 'meter' || u === 'meters') return 1000;
     return 1;
   }
   function toMM(v, u) { return v * unitFactor(u); }
-
   function toKN(v, u) {
     if (!u) return v;
     u = u.toLowerCase();
     if (u === 'kg' || u === 'kgf' || u === 'kilogram') return v / 101.97;
     if (u === 'n'  || u === 'newton')                   return v / 1000;
     if (u === 'lb' || u === 'lbs'  || u === 'pound')    return v * 0.00444822;
-    if (u === 'kn') return v;
     return v;
   }
 
-  // Generic-English filler only — no bearing vocabulary. Field aliases, unit
-  // words and modifier words are pulled from the schema below.
+  // ── Numeric-field parsing: {prefer?, min?, max?} ─────────────────────────
+  function modAlternation(kind) {
+    var w = modWords(kind).filter(function (x) { return x !== '~'; });
+    if (kind === 'approximate') w.push('~');
+    return w.length ? '(?:' + w.map(function (x) { return escapeRe(x).replace(/\s+/g, '\\s+'); }).join('|') + ')' : '(?!)';
+  }
+  // rangeIntro / rangeSep derived from schema.modifiers.range.patterns ({a}/{b})
+  function rangeParts() {
+    var pats = (((schema() || {}).modifiers || {}).range || {}).patterns || [];
+    var intro = ['between', 'from', 'range', 'in\\s*range', 'range\\s*of'];
+    var sep = ['to', 'and', '-', '\\.\\.', 'till', 'upto', 'up\\s*to', 'thru', 'through'];
+    pats.forEach(function (p) {
+      var mm = /^(.*?)\{a\}(.*?)\{b\}(.*)$/.exec(String(p).toLowerCase());
+      if (!mm) return;
+      var pre = mm[1].trim(), mid = mm[2].trim();
+      if (pre) intro.push(escapeRe(pre).replace(/\s+/g, '\\s*'));
+      if (mid) sep.push(escapeRe(mid).replace(/\s+/g, '\\s*'));
+    });
+    return {
+      intro: '(?:' + intro.filter(function (v, i) { return intro.indexOf(v) === i; }).join('|') + ')',
+      sep: '(?:' + sep.filter(function (v, i) { return sep.indexOf(v) === i; }).join('|') + ')',
+    };
+  }
+
+  function parseNumericFields(q) {
+    var out = {};
+    var NUM = '([0-9]*\\.?[0-9]+)';
+    var UNIT = '(' + unitAlternation() + ')?';
+    var rp = rangeParts();
+    var approx = modAlternation('approximate');
+    var mx = modAlternation('maximum');
+    var mn = modAlternation('minimum');
+    var tol = ((((schema() || {}).modifiers || {}).approximate || {}).tolerance_pct) || 5;
+    var work = ' ' + q + ' ';
+
+    var fields = ['bore', 'od', 'width'].filter(fieldOf);
+    var aliasAlt = {};
+    fields.forEach(function (fn) {
+      var al = (fieldOf(fn).aliases || [])
+        .map(function (a) { return String(a).toLowerCase(); })
+        .filter(function (a) { return a.length >= 2; })
+        .sort(byLenDesc);
+      aliasAlt[fn] = '\\b(?:' + al.map(function (a) { return escapeRe(a).replace(/\s+/g, '\\s+'); }).join('|') + ')\\b';
+    });
+
+    function set(fn, patch) {
+      var o = out[fn] || (out[fn] = {});
+      if (patch.prefer != null && !isNaN(patch.prefer)) o.prefer = patch.prefer;
+      if (patch.min != null && !isNaN(patch.min)) o.min = patch.min;
+      if (patch.max != null && !isNaN(patch.max)) o.max = patch.max;
+    }
+    function blank(mm) {
+      work = work.slice(0, mm.index) + new Array(mm[0].length + 1).join('\x01') + work.slice(mm.index + mm[0].length);
+    }
+    function runAll(re, handler) {
+      var mm, guard = 0;
+      re.lastIndex = 0;
+      while ((mm = re.exec(work)) && guard++ < 40) {
+        handler(mm);
+        blank(mm);
+        re.lastIndex = mm.index + mm[0].length;
+      }
+    }
+
+    // Phase A — ranges: "od (can be) 30 to 25", "od between 40 and 50",
+    // and range-before-label "40 to 50 mm od".
+    function applyRange(fn, mm) {
+      var a = toMM(parseFloat(mm[1]), mm[2]), b = toMM(parseFloat(mm[3]), mm[4]);
+      set(fn, { min: Math.min(a, b), max: Math.max(a, b) });
+    }
+    fields.forEach(function (fn) {
+      runAll(new RegExp(
+        aliasAlt[fn] + '\\s*(?:can\\s+be|could\\s+be|of|:)?\\s*(?:' + rp.intro + '\\s+)?' +
+        NUM + '\\s*' + UNIT + '\\s*' + rp.sep + '\\s*' + NUM + '\\s*' + UNIT, 'ig'),
+        function (mm) { applyRange(fn, mm); });
+    });
+    fields.forEach(function (fn) {
+      runAll(new RegExp(
+        '(?:' + rp.intro + '\\s+)?' + NUM + '\\s*' + UNIT + '\\s*' + rp.sep + '\\s*' +
+        NUM + '\\s*' + UNIT + '\\s*' + aliasAlt[fn], 'ig'),
+        function (mm) { applyRange(fn, mm); });
+    });
+
+    // ── Label-anchored pairing for what the range phase left unclaimed ──────
+    // Each dimension label ("bore", "od", "width", …) takes the number
+    // immediately to its LEFT if there is one ("25 bore", "72mm od"),
+    // otherwise the number immediately to its RIGHT ("bore 25", "od = 52").
+    // Labels are processed in query order and a number is claimed once, so
+    // "25 bore 52 od 15 wide" reads 25 / 52 / 15 and "id 25 od 52" reads
+    // 25 / 52 (not od=25).
+    var unitRe = new RegExp('^\\s*' + unitAlternation() + '?\\s*$', 'i');
+    var unitAfterRe = new RegExp('^\\s*(' + unitAlternation() + ')', 'i');
+    var gapRightRe = new RegExp('^[\\s:=~@-]*(?:of|is|are|be|should\\s+be)?[\\s]*(?:' +
+      approx + '|' + mx + '|' + mn + ')?[\\s]*$', 'i');
+    var modBeforeRe = new RegExp('(' + approx + '|' + mx + '|' + mn + ')[\\s]*$', 'i');
+    var isApprox = new RegExp('^(?:' + approx + ')$', 'i');
+    var isMax = new RegExp('^(?:' + mx + ')$', 'i');
+    var isMin = new RegExp('^(?:' + mn + ')$', 'i');
+
+    var nums = [];
+    var nRe = /[0-9]*\.?[0-9]+/g, nm;
+    while ((nm = nRe.exec(work))) nums.push({ i: nm.index, len: nm[0].length, v: parseFloat(nm[0]), used: false });
+
+    var labels = [];
+    fields.forEach(function (fn) {
+      var re = new RegExp(aliasAlt[fn], 'ig'), lm;
+      while ((lm = re.exec(work))) labels.push({ i: lm.index, len: lm[0].length, fn: fn });
+    });
+    labels.sort(function (a, b) { return a.i - b.i; });
+
+    labels.forEach(function (lab) {
+      var chosen = null, side = null;
+      // nearest unused number to the LEFT
+      for (var a = nums.length - 1; a >= 0; a--) {
+        var n = nums[a];
+        if (n.used || n.i + n.len > lab.i) continue;
+        if (unitRe.test(work.slice(n.i + n.len, lab.i))) { chosen = n; side = 'L'; break; }
+        break;
+      }
+      // else nearest unused number to the RIGHT
+      if (!chosen) {
+        for (var b = 0; b < nums.length; b++) {
+          var m2 = nums[b];
+          if (m2.used || m2.i < lab.i + lab.len) continue;
+          if (gapRightRe.test(work.slice(lab.i + lab.len, m2.i))) { chosen = m2; side = 'R'; }
+          break;
+        }
+      }
+      if (!chosen) return;
+      chosen.used = true;
+      var unit = '';
+      var ua = unitAfterRe.exec(work.slice(chosen.i + chosen.len));
+      if (ua) unit = ua[1];
+      var pre = work.slice(Math.max(0, chosen.i - 16), chosen.i);
+      var mb = modBeforeRe.exec(pre);
+      var mod = mb ? mb[1] : '';
+      var v = toMM(chosen.v, unit);
+      if (mod && isApprox.test(mod)) set(lab.fn, { prefer: v, min: v * (1 - tol / 100), max: v * (1 + tol / 100) });
+      else if (mod && isMax.test(mod)) set(lab.fn, { max: v });
+      else if (mod && isMin.test(mod)) set(lab.fn, { min: v });
+      else set(lab.fn, { prefer: v });
+      var s = Math.min(lab.i, chosen.i), e = Math.max(lab.i + lab.len, chosen.i + chosen.len);
+      work = work.slice(0, s) + new Array(e - s + 1).join('\x01') + work.slice(e);
+    });
+
+    // Finalise: a bare preferred value with no range becomes prefer==min==max;
+    // drop a field that ended up with nothing.
+    Object.keys(out).forEach(function (fn) {
+      var o = out[fn];
+      if (o.min == null && o.max == null && o.prefer != null) { o.min = o.prefer; o.max = o.prefer; }
+      if (o.prefer == null && o.min == null && o.max == null) delete out[fn];
+    });
+    return { fields: out, leftover: work };
+  }
+
+  // Load / speed vocabulary is not a schema field; keep the compact scalar
+  // extraction and only report the numbers it claims.
+  function parseLoads(q, claimed) {
+    var p = {}, m;
+    var rpmP = /([0-9,]+)\s*(?:rpm|r\.?p\.?m\.?|rev(?:s|olution)?s?\s*(?:per|\/)\s*min(?:ute)?)/gi;
+    while ((m = rpmP.exec(q))) { p.rpm = parseInt(m[1].replace(/,/g, ''), 10); claimed.add(+m[1].replace(/,/g, '')); }
+    var rL = /([0-9]*\.?[0-9]+)\s*(kg|kgf|kn|n\b|lbs?)\s*radial(?:\s+(?:load|force))?/gi;
+    while ((m = rL.exec(q))) { p.cr_min = toKN(parseFloat(m[1]), m[2]); claimed.add(+m[1]); }
+    var rL2 = /radial(?:\s+(?:load|force))?\s+(?:of\s+)?([0-9]*\.?[0-9]+)\s*(kg|kgf|kn|n\b|lbs?)/gi;
+    while ((m = rL2.exec(q))) { p.cr_min = toKN(parseFloat(m[1]), m[2]); claimed.add(+m[1]); }
+    var aL = /([0-9]*\.?[0-9]+)\s*(kg|kgf|kn|n\b|lbs?)\s*(?:axial(?:\s+(?:load|force))?|thrust)/gi;
+    while ((m = aL.exec(q))) { p.c0r_min = toKN(parseFloat(m[1]), m[2]); claimed.add(+m[1]); }
+    var aL2 = /(?:axial(?:\s+(?:load|force))?|thrust)\s+(?:of\s+)?([0-9]*\.?[0-9]+)\s*(kg|kgf|kn|n\b|lbs?)/gi;
+    while ((m = aL2.exec(q))) { p.c0r_min = toKN(parseFloat(m[1]), m[2]); claimed.add(+m[1]); }
+    return p;
+  }
+
+  // ── Token cleaning ──────────────────────────────────────────────────────
   var STOPWORDS = [
     'a','an','the','for','with','want','need','find','get','show','me','i',
-    'please','should','be','can','that','will','work','is','are','have','has',
-    'something','suitable','conditions','use','used','of','to','in','on','at',
-    'and','or','but','my','it','this','these','type','grade','size','rated','quality',
+    'please','should','be','can','could','that','will','work','is','are','was',
+    'have','has','something','suitable','conditions','use','used','of','to','in',
+    'on','at','and','or','but','my','it','this','these','type','grade','size',
+    'rated','quality','either','any',
   ];
-
   function noiseSet() {
     var s = schema(), set = {};
     STOPWORDS.forEach(function (w) { set[w] = 1; });
     if (s) {
       Object.keys(s.fields || {}).forEach(function (fn) {
-        var f = s.fields[fn];
-        (f.aliases || []).forEach(function (a) {
+        (s.fields[fn].aliases || []).forEach(function (a) {
           String(a).toLowerCase().split(/\s+/).forEach(function (w) { if (w.length > 1) set[w] = 1; });
         });
       });
@@ -185,117 +382,93 @@
           String(w).toLowerCase().split(/\s+/).forEach(function (t) { if (t.length > 1) set[t] = 1; });
         });
     }
-    // load / speed vocabulary (not modelled as schema fields)
     ['load','force','axial','radial','thrust','speed','rpm','kg','kn','kgf','lbs','lb',
      'newton','revolutions','revolution','rev','min','minute'].forEach(function (w) { set[w] = 1; });
     return set;
   }
 
+  // ── parse() ─────────────────────────────────────────────────────────────
   ns.SearchEngine.parse = function (raw) {
-    const q = raw.toLowerCase().trim();
-    const p = { tokens: [], apps: [], typeHints: [], envNotes: [] };
-    const consumed = new Set();
-    let m;
+    var q = String(raw).toLowerCase().trim();
+    var p = { tokens: [], apps: [], typeHints: [], envNotes: [], rawQ: q };
+    var claimed = new Set();
 
-    // ── Compact format: 15x32x9 or 15×32×9 (optional spaces around ×) ───────
-    const compact = /^([0-9]+(?:\.[0-9]+)?)[x×]([0-9]+(?:\.[0-9]+)?)[x×]([0-9]+(?:\.[0-9]+)?)$/i
+    // Compact "15x32x9" / "15×32×9"
+    var compact = /^([0-9]+(?:\.[0-9]+)?)[x×]([0-9]+(?:\.[0-9]+)?)[x×]([0-9]+(?:\.[0-9]+)?)$/i
       .exec(q.replace(/\s/g, ''));
     if (compact) {
-      p.bore  = parseFloat(compact[1]);
-      p.od    = parseFloat(compact[2]);
-      p.width = parseFloat(compact[3]);
-      p.rawQ  = q;
+      var mk = function (v) { v = parseFloat(v); return { prefer: v, min: v, max: v }; };
+      p.bore = mk(compact[1]); p.od = mk(compact[2]); p.width = mk(compact[3]);
       return p;
     }
 
-    // ── Bore ──────────────────────────────────────────────────────────────────
-    const borePat = /(?:bore|inner\s*dia(?:meter)?|id\b|i\.d\.|shaft\s*(?:size|dia(?:meter)?)|internal\s*dia(?:meter)?)\s*(?:is|=|:|\bof\b|should\s+be|@)?\s*([0-9]*\.?[0-9]+)\s*(mm|cm|m\b|meter|meters|in\b|inch(?:es)?|")?/gi;
-    while ((m = borePat.exec(q)) !== null) { p.bore = toMM(parseFloat(m[1]), m[2]); consumed.add(+m[1]); }
-    if (p.bore == null) {
-      const b2 = /\b([0-9]*\.?[0-9]+)\s*(mm|cm|m\b|in\b)?\s*(?:id\b|i\.d\.|bore\b|inner)/gi;
-      while ((m = b2.exec(q)) !== null) { p.bore = toMM(parseFloat(m[1]), m[2]); consumed.add(+m[1]); }
-    }
+    // Numeric fields
+    var num = parseNumericFields(q);
+    if (num.fields.bore)  p.bore  = num.fields.bore;
+    if (num.fields.od)    p.od    = num.fields.od;
+    if (num.fields.width) p.width = num.fields.width;
 
-    // ── OD ────────────────────────────────────────────────────────────────────
-    const odPat = /(?:od\b|o\.d\.|outer\s*dia(?:meter)?|external\s*dia(?:meter)?|outside\s*dia(?:meter)?)\s*(?:is|=|:|\bof\b|should\s+be|@)?\s*([0-9]*\.?[0-9]+)\s*(mm|cm|m\b|in\b|inch(?:es)?)?/gi;
-    while ((m = odPat.exec(q)) !== null) { p.od = toMM(parseFloat(m[1]), m[2]); consumed.add(+m[1]); }
-    // Number-first OD: "72mm OD", "72 outer"
-    if (p.od == null) {
-      const od2 = /\b([0-9]*\.?[0-9]+)\s*(mm|cm|m\b|in\b)?\s*(?:od\b|o\.d\.|outer(?:\s*dia(?:meter)?)?|outside(?:\s*dia(?:meter)?)?)/gi;
-      while ((m = od2.exec(q)) !== null) { p.od = toMM(parseFloat(m[1]), m[2]); consumed.add(+m[1]); }
-    }
-    // OD range
-    const odR = /(?:od\b|o\.d\.|outer\s*dia(?:meter)?)\s*(?:can\s+be\s+)?(?:in\s+(?:the\s+)?rang[e]?\s*(?:of|form|from)?|between|from|rang[e]?\s*(?:of|form|from)?|upto|up\s*to)?\s*([0-9]*\.?[0-9]+)\s*(mm|cm|m\b|meter|in\b|inch(?:es)?)?\s*(?:to|-|and)\s*([0-9]*\.?[0-9]+)\s*(mm|cm|m\b|meter|in\b|inch(?:es)?)?/gi;
-    while ((m = odR.exec(q)) !== null) { p.od_min = toMM(parseFloat(m[1]), m[2]); p.od_max = toMM(parseFloat(m[3]), m[4]); consumed.add(+m[1]); consumed.add(+m[3]); }
+    // Load / speed scalars
+    var loads = parseLoads(q, claimed);
+    if (loads.rpm != null)     p.rpm     = loads.rpm;
+    if (loads.cr_min != null)  p.cr_min  = loads.cr_min;
+    if (loads.c0r_min != null) p.c0r_min = loads.c0r_min;
 
-    // ── Width ─────────────────────────────────────────────────────────────────
-    const wPat = /(?:width|height|thickness|\bB\b|face\s*width)\s*(?:is|=|:|\bof\b)?\s*([0-9]*\.?[0-9]+)\s*(mm|cm|m\b|in\b)?/gi;
-    while ((m = wPat.exec(q)) !== null) { p.width = toMM(parseFloat(m[1]), m[2]); consumed.add(+m[1]); }
-    // Number-first width: "17mm wide", "9mm width"
-    if (p.width == null) {
-      const w2 = /\b([0-9]*\.?[0-9]+)\s*(mm|cm|m\b|in\b)?\s*(?:wide\b|width\b|thick(?:ness)?\b)/gi;
-      while ((m = w2.exec(q)) !== null) { p.width = toMM(parseFloat(m[1]), m[2]); consumed.add(+m[1]); }
-    }
+    // Designation (found anywhere in the query)
+    p.designation = ns.SearchEngine.designationOf(q) || undefined;
 
-    // ── RPM ───────────────────────────────────────────────────────────────────
-    const rpmP = /([0-9,]+)\s*(?:rpm|r\.?p\.?m\.?|rev(?:s|olution)?s?\s*(?:per|\/)\s*min(?:ute)?)/gi;
-    while ((m = rpmP.exec(q)) !== null) { p.rpm = parseInt(m[1].replace(/,/g, '')); consumed.add(+m[1].replace(/,/g, '')); }
-
-    // ── Loads ─────────────────────────────────────────────────────────────────
-    const rL  = /([0-9]*\.?[0-9]+)\s*(kg|kgf|kn|n\b|lbs?)\s*radial(?:\s+(?:load|force))?/gi;
-    while ((m = rL.exec(q))  !== null) { p.cr_min  = toKN(parseFloat(m[1]), m[2]); consumed.add(+m[1]); }
-    const rL2 = /radial(?:\s+(?:load|force))?\s+(?:of\s+)?([0-9]*\.?[0-9]+)\s*(kg|kgf|kn|n\b|lbs?)/gi;
-    while ((m = rL2.exec(q)) !== null) { p.cr_min  = toKN(parseFloat(m[1]), m[2]); consumed.add(+m[1]); }
-    const aL  = /([0-9]*\.?[0-9]+)\s*(kg|kgf|kn|n\b|lbs?)\s*(?:axial(?:\s+(?:load|force))?|thrust)/gi;
-    while ((m = aL.exec(q))  !== null) { p.c0r_min = toKN(parseFloat(m[1]), m[2]); consumed.add(+m[1]); }
-    const aL2 = /(?:axial(?:\s+(?:load|force))?|thrust)\s+(?:of\s+)?([0-9]*\.?[0-9]+)\s*(kg|kgf|kn|n\b|lbs?)/gi;
-    while ((m = aL2.exec(q)) !== null) { p.c0r_min = toKN(parseFloat(m[1]), m[2]); consumed.add(+m[1]); }
-
-    // ── Bearing type (vocabulary from the schema) ─────────────────────────────
-    p.type = detectChoice('type', q) || undefined;
-
-    // ── Environment rules ─────────────────────────────────────────────────────
-    ns.SearchEngine.EnvironmentRules.forEach(env => {
+    // Environment rules
+    var envSealing = null;
+    ns.SearchEngine.EnvironmentRules.forEach(function (env) {
       if (env.rx.test(q)) {
-        if (env.sealing  && !p.sealing)                   p.sealing = env.sealing;
-        if (env.typeHints)                                 p.typeHints.push(...env.typeHints);
-        if (env.appHint  && !p.apps.includes(env.appHint)) p.apps.push(env.appHint);
-        if (env.note)                                      p.envNotes.push(env.note);
+        if (env.sealing && !envSealing) envSealing = env.sealing;
+        if (env.typeHints) p.typeHints.push.apply(p.typeHints, env.typeHints);
+        if (env.appHint && p.apps.indexOf(env.appHint) === -1) p.apps.push(env.appHint);
+        if (env.note) p.envNotes.push(env.note);
       }
     });
 
-    // Explicit sealing (schema vocabulary) overrides environment inference
-    const explicitSeal = detectChoice('sealing', q);
-    if (explicitSeal) p.sealing = explicitSeal;
-
-    // ── Application rules ─────────────────────────────────────────────────────
-    ns.SearchEngine.ApplicationRules.forEach(([rx, app]) => {
-      if (rx.test(q) && !p.apps.includes(app)) p.apps.push(app);
+    // Application rules
+    ns.SearchEngine.ApplicationRules.forEach(function (pair) {
+      if (pair[0].test(q) && p.apps.indexOf(pair[1]) === -1) p.apps.push(pair[1]);
     });
 
-    // ── Brand (vocabulary from the schema — FAG, and any brand added later) ───
-    p.brand = detectChoice('brand', q) || undefined;
+    // Choice fields
+    p.type = choiceRich('type', q) || undefined;
+    p.brand = choiceRich('brand', q) || undefined;
+    p.clearance = choiceRich('clearance', q) || undefined;
 
-    // ── Clearance grade (vocabulary from the schema) ─────────────────────────
-    p.clearance = detectChoice('clearance', q) || undefined;
-
-    // ── Designation (found anywhere in the query, not just a leading digit run)
-    p.designation = ns.SearchEngine.designationOf(q) || undefined;
-
-    // ── Clean PN tokens ───────────────────────────────────────────────────────
-    const NOISE = noiseSet();
-    p.tokens = q
-      .replace(/[^a-z0-9\s]/g, ' ')
-      .split(/\s+/)
-      .filter(t => {
-        if (t.length < 2) return false;
-        if (NOISE[t]) return false;
-        const n = parseFloat(t);
-        if (!isNaN(n) && consumed.has(n)) return false;
-        return true;
+    // Sealing: explicit query terms + designation suffix, then multi-exclude,
+    // then environment inference as a fallback.
+    var sealing = choiceRich('sealing', q);
+    if (p.designation && p.designation.suffix) {
+      var sfx = choiceRich('sealing', ' ' + p.designation.suffix + ' ');
+      if (sfx && sfx.accept.length) {
+        sealing = sealing || { accept: [], exclude: [] };
+        sfx.accept.forEach(function (v) {
+          if (sealing.accept.indexOf(v) === -1 && sealing.exclude.indexOf(v) === -1) sealing.accept.push(v);
+        });
+      }
+    }
+    var sealF = fieldOf('sealing');
+    if (sealing && sealF && sealF.multi && sealing.accept.length) {
+      Object.keys(sealF.values).forEach(function (v) {
+        if (sealing.accept.indexOf(v) === -1 && sealing.exclude.indexOf(v) === -1) sealing.exclude.push(v);
       });
+    }
+    if (!sealing && envSealing) sealing = { accept: [envSealing], exclude: [] };
+    p.sealing = sealing || undefined;
 
-    p.rawQ = q;
+    // PN tokens
+    var NOISE = noiseSet();
+    p.tokens = q.replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(function (t) {
+      if (t.length < 2) return false;
+      if (NOISE[t]) return false;
+      var n = parseFloat(t);
+      if (!isNaN(n) && claimed.has(n)) return false;
+      return true;
+    });
+
     return p;
   };
 })(window.MYCELA = window.MYCELA || {});
