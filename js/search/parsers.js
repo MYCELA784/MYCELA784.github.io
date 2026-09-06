@@ -333,6 +333,21 @@
     return { fields: out, leftover: work };
   }
 
+  // Reject a parsed numeric field whose value falls outside the schema's
+  // declared min/max for that field (STEP 5 / audit B5).
+  function validNumeric(fname, o) {
+    if (!o) return null;
+    var f = fieldOf(fname);
+    if (!f || f.type !== 'number') return o;
+    var lo = f.min != null ? f.min : -Infinity;
+    var hi = f.max != null ? f.max : Infinity;
+    var probe = o.prefer != null ? o.prefer
+      : (o.min != null && o.max != null ? (o.min + o.max) / 2
+      : (o.min != null ? o.min : o.max));
+    if (probe == null || probe < lo || probe > hi) return null;
+    return o;
+  }
+
   // Load / speed vocabulary is not a schema field; keep the compact scalar
   // extraction and only report the numbers it claims.
   function parseLoads(q, claimed) {
@@ -402,11 +417,14 @@
       return p;
     }
 
-    // Numeric fields
+    // Numeric fields, validated against the schema's min/max. A value outside
+    // the field's range (e.g. "bore 6205" — 6205 > bore.max 2000) is dropped
+    // so the query falls through to a designation / pn search instead of
+    // being scored as an impossible dimension.
     var num = parseNumericFields(q);
-    if (num.fields.bore)  p.bore  = num.fields.bore;
-    if (num.fields.od)    p.od    = num.fields.od;
-    if (num.fields.width) p.width = num.fields.width;
+    p.bore  = validNumeric('bore',  num.fields.bore)  || undefined;
+    p.od    = validNumeric('od',    num.fields.od)    || undefined;
+    p.width = validNumeric('width', num.fields.width) || undefined;
 
     // Load / speed scalars
     var loads = parseLoads(q, claimed);

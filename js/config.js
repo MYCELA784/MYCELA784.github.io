@@ -30,21 +30,10 @@
       typeExact:   40,
       typePenalty: -10,
       typeHint:    20,  // environment-inferred type hint
-      // Bore
-      boreExact:   60,  // |diff| < 0.5 mm
-      boreClose:   35,  // |diff| < 1.5 mm
-      boreNear:    10,  // |diff| < 3 mm
-      boreFar:    -30,  // |diff| < 8 mm
-      boreWrong:  -60,  // |diff| >= 8 mm
-      // OD
-      odExact:     35,  // |diff| < 0.5 mm
-      odClose:     15,  // |diff| < 2 mm
-      odPenalty:  -20,
-      odRangePenalty: -40,
-      odRangeMatch:    30,
-      // Width
-      widthExact:  20,  // |diff| < 0.5 mm
-      widthClose:   8,  // |diff| < 2 mm
+      // Numeric fields (bore / od / width) are scored from the schema's
+      // scoring_hints (prefer_exact_bonus / in_range_bonus /
+      // out_of_range_penalty / excluded_value_penalty) — see
+      // schemas/bearing.schema.json and js/search/scoring.js numericScore().
       // Load ratings
       crMatch:     25,
       crPenalty:  -20,

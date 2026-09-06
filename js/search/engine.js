@@ -42,25 +42,39 @@
     };
     const score = Object.values(breakdown).reduce((a, v) => a + v, 0);
 
+    // A choice scorer returns the schema's excluded_value_penalty when the
+    // bearing carries a value the query explicitly excluded — that result is
+    // removed, not merely demoted (audit B5). Designation/pn matches never
+    // reach this: Scorers.sealing() demotes them with sealingPenalty instead.
+    const EXCL = excludedPenalty();
+    const hardExcluded = breakdown.brand <= EXCL || breakdown.type <= EXCL ||
+                         breakdown.seal <= EXCL || breakdown.clr <= EXCL;
+
     let matchType = null;
     if (breakdown.pn >= MYCELA.CONFIG.scoring.pnPrefix)                matchType = 'PN';
     else if (intent.bore || intent.od || intent.width)                matchType = 'DIMS';
     else if (intent.apps && intent.apps.length > 0)                   matchType = 'APP';
 
-    return { score, matchType, breakdown };
+    return { score, matchType, breakdown, hardExcluded };
   };
+
+  function excludedPenalty() {
+    const S = MYCELA.Schemas;
+    const s = S && S.get && (S.get('bearing') || (S.primary && S.primary()));
+    return (s && s.scoring_hints && s.scoring_hints.excluded_value_penalty) || -1000;
+  }
 
   ns.SearchEngine.fast = function (q, maxResults) {
     maxResults = maxResults || MYCELA.CONFIG.search.maxResults;
     const intent = ns.SearchEngine.parse(q);
 
     const scored = MYCELA.DB.map(b => {
-      const { score, matchType, breakdown } = ns.SearchEngine.scoreBearing(b, intent);
-      return { b, score, matchType, breakdown };
+      const { score, matchType, breakdown, hardExcluded } = ns.SearchEngine.scoreBearing(b, intent);
+      return { b, score, matchType, breakdown, hardExcluded };
     });
 
     return scored
-      .filter(x => x.score > 0)
+      .filter(x => x.score > 0 && !x.hardExcluded)
       .sort((a, c) => {
         // Primary: score descending
         if (c.score !== a.score) return c.score - a.score;
