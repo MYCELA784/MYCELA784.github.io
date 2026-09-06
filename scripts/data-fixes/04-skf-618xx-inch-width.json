@@ -1,0 +1,79 @@
+[
+  {
+    "id": "SKF-61880_MA",
+    "op": "set",
+    "fields": {
+      "w": 46
+    }
+  },
+  {
+    "id": "SKF-61888_MA",
+    "op": "set",
+    "fields": {
+      "w": 46
+    }
+  },
+  {
+    "id": "SKF-61892_MA",
+    "op": "set",
+    "fields": {
+      "w": 56
+    }
+  },
+  {
+    "id": "SKF-61896_MA",
+    "op": "set",
+    "fields": {
+      "w": 56
+    }
+  },
+  {
+    "id": "SKF-618___750_MA",
+    "op": "set",
+    "fields": {
+      "w": 78
+    }
+  },
+  {
+    "id": "SKF-618___800_MA",
+    "op": "set",
+    "fields": {
+      "w": 82
+    }
+  },
+  {
+    "id": "SKF-61938_MA",
+    "op": "set",
+    "fields": {
+      "w": 33
+    }
+  },
+  {
+    "id": "SKF-61988_MA",
+    "op": "set",
+    "fields": {
+      "w": 74
+    }
+  },
+  {
+    "id": "SKF-61992_MA",
+    "op": "set",
+    "fields": {
+      "w": 74
+    }
+  },
+  {
+    "id": "SKF-61996_MA",
+    "op": "set",
+    "fields": {
+      "w": 78
+    }
+  },
+  {
+    "id": "SKF-619___500_MA",
+    "op": "set",
+    "fields": {
+      "w": 78
+    }
+  }
+]

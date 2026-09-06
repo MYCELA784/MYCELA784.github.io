@@ -138,3 +138,39 @@ real and is now absent, flagged for re-sourcing:
 
 Note: `NTN-322382` itself looks like a typo of `NTN-32238` (190×340×97,
 which matches) — flagged, not renamed.
+
+---
+
+## Q4 — inch contamination
+
+### Q4a — SKF 618xx/619xx MA widths: CONVERTED  (`scripts/data-fixes/04-skf-618xx-inch-width.json`)
+
+11 large thin-section SKF DGBB rows had `w` stored as an **inch value
+labelled mm** (a 400 mm-bore bearing listed as 1.8 mm wide). `w := w ×
+25.4`; every result lands on an integer and matches the published SKF
+width. `bore`, `od`, `cr`, `c0r` were already correct and are unchanged.
+
+| id | pn | bore | w before (in) | w after (mm) |
+|---|---|---|---|---|
+| SKF-61938_MA | 61938 MA | 190 | 1.2992 | 33 |
+| SKF-61880_MA | 61880 MA | 400 | 1.811 | 46 |
+| SKF-61888_MA | 61888 MA | 440 | 1.811 | 46 |
+| SKF-61988_MA | 61988 MA | 440 | 2.9134 | 74 |
+| SKF-61892_MA | 61892 MA | 460 | 2.2047 | 56 |
+| SKF-61992_MA | 61992 MA | 460 | 2.9134 | 74 |
+| SKF-61896_MA | 61896 MA | 480 | 2.2047 | 56 |
+| SKF-61996_MA | 61996 MA | 480 | 3.0709 | 78 |
+| SKF-619___500_MA | 619 / 500 MA | 500 | 3.0709 | 78 |
+| SKF-618___750_MA | 618 / 750 MA | 750 | 3.0709 | 78 |
+| SKF-618___800_MA | 618 / 800 MA | 800 | 3.2283 | 82 |
+
+### Q4b — NTN 5xxxS family: reviewed, NOT converted
+
+42 NTN `5xxxS` / `5xxxSCZZ` rows (double-row angular-contact, inch-heritage
+series) were flagged by the audit for non-half-integer widths (14.3, 15.9,
+20.6 mm …). **These were not converted.** `w × 25.4` gives 363–1250 mm for
+10–80 mm-bore bearings — physically impossible — so the stored values are
+already mm, not inches; they are the correct non-round catalogue figures
+for this series (14.3 mm = 9/16″, etc.). Converting them would manufacture
+false data. Left unchanged pending a decision; if any are genuinely wrong
+they need per-row re-sourcing, not a blanket ×25.4.
