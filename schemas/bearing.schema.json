@@ -1,0 +1,131 @@
+{
+  "category": "bearing",
+  "label": "Bearings",
+  "version": 1,
+
+  "detect": {
+    "strong": ["bearing", "bearings", "brg", "dgbb", "deep groove", "deepgrove",
+               "tapered roller", "spherical roller", "cylindrical roller",
+               "needle roller", "thrust bearing", "angular contact"],
+    "weak": ["bore", "od", "outer diameter", "inner diameter", "id", "race",
+             "inner ring", "outer ring", "cage", "seal", "shield"],
+    "designation_pattern": "^(?:[a-z]{0,4})[0-9]{3,5}(?:[a-z0-9/-]*)$"
+  },
+
+  "fields": {
+    "bore": {
+      "type": "number", "unit": "mm", "min": 1, "max": 2000,
+      "aliases": ["bore", "id", "i.d", "inner dia", "inner diameter",
+                  "inside diameter", "shaft dia", "shaft diameter",
+                  "shaft size", "d", "andar", "bore size"],
+      "notes": "Rejects values above 2000. A designation typed into a bore field (bore 6205) fails validation."
+    },
+    "od": {
+      "type": "number", "unit": "mm", "min": 3, "max": 3000,
+      "aliases": ["od", "o.d", "outer dia", "outer diameter", "outside diameter",
+                  "housing bore", "housing dia", "external diameter", "bahar"]
+    },
+    "width": {
+      "type": "number", "unit": "mm", "min": 1, "max": 500,
+      "aliases": ["width", "w", "b", "thickness", "height", "chaudai"]
+    },
+    "sealing": {
+      "type": "choice", "multi": true,
+      "values": {
+        "Sealed": ["seal", "sealed", "sealing", "rubber seal", "rubber",
+                   "contact seal", "2rs", "2rs1", "2rsr", "rs", "llu", "llb",
+                   "2hrs", "dust proof", "dustproof", "waterproof", "water proof",
+                   "grease retained", "rubber cover"],
+        "Shielded": ["shield", "shielded", "metal shield", "metal", "steel shield",
+                     "zz", "2z", "z", "dust cover", "metal cover", "closed",
+                     "covered", "dhakkan"],
+        "Open": ["open", "no seal", "unsealed", "without seal", "plain",
+                 "no shield", "khula"]
+      },
+      "notes": "multi:true means a query can accept more than one value. 'metal or seal' yields accept:[Shielded,Sealed] and exclude:[Open]."
+    },
+    "type": {
+      "type": "choice",
+      "values": {
+        "Deep Groove Ball": ["deep groove", "deepgrove", "deep grove", "dgbb",
+                             "ball bearing", "ballbearing", "radial ball",
+                             "single row ball", "6 series"],
+        "Angular Contact Ball": ["angular contact", "angular", "acbb",
+                                 "thrust ball radial", "7 series"],
+        "Tapered Roller": ["tapered", "taper", "taper roller", "trb",
+                           "cup and cone", "30 series", "32 series"],
+        "Spherical Roller": ["spherical", "spherical roller", "self aligning",
+                             "self-aligning", "srb", "22 series", "23 series"],
+        "Cylindrical Roller": ["cylindrical", "cylindrical roller", "crb",
+                               "nu", "nj", "nup", "n series"],
+        "Needle Roller": ["needle", "needle roller", "na series", "rna"],
+        "Thrust Ball": ["thrust", "thrust ball", "axial", "axial load bearing",
+                        "51 series"]
+      }
+    },
+    "brand": {
+      "type": "choice",
+      "values": {
+        "SKF": ["skf"],
+        "NTN": ["ntn"],
+        "FAG": ["fag", "schaeffler"]
+      },
+      "notes": "Read from the registry, never hardcoded in parsers.js. Adding a brand is a data edit."
+    },
+    "clearance": {
+      "type": "choice",
+      "values": {
+        "C2": ["c2", "reduced clearance", "tight clearance"],
+        "Normal": ["cn", "normal clearance", "standard clearance"],
+        "C3": ["c3", "increased clearance", "loose", "loose fit", "hot running"],
+        "C4": ["c4", "extra loose"]
+      }
+    }
+  },
+
+  "modifiers": {
+    "range": {
+      "patterns": [
+        "between {a} and {b}", "{a} to {b}", "{a}-{b}", "from {a} to {b}",
+        "{a} till {b}", "{a} upto {b}", "range {a} {b}"
+      ],
+      "notes": "Produces {min,max}. When a bare value appears for the same field earlier in the query, that value becomes 'prefer' and the range becomes the acceptable band. 'od 30, can be 30 to 25' yields {prefer:30,min:25,max:30}."
+    },
+    "approximate": {
+      "words": ["about", "around", "approx", "approximately", "roughly", "near",
+                "close to", "~", "almost"],
+      "tolerance_pct": 5
+    },
+    "maximum": {
+      "words": ["max", "maximum", "up to", "upto", "not more than", "under",
+                "below", "less than", "at most"]
+    },
+    "minimum": {
+      "words": ["min", "minimum", "at least", "more than", "above", "over",
+                "greater than", "no less than"]
+    },
+    "disjunction": {
+      "words": ["or", "either", "any of", "/", "ya"],
+      "notes": "Joins choice values into an accept list rather than overwriting."
+    },
+    "negation": {
+      "words": ["not", "no", "without", "except", "excluding", "avoid", "nahi"],
+      "notes": "Moves a matched value from accept to exclude."
+    }
+  },
+
+  "units": {
+    "mm": ["mm", "millimetre", "millimeter", "milimeter"],
+    "inch": ["inch", "inches", "in", "\"", "''"],
+    "cm": ["cm", "centimetre", "centimeter"],
+    "conversion_to_mm": { "mm": 1, "cm": 10, "inch": 25.4 }
+  },
+
+  "scoring_hints": {
+    "prefer_exact_bonus": 30,
+    "in_range_bonus": 15,
+    "out_of_range_penalty": -40,
+    "excluded_value_penalty": -1000,
+    "notes": "excluded_value_penalty is large enough to remove a result rather than merely demote it. 'metal or seal' must never return an Open bearing."
+  }
+}
