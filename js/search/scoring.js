@@ -111,9 +111,10 @@
     brand(b, intent) {
       const f = intent.brand;
       if (!f) return 0;
+      const CFG = MYCELA.CONFIG.scoring;
       if (choiceHas(f.exclude, b.brand)) return hints().excluded_value_penalty;
-      if (choiceHas(f.accept, b.brand))  return MYCELA.CONFIG.scoring.brandMatch;
-      return 0;
+      if (!f.accept || !f.accept.length) return 0;
+      return choiceHas(f.accept, b.brand) ? CFG.brandMatch : CFG.brandMismatch;
     },
 
     bearingType(b, intent) {
@@ -158,8 +159,11 @@
       if (choiceHas(f.exclude, b.sealing)) {
         // A pn / designation match is the user's own identifier — keep it
         // (demoted) so the renderer can flag "closest match, different
-        // sealing". Anything else with an excluded value is removed.
-        return classifyPartNumberMatch(b, intent) ? CFG.sealingPenalty : hints().excluded_value_penalty;
+        // sealing" — UNLESS the exclusion came from an explicit negation
+        // ("6205 not sealed"), which removes it like any other. A derived
+        // exclusion (from "metal or seal" or a suffix) only demotes.
+        var soft = classifyPartNumberMatch(b, intent) && !choiceHas(f.negated, b.sealing);
+        return soft ? CFG.sealingPenalty : hints().excluded_value_penalty;
       }
       if (choiceHas(f.accept, b.sealing)) return CFG.sealingExact;
       if (choiceHas(f.accept, 'Sealed') && b.sealing === 'Shielded') return CFG.sealingPartial;

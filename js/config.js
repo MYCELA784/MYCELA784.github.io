@@ -25,7 +25,8 @@
       designationMatch: 60,
       pnToken:      8,
       // Brand
-      brandMatch:  20,
+      brandMatch:     20,  // query names this brand and the bearing is it
+      brandMismatch: -15,  // query names a brand and the bearing is a different one
       // Bearing type
       typeExact:   40,
       typePenalty: -10,

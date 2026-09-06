@@ -87,10 +87,12 @@
         re.lastIndex = end;
       }
     });
+    var negated = exclude.slice();  // everything excluded here came from a negation word
     accept = accept.filter(function (v, i) { return accept.indexOf(v) === i && exclude.indexOf(v) === -1; });
     exclude = exclude.filter(function (v, i) { return exclude.indexOf(v) === i; });
+    negated = negated.filter(function (v, i) { return negated.indexOf(v) === i; });
     if (!accept.length && !exclude.length) return null;
-    return { accept: accept, exclude: exclude };
+    return { accept: accept, exclude: exclude, negated: negated };
   }
 
   // ── Designation extraction ───────────────────────────────────────────────
@@ -204,6 +206,7 @@
 
   function parseNumericFields(q) {
     var out = {};
+    var claimed = [];
     var NUM = '([0-9]*\\.?[0-9]+)';
     var UNIT = '(' + unitAlternation() + ')?';
     var rp = rangeParts();
@@ -246,6 +249,7 @@
     // and range-before-label "40 to 50 mm od".
     function applyRange(fn, mm) {
       var a = toMM(parseFloat(mm[1]), mm[2]), b = toMM(parseFloat(mm[3]), mm[4]);
+      claimed.push(parseFloat(mm[1]), parseFloat(mm[3]));
       set(fn, { min: Math.min(a, b), max: Math.max(a, b) });
     }
     fields.forEach(function (fn) {
@@ -308,6 +312,7 @@
       }
       if (!chosen) return;
       chosen.used = true;
+      claimed.push(chosen.v);
       var unit = '';
       var ua = unitAfterRe.exec(work.slice(chosen.i + chosen.len));
       if (ua) unit = ua[1];
@@ -330,7 +335,7 @@
       if (o.min == null && o.max == null && o.prefer != null) { o.min = o.prefer; o.max = o.prefer; }
       if (o.prefer == null && o.min == null && o.max == null) delete out[fn];
     });
-    return { fields: out, leftover: work };
+    return { fields: out, claimed: claimed };
   }
 
   // Reject a parsed numeric field whose value falls outside the schema's
@@ -425,6 +430,7 @@
     p.bore  = validNumeric('bore',  num.fields.bore)  || undefined;
     p.od    = validNumeric('od',    num.fields.od)    || undefined;
     p.width = validNumeric('width', num.fields.width) || undefined;
+    num.claimed.forEach(function (n) { if (!isNaN(n)) claimed.add(n); });
 
     // Load / speed scalars
     var loads = parseLoads(q, claimed);
@@ -462,7 +468,7 @@
     if (p.designation && p.designation.suffix) {
       var sfx = choiceRich('sealing', ' ' + p.designation.suffix + ' ');
       if (sfx && sfx.accept.length) {
-        sealing = sealing || { accept: [], exclude: [] };
+        sealing = sealing || { accept: [], exclude: [], negated: [] };
         sfx.accept.forEach(function (v) {
           if (sealing.accept.indexOf(v) === -1 && sealing.exclude.indexOf(v) === -1) sealing.accept.push(v);
         });
@@ -474,7 +480,7 @@
         if (sealing.accept.indexOf(v) === -1 && sealing.exclude.indexOf(v) === -1) sealing.exclude.push(v);
       });
     }
-    if (!sealing && envSealing) sealing = { accept: [envSealing], exclude: [] };
+    if (!sealing && envSealing) sealing = { accept: [envSealing], exclude: [], negated: [] };
     p.sealing = sealing || undefined;
 
     // PN tokens
