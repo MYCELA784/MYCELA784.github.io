@@ -61,6 +61,66 @@
     return null;
   }
 
+  function brandAliasSet() {
+    var set = {};
+    choiceTerms('brand').forEach(function (x) { set[x.term] = 1; });
+    return set;
+  }
+
+  // ── Designation extraction ───────────────────────────────────────────────
+  // Parse ONE identifier (a query, or a catalog pn) into its designation:
+  //   { family, core, suffix, normalized }  |  null
+  // Rules (all data, from schema.designation):
+  //   - scan tokens left-to-right, skip a standalone brand token
+  //   - strip a brand alias glued to the digits  ("skf6205" -> "6205")
+  //   - family = leading letters in the token, OR a preceding letter token
+  //     but only if it is a known family_code ("na 4900" -> family "na")
+  //   - absorb trailing short tokens as suffix    ("6205 2rs", "na 4900 rs")
+  //   - trim a 5-digit core to 4 only when the suffix starts rs / z / rz
+  //     ("62052rs" -> 6205 ; "618002rs" -> 61800)
+  ns.SearchEngine.designationOf = function (str) {
+    if (str == null) return null;
+    var d = (schema() && schema().designation) || {};
+    var corePat = new RegExp(d.core_pattern || '^([a-z]{0,5})([0-9]{3,5})([a-z0-9/-]*)$', 'i');
+    var trimStarts = d.trim_5_digit_core_when_suffix_starts || ['rs', 'z', 'rz'];
+    var families = {};
+    (d.family_codes || []).forEach(function (f) { families[String(f).toLowerCase()] = 1; });
+    var brands = brandAliasSet();
+
+    var toks = String(str).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().split(/\s+/).filter(Boolean);
+    for (var i = 0; i < toks.length; i++) {
+      var t = toks[i];
+      if (brands[t]) continue;
+      var stripped = t;
+      Object.keys(brands).forEach(function (bp) {
+        if (stripped.length > bp.length && stripped.slice(0, bp.length) === bp &&
+            /[0-9]/.test(stripped.charAt(bp.length))) {
+          stripped = stripped.slice(bp.length);
+        }
+      });
+      var mm = corePat.exec(stripped);
+      if (!mm) continue;
+      var family = (mm[1] || '').toLowerCase();
+      var core = mm[2];
+      var suffix = (mm[3] || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (!family) {
+        var prev = i > 0 ? toks[i - 1] : '';
+        if (prev && /^[a-z]{1,5}$/.test(prev) && families[prev] && !brands[prev]) family = prev;
+      }
+      for (var j = i + 1; j < toks.length; j++) {
+        if (/^[a-z0-9]{1,5}$/.test(toks[j]) && !/^[0-9]{3,}$/.test(toks[j])) suffix += toks[j];
+        else break;
+      }
+      if (core.length === 5) {
+        for (var k = 0; k < trimStarts.length; k++) {
+          if (suffix.indexOf(trimStarts[k]) === 0) { core = core.slice(0, 4); break; }
+        }
+      }
+      return { family: family, core: core, suffix: suffix, normalized: family + core };
+    }
+    return null;
+  };
+
   // ── Unit conversion (unit words from the schema) ──────────────────────────
   function unitFactor(u) {
     if (!u) return 1;
@@ -218,6 +278,9 @@
 
     // ── Clearance grade (vocabulary from the schema) ─────────────────────────
     p.clearance = detectChoice('clearance', q) || undefined;
+
+    // ── Designation (found anywhere in the query, not just a leading digit run)
+    p.designation = ns.SearchEngine.designationOf(q) || undefined;
 
     // ── Clean PN tokens ───────────────────────────────────────────────────────
     const NOISE = noiseSet();

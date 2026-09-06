@@ -12,6 +12,15 @@
     "designation_pattern": "^(?:[a-z]{0,4})[0-9]{3,5}(?:[a-z0-9/-]*)$"
   },
 
+  "designation": {
+    "core_pattern": "^([a-z]{0,5})([0-9]{3,5})([a-z0-9/-]*)$",
+    "family_codes": ["na", "rna", "nk", "nki", "nkis", "nks", "njg", "nu", "nj",
+                     "nup", "nf", "nn", "n", "hk", "bk", "rnu", "k", "qj",
+                     "ge", "gex", "yar", "yat", "yal", "sy", "syj"],
+    "trim_5_digit_core_when_suffix_starts": ["rs", "z", "rz"],
+    "notes": "extractDesignation() finds the designation token anywhere in the query, not just at the start. A brand alias glued to the digits (skf6205) is stripped. A separate leading letter token counts as the family only when it is in family_codes, so 'for 6205' is not read as family 'for'. A 5-digit core is trimmed to 4 only when the suffix begins with one of trim_5_digit_core_when_suffix_starts: 62052RS -> 6205, but 618002RS stays 61800 (suffix '2rs' does not start with rs/z/rz)."
+  },
+
   "fields": {
     "bore": {
       "type": "number", "unit": "mm", "min": 1, "max": 2000,

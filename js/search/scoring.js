@@ -21,13 +21,17 @@
 (function (ns) {
   ns.SearchEngine = ns.SearchEngine || {};
 
-  // Leading digit run, read from the *raw* (unstripped) string so a suffix
-  // that starts with a digit (2RS, 2Z, 2RSR, ...) can't glue onto the base
-  // designation once dashes/spaces are removed elsewhere — e.g. "6205-2rs"
-  // must read as base "6205", not "62052" (see classifyPartNumberMatch()).
-  function baseDesignation(raw) {
-    const m = /^[0-9]+/.exec(raw);
-    return m ? m[0] : '';
+  // The query's parsed designation ({family,core,suffix,normalized}) is
+  // compared against each catalog pn's own designation, both produced by the
+  // shared MYCELA.SearchEngine.designationOf() (parsers.js). This finds the
+  // designation anywhere in the query — "skf 6205", "6205 skf" and
+  // "ntn 6205 2rs" all resolve to base "6205" — and trims "62052rs" to 6205
+  // without trimming "618002rs" to 6180.
+  function designationMatches(b, intent) {
+    const q = intent.designation;
+    if (!q || !q.normalized || q.core.length < 3) return false;
+    const pnD = MYCELA.SearchEngine.designationOf(b.pn);
+    return !!pnD && pnD.normalized === q.normalized;
   }
 
   // Single source of truth for which partNumber() branch applies, shared
@@ -46,8 +50,7 @@
     // "6205-C-2Z"): an exact shared base designation must still outrank an
     // unrelated pn that only coincidentally shares a short suffix substring
     // (see the token loop in partNumber()) plus a sealing match.
-    const qBase = baseDesignation(intent.rawQ);
-    if (qBase.length >= 3 && qBase === baseDesignation(pnRaw)) return 'designation';
+    if (designationMatches(b, intent)) return 'designation';
     return null;
   }
 
