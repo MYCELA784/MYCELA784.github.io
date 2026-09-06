@@ -1,38 +1,85 @@
 /* PUBLIC API (consumed by engine.js via MYCELA.SearchEngine.parse)
  *   MYCELA.SearchEngine.parse(raw)
  *     → { tokens, bore, od, od_min, od_max, width, rpm, cr_min, c0r_min,
- *          type, brand, sealing, typeHints[], apps[], envNotes[], rawQ }
+ *          type, brand, sealing, clearance, typeHints[], apps[], envNotes[], rawQ }
+ *
+ * Vocabulary (brand / sealing / type / clearance terms, field aliases, unit
+ * words) is read from MYCELA.Schemas — nothing about a specific bearing
+ * family is hardcoded here. Adding a brand / type / clearance grade / alias
+ * is a data edit in schemas/bearing.schema.json.
  *
  * Bug fixes vs. original:
  *   - Compact "15x32x9" / "15×32×9" format: parsed before token pipeline
  *   - Number-first OD: "72mm OD", "72 outer diameter"
  *   - Number-first width: "17mm wide", "9mm width"
+ *   - FAG (and any future brand) recognised — brand list comes from the schema
  * Reads EnvironmentRules and ApplicationRules from MYCELA.SearchEngine (rules.js).
  */
 (function (ns) {
   ns.SearchEngine = ns.SearchEngine || {};
 
-  const NOISE = new Set([
-    'bearing','bearings','ball','roller','type','grade',
-    'a','an','the','for','with','want','need','find','get','show','me','i',
-    'please','should','be','can','that','will','work','in','on','of','at','to',
-    'and','or','but','is','are','have','has','rated','quality','suitable',
-    'something','range','between','from','size','approximately','about','around',
-    'roughly','exactly','minimum','maximum','min','max','mm','cm','m','meter',
-    'meters','inch','inches','kg','kn','rpm','n','kgf','id','od','bore',
-    'inner','outer','diameter','load','force','axial','radial','thrust',
-    'speed','self','lubricated','sealed','open','shielded','marine',
-    'environment','application','use','used','suitable','conditions',
-  ]);
-
-  function toMM(v, u) {
-    if (!u) return v;
-    u = u.toLowerCase();
-    if (u === 'm' || u === 'meter' || u === 'meters') return v * 1000;
-    if (u === 'cm' || u === 'centimeter')              return v * 10;
-    if (u === 'in' || u === 'inch' || u === 'inches' || u === '"') return v * 25.4;
-    return v;
+  // ── Schema access ─────────────────────────────────────────────────────────
+  function schema() {
+    var S = ns.Schemas;
+    if (!S) return null;
+    return S.get && (S.get('bearing') || (S.primary && S.primary())) || null;
   }
+  function fieldOf(name) {
+    var s = schema();
+    return (s && s.fields && s.fields[name]) || null;
+  }
+
+  // Flat, longest-term-first alias list for a choice field:
+  //   [{ value: 'FAG', term: 'schaeffler' }, { value: 'FAG', term: 'fag' }, ...]
+  function choiceTerms(fieldName) {
+    var f = fieldOf(fieldName), out = [];
+    if (!f || !f.values) return out;
+    Object.keys(f.values).forEach(function (val) {
+      (f.values[val] || []).forEach(function (t) {
+        out.push({ value: val, term: String(t).toLowerCase() });
+      });
+    });
+    out.sort(function (a, b) { return b.term.length - a.term.length; });
+    return out;
+  }
+
+  function escapeRe(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+  // A term matches on token boundaries; internal spaces match any whitespace
+  // run so multi-word aliases ("deep groove") work regardless of spacing.
+  function termMatches(term, q) {
+    var body = escapeRe(term).replace(/\\?\s+/g, '\\s+');
+    return new RegExp('(?:^|[^a-z0-9])' + body + '(?![a-z0-9])', 'i').test(q);
+  }
+
+  // First schema value whose alias appears in the query (longest alias wins).
+  function detectChoice(fieldName, q) {
+    var terms = choiceTerms(fieldName);
+    for (var i = 0; i < terms.length; i++) {
+      if (termMatches(terms[i].term, q)) return terms[i].value;
+    }
+    return null;
+  }
+
+  // ── Unit conversion (unit words from the schema) ──────────────────────────
+  function unitFactor(u) {
+    if (!u) return 1;
+    u = u.toLowerCase().replace(/[^a-z"']/g, '');
+    var s = schema();
+    if (s && s.units) {
+      var conv = s.units.conversion_to_mm || {};
+      var keys = Object.keys(s.units).filter(function (k) { return k !== 'conversion_to_mm'; });
+      for (var i = 0; i < keys.length; i++) {
+        var k = keys[i];
+        var words = (s.units[k] || []).map(function (w) { return String(w).toLowerCase().replace(/[^a-z"']/g, ''); });
+        if (k === u || words.indexOf(u) !== -1) return conv[k] != null ? conv[k] : 1;
+      }
+    }
+    // Fallbacks for unit tokens not modelled in the schema.
+    if (u === 'm' || u === 'meter' || u === 'meters') return 1000;
+    return 1;
+  }
+  function toMM(v, u) { return v * unitFactor(u); }
 
   function toKN(v, u) {
     if (!u) return v;
@@ -42,6 +89,46 @@
     if (u === 'lb' || u === 'lbs'  || u === 'pound')    return v * 0.00444822;
     if (u === 'kn') return v;
     return v;
+  }
+
+  // Generic-English filler only — no bearing vocabulary. Field aliases, unit
+  // words and modifier words are pulled from the schema below.
+  var STOPWORDS = [
+    'a','an','the','for','with','want','need','find','get','show','me','i',
+    'please','should','be','can','that','will','work','is','are','have','has',
+    'something','suitable','conditions','use','used','of','to','in','on','at',
+    'and','or','but','my','it','this','these','type','grade','size','rated','quality',
+  ];
+
+  function noiseSet() {
+    var s = schema(), set = {};
+    STOPWORDS.forEach(function (w) { set[w] = 1; });
+    if (s) {
+      Object.keys(s.fields || {}).forEach(function (fn) {
+        var f = s.fields[fn];
+        (f.aliases || []).forEach(function (a) {
+          String(a).toLowerCase().split(/\s+/).forEach(function (w) { if (w.length > 1) set[w] = 1; });
+        });
+      });
+      Object.keys(s.units || {}).forEach(function (k) {
+        if (k === 'conversion_to_mm') return;
+        set[k] = 1;
+        (s.units[k] || []).forEach(function (w) { set[String(w).toLowerCase()] = 1; });
+      });
+      Object.keys(s.modifiers || {}).forEach(function (mk) {
+        (s.modifiers[mk].words || []).forEach(function (w) {
+          String(w).toLowerCase().split(/\s+/).forEach(function (t) { if (t.length > 1) set[t] = 1; });
+        });
+      });
+      (((s.detect || {}).strong) || []).concat(((s.detect || {}).weak) || [])
+        .forEach(function (w) {
+          String(w).toLowerCase().split(/\s+/).forEach(function (t) { if (t.length > 1) set[t] = 1; });
+        });
+    }
+    // load / speed vocabulary (not modelled as schema fields)
+    ['load','force','axial','radial','thrust','speed','rpm','kg','kn','kgf','lbs','lb',
+     'newton','revolutions','revolution','rev','min','minute'].forEach(function (w) { set[w] = 1; });
+    return set;
   }
 
   ns.SearchEngine.parse = function (raw) {
@@ -104,17 +191,8 @@
     const aL2 = /(?:axial(?:\s+(?:load|force))?|thrust)\s+(?:of\s+)?([0-9]*\.?[0-9]+)\s*(kg|kgf|kn|n\b|lbs?)/gi;
     while ((m = aL2.exec(q)) !== null) { p.c0r_min = toKN(parseFloat(m[1]), m[2]); consumed.add(+m[1]); }
 
-    // ── Bearing type ──────────────────────────────────────────────────────────
-    if      (/deep\s*groove|dgbb/.test(q))               p.type = 'Deep Groove Ball';
-    else if (/cylindrical\s*roller/.test(q))             p.type = 'Cylindrical Roller';
-    else if (/tapered\s*roller/.test(q))                 p.type = 'Tapered Roller';
-    else if (/spherical\s*roller\s*thrust/.test(q))      p.type = 'Spherical Roller Thrust';
-    else if (/spherical\s*roller/.test(q))               p.type = 'Spherical Roller';
-    else if (/angular\s*contact/.test(q))                p.type = 'Angular Contact Ball';
-    else if (/needle\s*roller|needle\s*bearing/.test(q)) p.type = 'Needle Roller';
-    else if (/self.?align/.test(q))                      p.type = 'Self-Aligning Ball';
-    else if (/thrust\s*ball/.test(q))                    p.type = 'Thrust Ball';
-    else if (/\binsert\b|y.bearing/.test(q))             p.type = 'Insert (Y-Bearing)';
+    // ── Bearing type (vocabulary from the schema) ─────────────────────────────
+    p.type = detectChoice('type', q) || undefined;
 
     // ── Environment rules ─────────────────────────────────────────────────────
     ns.SearchEngine.EnvironmentRules.forEach(env => {
@@ -126,27 +204,29 @@
       }
     });
 
-    // Explicit sealing overrides environment
-    if      (/\bsealed\b|2rs|llu|vv\b|ddu\b/.test(q)) p.sealing = 'Sealed';
-    else if (/shield|2z\b|zz\b/.test(q))               p.sealing = 'Shielded';
-    else if (/\bopen\b/.test(q))                        p.sealing = 'Open';
+    // Explicit sealing (schema vocabulary) overrides environment inference
+    const explicitSeal = detectChoice('sealing', q);
+    if (explicitSeal) p.sealing = explicitSeal;
 
     // ── Application rules ─────────────────────────────────────────────────────
     ns.SearchEngine.ApplicationRules.forEach(([rx, app]) => {
       if (rx.test(q) && !p.apps.includes(app)) p.apps.push(app);
     });
 
-    // ── Brand ─────────────────────────────────────────────────────────────────
-    if      (/\bntn\b/.test(q)) p.brand = 'NTN';
-    else if (/\bskf\b/.test(q)) p.brand = 'SKF';
+    // ── Brand (vocabulary from the schema — FAG, and any brand added later) ───
+    p.brand = detectChoice('brand', q) || undefined;
+
+    // ── Clearance grade (vocabulary from the schema) ─────────────────────────
+    p.clearance = detectChoice('clearance', q) || undefined;
 
     // ── Clean PN tokens ───────────────────────────────────────────────────────
+    const NOISE = noiseSet();
     p.tokens = q
       .replace(/[^a-z0-9\s]/g, ' ')
       .split(/\s+/)
       .filter(t => {
         if (t.length < 2) return false;
-        if (NOISE.has(t)) return false;
+        if (NOISE[t]) return false;
         const n = parseFloat(t);
         if (!isNaN(n) && consumed.has(n)) return false;
         return true;

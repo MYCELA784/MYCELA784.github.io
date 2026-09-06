@@ -180,10 +180,24 @@
   };
 
   // ── Query normalization + dimension-intent routing ─────────────────────────
+  // Field aliases come from the schema, not a hardcoded list here.
+  function fieldAliases(name) {
+    var S = ns.Schemas;
+    var f = S && S.get && S.get('bearing');
+    f = f && f.fields && f.fields[name];
+    return (f && f.aliases) || [];
+  }
   function normalizeQuery(q) {
-    return q
-      .replace(/\b(inner\s*dia(meter)?|i\.?d\.?)\b/gi, 'bore')
-      .replace(/\b(outer\s*dia(meter)?|o\.?d\.?)\b/gi, 'od');
+    var out = q;
+    [['bore', 'bore'], ['od', 'od'], ['width', 'width']].forEach(function (pair) {
+      fieldAliases(pair[0]).forEach(function (a) {
+        if (a === pair[1] || a.length < 2) return;
+        var body = a.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
+        var re = new RegExp('(^|[^a-z0-9])' + body + '(?![a-z0-9])', 'gi');
+        out = out.replace(re, '$1' + pair[1]);
+      });
+    });
+    return out;
   }
 
   function extractDims(q) {

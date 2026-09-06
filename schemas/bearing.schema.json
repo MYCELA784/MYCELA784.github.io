@@ -34,6 +34,7 @@
       "values": {
         "Sealed": ["seal", "sealed", "sealing", "rubber seal", "rubber",
                    "contact seal", "2rs", "2rs1", "2rsr", "rs", "llu", "llb",
+                   "vv", "ddu", "2rs5", "2rsh", "2rsl", "llh",
                    "2hrs", "dust proof", "dustproof", "waterproof", "water proof",
                    "grease retained", "rubber cover"],
         "Shielded": ["shield", "shielded", "metal shield", "metal", "steel shield",
@@ -54,13 +55,21 @@
                                  "thrust ball radial", "7 series"],
         "Tapered Roller": ["tapered", "taper", "taper roller", "trb",
                            "cup and cone", "30 series", "32 series"],
-        "Spherical Roller": ["spherical", "spherical roller", "self aligning",
-                             "self-aligning", "srb", "22 series", "23 series"],
+        "Spherical Roller": ["spherical", "spherical roller", "srb",
+                             "22 series", "23 series"],
+        "Spherical Roller Thrust": ["spherical roller thrust", "thrust spherical roller",
+                                    "spherical thrust", "29 series"],
+        "Self-Aligning Ball": ["self aligning ball", "self-aligning ball",
+                               "self aligning", "self-aligning", "self align",
+                               "12 series", "13 series"],
         "Cylindrical Roller": ["cylindrical", "cylindrical roller", "crb",
                                "nu", "nj", "nup", "n series"],
         "Needle Roller": ["needle", "needle roller", "na series", "rna"],
         "Thrust Ball": ["thrust", "thrust ball", "axial", "axial load bearing",
-                        "51 series"]
+                        "51 series"],
+        "Insert (Y-Bearing)": ["insert bearing", "y-bearing", "y bearing",
+                               "yar", "yat", "yal"],
+        "CARB Toroidal Roller": ["carb", "toroidal roller", "toroidal"]
       }
     },
     "brand": {
