@@ -74,3 +74,36 @@ because it cannot be checked against any source. 21 rows:
 | NTN-NU1056 | NU1056 | 280×420×65 | 660 | 1 |
 | NTN-NU1060 | NU1060 | 300×460×74 | 855 | 1 |
 | NTN-NU1064 | NU1064 | 320×480×74 | 875 | 1 |
+
+---
+
+## Q2 — SKF 322xx tapered-roller block  (`scripts/data-fixes/02-skf-322xx-quarantine.json`)
+
+18 SKF rows `32220`–`32264` carried a **verbatim copy of the `302xx`
+series' specs** (`SKF-32220` byte-identical to `SKF-30202`, `SKF-32224` to
+`SKF-30205`, `SKF-32240` to `SKF-30212`, …). A real `322NN` is a large
+tapered roller — `32224` is 120 mm bore, not 25. **`bore`, `od`, `w`,
+`cr`, `c0r` all set to `null`** on the 18 rows (js/db.js then drops them
+from the searchable set); the pn and `source` are kept for re-sourcing.
+The clean `302xx` originals are untouched.
+
+| id | pn | stored (bore/od/w/cr/c0r) — actually 302xx data | real bore |
+|---|---|---|---|
+| SKF-32220 | 32220 | 15/35/11.75/18.5/14.6 | ~100 mm |
+| SKF-32221 | 32221 | 17/40/13.25/23.4/18.6 | ~105 mm |
+| SKF-32222 | 32222 | 20/47/15.25/34.1/28 | ~110 mm |
+| SKF-32224 | 32224 | 25/52/16.25/38.1/33.5 | ~120 mm |
+| SKF-32226 | 32226 | 28/58/17.25/46.6/41.5 | ~130 mm |
+| SKF-32228 | 32228 | 30/62/17.25/50/44 | ~140 mm |
+| SKF-32230 | 32230 | 35/72/18.25/63.2/56 | ~150 mm |
+| SKF-32232 | 32232 | 40/80/19.75/75.8/68 | ~160 mm |
+| SKF-32234 | 32234 | 45/85/20.75/81.6/76.5 | ~170 mm |
+| SKF-32236 | 32236 | 50/90/21.75/93.1/91.5 | ~180 mm |
+| SKF-32238 | 32238 | 55/100/22.75/111/106 | ~190 mm |
+| SKF-32240 | 32240 | 60/110/23.75/120/114 | ~200 mm |
+| SKF-32244 | 32244 | 65/120/24.75/141/134 | ~220 mm |
+| SKF-32248 | 32248 | 70/125/26.25/155/156 | ~240 mm |
+| SKF-32252 | 32252 | 75/130/27.25/171/176 | ~260 mm |
+| SKF-32256 | 32256 | 80/140/28.25/184/183 | ~280 mm |
+| SKF-32260 | 32260 | 85/150/30.5/216/220 | ~300 mm |
+| SKF-32264 | 32264 | 90/160/32.5/240/245 | ~320 mm |
