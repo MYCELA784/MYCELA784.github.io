@@ -107,3 +107,34 @@ The clean `302xx` originals are untouched.
 | SKF-32256 | 32256 | 80/140/28.25/184/183 | ~280 mm |
 | SKF-32260 | 32260 | 85/150/30.5/216/220 | ~300 mm |
 | SKF-32264 | 32264 | 90/160/32.5/240/245 | ~320 mm |
+
+---
+
+## Q3 — NTN U+FF09 malformed-pn rows  (`scripts/data-fixes/03-ntn-fullwidth-paren.json`)
+
+9 NTN rows whose `pn` ended in `）` （a full-width right parenthesis
+left by PDF extraction）. **All 9 rows deleted** (3715 → 3706). Deleting
+the extraction artifact itself needs no value verification.
+
+6 of them had an exact clean-pn sibling **with a conflicting `cr`/`c0r`**;
+the sibling was kept and its `cr`/`c0r` **nulled** (the conflict proves
+one source was wrong and there is no way to tell which):
+
+| deleted row | was cr/c0r | kept sibling | sibling was cr/c0r → now |
+|---|---|---|---|
+| `4T-32203R2）` | 26.2 / 28.2 | NTN-4T_32203R2 | 16 / 14 → null / null |
+| `4T-32205R2）` | 38 / 43 | NTN-4T_32205R2 | 18 / 15 → null / null |
+| `4T-32205CR2）` | 34.5 / 42 | NTN-4T_32205CR2 | 18 / 15 → null / null |
+| `4T-32306CR2）` | 70 / 88.5 | NTN-4T_32306CR2 | 27 / 23 → null / null |
+| `4T-32207CR2）` | 62 / 78.5 | NTN-4T_32207CR2 | 23 / 18 → null / null |
+| `322382）` | 1000 / 1670 | NTN-322382 | 92 / 75 → null / null |
+
+3 had **no sibling** — deleted outright; the underlying designation may be
+real and is now absent, flagged for re-sourcing:
+
+- `5205SCZZ3）` (25×52×20.6) — possibly `5205SCZZ3`
+- `5208SCZZ3）` (40×80×30.2) — possibly `5208SCZZ3`
+- `32912XA2）` (60×85×17) — possibly `32912XA2`
+
+Note: `NTN-322382` itself looks like a typo of `NTN-32238` (190×340×97,
+which matches) — flagged, not renamed.

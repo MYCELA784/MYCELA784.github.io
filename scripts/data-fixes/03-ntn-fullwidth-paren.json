@@ -1,0 +1,86 @@
+[
+  {
+    "id": "NTN-5205SCZZ3_",
+    "op": "delete"
+  },
+  {
+    "id": "NTN-5208SCZZ3_",
+    "op": "delete"
+  },
+  {
+    "id": "NTN-4T-32203R2_",
+    "op": "delete"
+  },
+  {
+    "id": "NTN-4T_32203R2",
+    "op": "set",
+    "fields": {
+      "cr": null,
+      "c0r": null
+    }
+  },
+  {
+    "id": "NTN-4T-32205R2_",
+    "op": "delete"
+  },
+  {
+    "id": "NTN-4T_32205R2",
+    "op": "set",
+    "fields": {
+      "cr": null,
+      "c0r": null
+    }
+  },
+  {
+    "id": "NTN-4T-32205CR2_",
+    "op": "delete"
+  },
+  {
+    "id": "NTN-4T_32205CR2",
+    "op": "set",
+    "fields": {
+      "cr": null,
+      "c0r": null
+    }
+  },
+  {
+    "id": "NTN-4T-32306CR2_",
+    "op": "delete"
+  },
+  {
+    "id": "NTN-4T_32306CR2",
+    "op": "set",
+    "fields": {
+      "cr": null,
+      "c0r": null
+    }
+  },
+  {
+    "id": "NTN-4T-32207CR2_",
+    "op": "delete"
+  },
+  {
+    "id": "NTN-4T_32207CR2",
+    "op": "set",
+    "fields": {
+      "cr": null,
+      "c0r": null
+    }
+  },
+  {
+    "id": "NTN-32912XA2_",
+    "op": "delete"
+  },
+  {
+    "id": "NTN-322382_",
+    "op": "delete"
+  },
+  {
+    "id": "NTN-322382",
+    "op": "set",
+    "fields": {
+      "cr": null,
+      "c0r": null
+    }
+  }
+]
