@@ -62,6 +62,16 @@
     return classifyPartNumberMatch(b, intent) === 'designation';
   };
 
+  // True when this result matched the query's part number or shares its
+  // base designation (exact | prefix | includes | designation) — i.e. it
+  // is the family the query named, not a part that merely shares a brand,
+  // a seal type or a rough size with it. engine.js uses this to keep a
+  // designation-anchored search to that family instead of letting weak
+  // single-signal matches fill the grid.
+  ns.SearchEngine.isPartNumberMatch = function (b, intent) {
+    return classifyPartNumberMatch(b, intent) !== null;
+  };
+
   // Numeric weights come from the schema's scoring_hints (see STEP 4/5 of the
   // refactor); the choice-field weights stay in MYCELA.CONFIG.scoring.
   function hints() {

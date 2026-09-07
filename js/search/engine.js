@@ -73,8 +73,32 @@
       return { b, score, matchType, breakdown, hardExcluded };
     });
 
-    return scored
-      .filter(x => x.score > 0 && !x.hardExcluded)
+    const alive = scored.filter(x => x.score > 0 && !x.hardExcluded);
+
+    // ── Inclusion rules ──────────────────────────────────────────────────
+    // A result has to earn its slot; the grid is never padded to a target
+    // count with weak matches.
+    //
+    // 1. Designation-anchored: the query parsed a real designation (6205,
+    //    62052RS, "fag 6205", "NU205" …) and at least one catalog part is a
+    //    genuine pn / designation match for it. The answer is that family
+    //    (which already spans the brands that carry it) and nothing else —
+    //    a part that only shares a brand, a seal type or an application tag
+    //    is not a weaker 6205, it is a different bearing.
+    // 2. Otherwise: brand alone never qualifies a result. Strip the brand
+    //    bonus and require some other positive signal to remain.
+    const d = intent.designation;
+    const anchored = !!(d && d.normalized && d.core && d.core.length >= 3) &&
+      alive.some(x => ns.SearchEngine.isPartNumberMatch(x.b, intent));
+
+    const included = anchored
+      ? alive.filter(x => ns.SearchEngine.isPartNumberMatch(x.b, intent))
+      : alive.filter(x => {
+          const brandPts = x.breakdown.brand > 0 ? x.breakdown.brand : 0;
+          return x.score - brandPts > 0;
+        });
+
+    return included
       .sort((a, c) => {
         // Primary: score descending
         if (c.score !== a.score) return c.score - a.score;
@@ -90,6 +114,7 @@
         // Tiebreaker 4: brand alphabetical (deterministic last resort)
         return a.b.brand.localeCompare(c.b.brand);
       })
+      // Upper bound, not a target: a short exact answer stays short.
       .slice(0, maxResults)
       .map(x => ({
         ...x.b,

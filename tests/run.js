@@ -93,6 +93,21 @@ function runCase(c, index) {
       if (ids.indexOf(id) !== -1) errs.push(`notInResults: ${id} present`);
     });
   }
+  // Class-absence: no result may be present that isn't a genuine pn /
+  // designation match for the query (i.e. nothing included on a brand,
+  // seal or app signal alone). Guards the "designation match → that
+  // family and stop, never pad" rule in engine.js fast().
+  if (c.allDesignation) {
+    const intent = SE.parse(c.query);
+    hits.forEach(h => {
+      if (!SE.isPartNumberMatch(h, intent)) {
+        errs.push(`allDesignation: ${h.id} (${h.pn}) is not a pn/designation match`);
+      }
+    });
+  }
+  if (typeof c.countAtMost === 'number' && ids.length > c.countAtMost) {
+    errs.push(`countAtMost ${c.countAtMost}: got ${ids.length} (${ids})`);
+  }
   if (c.topSealing && (!top || top.sealing !== c.topSealing)) errs.push(`topSealing: expected ${c.topSealing} got ${top ? top.sealing : '(none)'}`);
   if (c.topType && (!top || top.type !== c.topType)) errs.push(`topType: expected ${c.topType} got ${top ? top.type : '(none)'}`);
   if (c.topBoreIn) {

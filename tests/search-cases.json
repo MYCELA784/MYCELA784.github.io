@@ -136,5 +136,22 @@
   { "query": "fag deep groove 25mm bore", "topType": "Deep Groove Ball", "topBoreIn": [24, 26],
     "inTop": "FAG-61805",
     "parse": { "brand": { "accept": ["FAG"] }, "type": { "accept": ["Deep Groove Ball"] }, "bore": { "prefer": 25 } },
-    "note": "audit B3: brand FAG + type + dimension all parsed" }
+    "note": "audit B3: brand FAG + type + dimension all parsed" },
+
+  { "query": "62052RS", "topN": 40, "allDesignation": true, "countAtMost": 12,
+    "inTop": ["FAG-6205-C-2HRS", "NTN-6205", "SKF-6205"], "inTopN": 12,
+    "notInResults": ["FAG-61800-2RSR", "FAG-61900-2RSR", "FAG-6000-C-2HRS", "FAG-6200-C-2HRS", "FAG-6003-2RSR"],
+    "note": "audit D: designation-anchored — 6205 family + cross-brand only, no seal-only 2RSR padding" },
+  { "query": "fag 6205", "topN": 40, "allDesignation": true, "countAtMost": 12,
+    "inTop": ["FAG-6205-C", "NTN-6205", "SKF-6205"], "inTopN": 12,
+    "notInResults": ["FAG-61800", "FAG-61805", "FAG-61900-2RSR", "FAG-61800-2Z"],
+    "note": "audit D: brand match alone must not qualify — only the 6205 family, cross-brand kept" },
+  { "query": "fag 6205 2rs", "topN": 40, "allDesignation": true, "countAtMost": 12,
+    "top": "FAG-6205-C-2HRS", "notInResults": ["FAG-61800-2RSR", "FAG-6200-C-2HRS"],
+    "note": "audit D: brand + seal both match many FAG parts; only the 6205 family qualifies" },
+  { "query": "NU205", "topN": 40, "allDesignation": true, "countAtMost": 4,
+    "top": "NTN-NU205E",
+    "note": "audit D: one brand carries NU205 — return it and stop, do not pad with NU2205 / 6205" },
+  { "query": "fag", "topN": 40, "countAtMost": 0,
+    "note": "audit D: a bare brand qualifies nothing — fast() returns empty, app.js hands off to fallback" }
 ]
