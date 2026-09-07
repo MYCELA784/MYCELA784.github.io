@@ -55,10 +55,28 @@ apps, correctly.
 
 11 duplicate `id`s in the loaded DB (`NTN-12000`, `NTN-8200`, `NTN-8100`,
 `NTN-7600`, `NTN-8400`, `NTN-7400`, `NTN-6400`, `NTN-6000`, `NTN-5000`,
-`NTN-5800`, `FAG-1154`) — two rows each. Unrelated to this audit; noted
-for a future data pass.
+`NTN-5800`, `FAG-1154`) — two rows each. Removed in Q6
+(`docs/data-quarantine.md`); `js/db.js` now warns on duplicate ids under
+`?debug=1`.
+
+## Status (2026-09-07)
+
+**The `apps` field is hidden in the UI and excluded from search scoring,
+pending re-sourcing.** The problem is not the 80 flagged contradictions —
+it is that the tags are canned sets assigned by type and wrong at scale
+(Thrust Ball above), so per-row fixes cannot make the field trustworthy.
+Until it is re-imported:
+
+- `renderer.js` hides `#modal-apps-wrap` (the "Typical Applications"
+  modal section), toggled like `#modal-xref-wrap`.
+- `Scorers.applications()` returns `0`. `CONFIG.scoring.appMatch` (16) is
+  left in place for when scoring is restored. The `ApplicationRules` /
+  `EnvironmentRules` query parsing is untouched — it just scores nothing.
+- `bearings_db.js` is **not** changed; every `apps` array stays as-is so
+  the re-sourcing pass has the current (wrong) values to diff against.
 
 ## Not fixed
 
-Nothing changed. A fix would be a canned-app-set correction (biggest win:
-re-derive Thrust Ball apps) plus a per-row pass on the 7 leaked rows.
+The data itself is unchanged. A real fix is a canned-app-set correction
+(biggest win: re-derive Thrust Ball apps) plus a per-row pass on the 7
+leaked rows, after which the UI + scoring above can be switched back on.

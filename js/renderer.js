@@ -227,10 +227,12 @@
       .map(([k, v]) => `<div class="spec-cell"><div class="spec-lbl">${k}</div><div class="spec-val">${v}</div></div>`)
       .join('');
 
-    // Apps
-    const appsEl = document.getElementById('modal-apps');
-    if (appsEl) appsEl.innerHTML =
-      (b.apps || []).map(a => `<span class="app-tag">${a}</span>`).join('');
+    // Apps — hidden pending re-sourcing of the applications data. The audit
+    // (docs/apps-type-audit.md) found the field wrong at scale, not just in
+    // the 80 flagged rows, so nothing reads b.apps until it is re-imported.
+    // Toggled on its wrapper the same way #modal-xref-wrap is.
+    const appsWrap = document.getElementById('modal-apps-wrap');
+    if (appsWrap) appsWrap.style.display = 'none';
 
 // Cross-reference — reuse existing index.html section
     const xrefs = findXrefs(b);

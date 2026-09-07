@@ -30,7 +30,29 @@
     if (bore>=300 &&             cr>0 && cr<bore*0.05)   return false;
     return true;
   });
+  // Build the id->record map, and assert id uniqueness while doing it.
+  // bearings_db.js has carried the same id on two different rows before
+  // (Q6, docs/data-quarantine.md); DB_MAP silently keeps the last, so a
+  // repeat is invisible unless we look. Under ?debug=1, name both records.
+  const DEBUG = (function () {
+    try { return new URLSearchParams(location.search).get('debug') === '1'; }
+    catch (e) { return false; }
+  })();
   ns.DB_MAP = {};
-  ns.DB.forEach(b => { ns.DB_MAP[b.id] = b; });
+  const dupes = {};
+  ns.DB.forEach(b => {
+    if (Object.prototype.hasOwnProperty.call(ns.DB_MAP, b.id)) {
+      (dupes[b.id] = dupes[b.id] || [ns.DB_MAP[b.id]]).push(b);
+    }
+    ns.DB_MAP[b.id] = b;
+  });
+  const dupIds = Object.keys(dupes);
+  if (dupIds.length && DEBUG) {
+    console.warn(`MYCELA DB: ${dupIds.length} duplicate id(s) — DB_MAP keeps the last of each:`);
+    dupIds.forEach(id => {
+      const rows = dupes[id].map(r => `{pn:${JSON.stringify(r.pn)} ${r.type} ${r.bore}x${r.od}x${r.w}}`).join('  vs  ');
+      console.warn(`  ${id}: ${dupes[id].length} rows — ${rows}`);
+    });
+  }
   console.log(`MYCELA DB: ${ns.DB.length} bearings loaded`);
 })(window.MYCELA = window.MYCELA || {});

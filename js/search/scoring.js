@@ -192,14 +192,13 @@
       return 0;
     },
 
+    // Disabled pending re-sourcing of the applications data — the audit
+    // (docs/apps-type-audit.md) found b.apps unreliable at scale, so a
+    // match against it is noise, not signal. The ApplicationRules /
+    // EnvironmentRules query parsing still runs; it just scores nothing
+    // here. CONFIG.scoring.appMatch is kept for when this is restored.
     applications(b, intent) {
-      if (!intent.apps || intent.apps.length === 0) return 0;
-      const appMatch = MYCELA.CONFIG.scoring.appMatch;
-      let s = 0;
-      intent.apps.forEach(app => {
-        if (b.apps && b.apps.some(a => a.toLowerCase().includes(app))) s += appMatch;
-      });
-      return s;
+      return 0;
     },
   };
 })(window.MYCELA = window.MYCELA || {});
