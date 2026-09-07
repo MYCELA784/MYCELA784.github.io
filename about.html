@@ -67,7 +67,7 @@
       <p>We add categories in the order buyers ask for them. Every search that returns nothing is logged and reviewed, so what gets built next is decided by what people came looking for and could not find.</p>
 
       <div class="factgrid">
-        <div class="fact"><b>3,715</b><span>validated part records</span></div>
+        <div class="fact"><b id="fact-count">3,688</b><span>validated part records</span></div>
         <div class="fact"><b>3</b><span>brands live: SKF, NTN, FAG</span></div>
         <div class="fact"><b>Pune</b><span>and Pimpri-Chinchwad</span></div>
       </div>
@@ -111,5 +111,20 @@
 </footer>
 
 <script src="site.js"></script>
+
+<!-- Record count is derived from the catalogue itself, not hardcoded, so it
+     can't drift when the data changes. js/db.js applies the same load-time
+     sanity filter the search stack uses, so #fact-count matches what a
+     visitor can actually search. The literal in the markup is only the
+     pre-JS placeholder. -->
+<script src="bearings_db.js?v=2" defer></script>
+<script src="js/db.js?v=2" defer></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    var db = window.MYCELA && window.MYCELA.DB;
+    var el = document.getElementById('fact-count');
+    if (db && db.length && el) el.textContent = db.length.toLocaleString();
+  });
+</script>
 </body>
 </html>
