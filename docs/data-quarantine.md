@@ -11,6 +11,19 @@ Web verification against the SKF / NTN online catalogues was attempted and
 was not reachable (404 / JS-rendered pages), so everything below is nulled,
 not corrected.
 
+**Summary**
+
+| id | scope | action |
+|---|---|---|
+| Q1 | 40 NTN cylindrical-roller rows | `cr` + `c0r` → null |
+| Q2 | 18 SKF `322xx` rows | `bore/od/w/cr/c0r` → null (dropped from search) |
+| Q3 | 9 NTN `U+FF09` rows deleted; 6 siblings | rows removed; siblings' `cr`+`c0r` → null |
+| Q4a | 11 SKF `618xx/619xx MA` rows | `w` inch → mm (**corrected**, not nulled) |
+| Q4b | 42 NTN `5xxxS` rows | reviewed, unchanged (already correct mm) |
+| Q5 | `SKF-205_EC` | `type` corrected; `apps` still wrong (flagged) |
+
+Record count: 3715 extracted → **3706** after Q3.
+
 ---
 
 ## Q1 — NTN cylindrical-roller load ratings  (`scripts/data-fixes/01-ntn-cyl-roller-loads.json`)
@@ -174,3 +187,26 @@ already mm, not inches; they are the correct non-round catalogue figures
 for this series (14.3 mm = 9/16″, etc.). Converting them would manufacture
 false data. Left unchanged pending a decision; if any are genuinely wrong
 they need per-row re-sourcing, not a blanket ×25.4.
+
+---
+
+## Q5 — SKF-205_EC misclassified type  (`scripts/data-fixes/05-skf-205ec-type.json`)
+
+One SKF row (`pn` `205 EC`, 25 × 52 × 15 mm, `cr` 32.5 / `c0r` 27) was
+stored as `type` **"Spherical Roller Thrust"**. That is wrong on every
+count: the `EC` suffix is SKF's single-row cylindrical-roller internal
+design, the 25/52/15 envelope is the NU 205 / N 205 dimension series, and
+the radial load ratings are inconsistent with a thrust bearing. `type :=
+"Cylindrical Roller"` (**corrected**, not nulled).
+
+**Still wrong, flagged not fixed:** the `apps` array is unchanged and
+still carries thrust-bearing tags — `["vertical shaft applications",
+"extruders", "mixers", "heavy axial loads"]`. A cylindrical roller
+bearing takes radial load; "heavy axial loads" in particular is
+misleading. Needs re-sourcing to the correct application set; left for a
+follow-up so this fix stays a single reviewable field change.
+
+This is the first `set` of a non-numeric field, so
+`scripts/apply-data-fixes.js` was extended to accept string values
+(regex now matches a quoted-string literal; output goes through
+`JSON.stringify`). Number/null behaviour is unchanged.

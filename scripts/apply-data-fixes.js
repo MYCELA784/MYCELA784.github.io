@@ -68,13 +68,16 @@ changes.forEach(ch => {
   if (ch.op === 'set') {
     Object.keys(ch.fields).forEach(f => {
       const nv = ch.fields[f];
-      if (nv !== null && !(typeof nv === 'number' && isFinite(nv))) die(`${ch.id}.${f}: bad value ${JSON.stringify(nv)}`);
-      const re = new RegExp(`("${f}":)(-?\\d+(?:\\.\\d+)?|null)`);
+      const isNum = typeof nv === 'number' && isFinite(nv);
+      const isStr = typeof nv === 'string';
+      if (nv !== null && !isNum && !isStr) die(`${ch.id}.${f}: bad value ${JSON.stringify(nv)}`);
+      const re = new RegExp(`("${f}":)("(?:[^"\\\\]|\\\\.)*"|-?\\d+(?:\\.\\d+)?|null)`);
       const m = re.exec(span);
       if (!m) die(`${ch.id}: field "${f}" not found in span`);
       if (re.exec(span.slice(m.index + m[0].length))) die(`${ch.id}: field "${f}" appears more than once`);
-      const newSpan = span.slice(0, m.index) + m[1] + (nv === null ? 'null' : String(nv)) + span.slice(m.index + m[0].length);
-      console.log(`${ch.id}\t${f}: ${m[2]} -> ${nv === null ? 'null' : nv}`);
+      const lit = nv === null ? 'null' : isStr ? JSON.stringify(nv) : String(nv);
+      const newSpan = span.slice(0, m.index) + m[1] + lit + span.slice(m.index + m[0].length);
+      console.log(`${ch.id}\t${f}: ${m[2]} -> ${lit}`);
       out = out.slice(0, start) + newSpan + out.slice(start + span.length);
       span = newSpan;
       applied++;
