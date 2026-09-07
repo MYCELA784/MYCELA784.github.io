@@ -21,8 +21,11 @@ not corrected.
 | Q4a | 11 SKF `618xx/619xx MA` rows | `w` inch → mm (**corrected**, not nulled) |
 | Q4b | 42 NTN `5xxxS` rows | reviewed, unchanged (already correct mm) |
 | Q5 | `SKF-205_EC` | `type` corrected; `apps` still wrong (flagged) |
+| Q6 | 22 duplicate-id rows (11 ids × 2) | all rows deleted (corrupt table region scraped twice) |
 
-Record count: 3715 extracted → **3706** after Q3.
+Record count: 3715 extracted → **3706** after Q3 → **3684** after Q6.
+After `js/db.js`'s load-time sanity filter drops 18 malformed rows, the
+live searchable catalogue is **3666** and every `id` is now unique.
 
 ---
 
@@ -210,3 +213,50 @@ This is the first `set` of a non-numeric field, so
 `scripts/apply-data-fixes.js` was extended to accept string values
 (regex now matches a quoted-string literal; output goes through
 `JSON.stringify`). Number/null behaviour is unchanged.
+
+---
+
+## Q6 — duplicate-id rows  (`scripts/data-fixes/06-duplicate-id-block.json`)
+
+`bearings_db.js` carried **11 ids twice — 22 rows — none of them real
+parts.** All 22 deleted (3706 → 3684). No dedupe: there is no correct
+record to keep, so both copies of each id go.
+
+**Block A — a corrupt NTN inch-series table region, scraped twice
+(raw rows 860–879, 10 ids).** Every row: `bore` 10, `pn` a bare round
+number that is not a valid NTN designation, no `source` field, and the
+identical canned `apps`
+`["automotive","gearboxes","wheel hubs","construction","heavy machinery","axles"]`.
+Rows 862–871 repeat `{8200, 8100, 7600, 8400, 7400}`; rows 872–879 repeat
+`{6400, 6000, 5000, 5800}`; rows 860–861 are `12000` twice, adjacent.
+
+| id | pn | type | d×D×B (mm) | pair |
+|---|---|---|---|---|
+| NTN-12000 | 12000 | Tapered Roller | 10×45.237×15.494 | identical |
+| NTN-8200 | 8200 | Thrust Ball | 10×61.912 / 62×19.05 | OD differs (raw inch vs rounded) |
+| NTN-8100 | 8100 | Thrust Ball | 10×64.292×21.433 | identical |
+| NTN-7600 | 7600 | Angular Contact Ball | 10×69.85×23.812 | identical |
+| NTN-8400 | 8400 | Tapered Roller | 10×62×16.002 | identical |
+| NTN-7400 | 7400 | Angular Contact Ball | 10×69.012×19.845 | identical |
+| NTN-6400 | 6400 | Deep Groove Ball | 10×73.431×19.558 | identical |
+| NTN-6000 | 6000 | Deep Groove Ball | 10×82.931 / 82.55×23.812 | OD differs |
+| NTN-5000 | 5000 | Tapered Roller | 10×96.838×21 | identical |
+| NTN-5800 | 5800 | Tapered Roller | 10×85×20.638 | identical |
+
+A 10 mm-bore bearing with a 45–97 mm OD and part number "5000" or "8200"
+is not a catalogue part. `NTN-5000` claims 10×96.838×21 — an OD nearly
+ten times the bore on a "21 mm wide" row. The whole block is extraction
+noise, doubled.
+
+**Block B — `FAG-1154`, raw rows 3702–3703, byte-identical.** `pn` "1154"
+(not a valid FAG designation), `type` Angular Contact Ball, 15×50×27,
+`cr` null, `c0r` null, `mass` 523977 (≈524 tonnes). One corrupt row
+emitted twice.
+
+To re-source: if any of these eleven designations turn out to be real
+(unlikely for the bare-number NTN ids), they need a fresh pull from the
+manufacturer catalogue — there is nothing here to correct.
+
+`scripts/apply-data-fixes.js` gained a `delete_all` op for this: `delete`
+still aborts on a non-unique id, `delete_all` removes every row carrying
+the id.

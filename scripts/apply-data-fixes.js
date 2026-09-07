@@ -13,11 +13,14 @@
  *
  * changeset.json: [
  *   { "id": "NTN-NU2320", "op": "set", "fields": { "cr": null, "c0r": null } },
- *   { "id": "NTN-4T-32205R2_", "op": "delete" }
+ *   { "id": "NTN-4T-32205R2_", "op": "delete" },
+ *   { "id": "NTN-8200", "op": "delete_all" }
  * ]
- * A "set" value may be null or a finite number. Every field must resolve to
- * exactly one `"field":<number|null>` inside that record's span or the run
- * aborts with no file written.
+ * A "set" value may be null, a finite number, or a string. Every field must
+ * resolve to exactly one `"field":<value>` inside that record's span or the
+ * run aborts with no file written. "delete" requires the id to be unique;
+ * "delete_all" removes every row carrying the id (for duplicate-id
+ * quarantine). Always writes a new file.
  */
 const fs = require('fs');
 const vm = require('vm');
@@ -48,6 +51,27 @@ let applied = 0;
 
 changes.forEach(ch => {
   const marker = `{"id":"${ch.id}",`;
+
+  // delete_all — remove EVERY row carrying this id. For quarantining
+  // duplicate-id rows, where the single-record ops below deliberately
+  // abort on non-uniqueness. Each record span is still a flat object.
+  if (ch.op === 'delete_all') {
+    let removed = 0;
+    for (let start = out.indexOf(marker); start !== -1; start = out.indexOf(marker)) {
+      const endRel = out.slice(start).indexOf('}');
+      if (endRel === -1) die(`no closing brace for ${ch.id}`);
+      let s = start, e = start + endRel + 1;
+      if (out[e] === ',') e++;               // eat trailing comma
+      else if (out[s - 1] === ',') s--;      // or leading comma
+      out = out.slice(0, s) + out.slice(e);
+      removed++;
+    }
+    if (removed === 0) die(`record ${ch.id} not found`);
+    console.log(`${ch.id}\tDELETED ${removed} row(s)`);
+    applied += removed;
+    return;
+  }
+
   const start = out.indexOf(marker);
   if (start === -1) die(`record ${ch.id} not found`);
   if (out.indexOf(marker, start + 1) !== -1) die(`record ${ch.id} not unique`);
