@@ -1,0 +1,13 @@
+[
+  { "id": "SKF-61938_MA",     "op": "set", "fields": { "cr": 117, "c0r": 134  } },
+  { "id": "SKF-61880_MA",     "op": "set", "fields": { "cr": 247, "c0r": 405  } },
+  { "id": "SKF-61888_MA",     "op": "set", "fields": { "cr": 255, "c0r": 440  } },
+  { "id": "SKF-61892_MA",     "op": "set", "fields": { "cr": 319, "c0r": 570  } },
+  { "id": "SKF-61896_MA",     "op": "set", "fields": { "cr": 325, "c0r": 600  } },
+  { "id": "SKF-61988_MA",     "op": "set", "fields": { "cr": 410, "c0r": 720  } },
+  { "id": "SKF-61992_MA",     "op": "set", "fields": { "cr": 423, "c0r": 750  } },
+  { "id": "SKF-61996_MA",     "op": "set", "fields": { "cr": 449, "c0r": 815  } },
+  { "id": "SKF-619___500_MA", "op": "set", "fields": { "cr": 462, "c0r": 865  } },
+  { "id": "SKF-618___750_MA", "op": "set", "fields": { "cr": 527, "c0r": 1250 } },
+  { "id": "SKF-618___800_MA", "op": "set", "fields": { "cr": 559, "c0r": 1370 } }
+]

@@ -22,6 +22,7 @@ not corrected.
 | Q4b | 42 NTN `5xxxS` rows | reviewed, unchanged (already correct mm) |
 | Q5 | `SKF-205_EC` | `type` corrected; `apps` still wrong (flagged) |
 | Q6 | 22 duplicate-id rows (11 ids × 2) | all rows deleted (corrupt table region scraped twice) |
+| Q7 | 11 SKF `618xx/619xx MA` rows | `cr` + `c0r` lbf column → N (**corrected** from the SKF catalogue PDF) |
 
 Record count: 3715 extracted → **3706** after Q3 → **3684** after Q6.
 After `js/db.js`'s load-time sanity filter drops 18 malformed rows, the
@@ -164,7 +165,8 @@ which matches) — flagged, not renamed.
 11 large thin-section SKF DGBB rows had `w` stored as an **inch value
 labelled mm** (a 400 mm-bore bearing listed as 1.8 mm wide). `w := w ×
 25.4`; every result lands on an integer and matches the published SKF
-width. `bore`, `od`, `cr`, `c0r` were already correct and are unchanged.
+width. `bore` and `od` were already correct and are unchanged. **`cr` and
+`c0r` on these same 11 rows were NOT correct — see Q7.**
 
 | id | pn | bore | w before (in) | w after (mm) |
 |---|---|---|---|---|
@@ -260,3 +262,39 @@ manufacturer catalogue — there is nothing here to correct.
 `scripts/apply-data-fixes.js` gained a `delete_all` op for this: `delete`
 still aborts on a non-unique id, `delete_all` removes every row carrying
 the id.
+
+---
+
+## Q7 — SKF 618xx/619xx MA load ratings  (`scripts/data-fixes/07-skf-618xx-619xx-ma-loads.json`)
+
+The same glued PDF token that put an inch value in `w` on these 11 rows
+(Q4a) shifted every following column one place left, so `cr` and `c0r`
+were read from the **lbf** column instead of the **N** column and divided
+by 1000 — landing ~4.45× too low (the N→lbf factor). Q4a fixed `w` and
+left the loads.
+
+`cr` and `c0r` **set** from the SKF catalogue PDF (US 2025, pp. 52 & 55),
+N column ÷ 1000. Not nulled — the real values are in the source.
+
+| id | pn | cr was → now (kN) | c0r was → now (kN) |
+|---|---|---|---|
+| SKF-61938_MA | 61938 MA | 26.29 → 117 | 30.11 → 134 |
+| SKF-61880_MA | 61880 MA | 55.51 → 247 | 91.01 → 405 |
+| SKF-61888_MA | 61888 MA | 57.3 → 255 | 98.88 → 440 |
+| SKF-61892_MA | 61892 MA | 71.69 → 319 | 128.09 → 570 |
+| SKF-61896_MA | 61896 MA | 73.03 → 325 | 134.83 → 600 |
+| SKF-61988_MA | 61988 MA | 92.13 → 410 | 161.8 → 720 |
+| SKF-61992_MA | 61992 MA | 95.06 → 423 | 168.54 → 750 |
+| SKF-61996_MA | 61996 MA | 100.9 → 449 | 183.15 → 815 |
+| SKF-619___500_MA | 619 / 500 MA | 103.82 → 462 | 194.38 → 865 |
+| SKF-618___750_MA | 618 / 750 MA | 118.43 → 527 | 280.9 → 1250 |
+| SKF-618___800_MA | 618 / 800 MA | 125.62 → 559 | 307.87 → 1370 |
+
+Verified against untouched series neighbours: every new value sits between
+its smaller and larger neighbour in both `cr` and `c0r` (e.g. `61938 MA`
+cr 117 between `61936 MA` 119 and `61940 MA` 148; `618/750 MA` cr 527
+between `618/560 MA` 345 and `618/850 MA` 559). Every replaced value was
+3–5× below the nearest neighbour.
+
+Integers land unquoted (`"cr":117`), same as Q4a's `w` values; the
+downstream assembler normalises numeric formatting.
