@@ -124,7 +124,7 @@
       '<button class="inq-back" onclick="doSearch()">← Keep searching</button></div>' +
       '<div class="inq-tip">Tip: click a part number to reopen its full specs.</div>' +
       rows +
-      '<button class="inq-send inq-soon" disabled title="Coming soon">Send Inquiry — Coming Soon</button>' +
+      '<button class="inq-send inq-soon" disabled title="Coming soon">Send Inquiry (coming soon)</button>' +
       '<div class="inq-note">Inquiry submission launches soon. Meanwhile, use Copy PN to share part numbers with your supplier.</div>' +
       '</div>';
   };

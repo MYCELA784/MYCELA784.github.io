@@ -41,7 +41,7 @@
         .slice(0, CFG.stage1MaxResults);
       if (s1.length > 0) return {
         results: s1,
-        note: `No bearing found with ${bore}mm bore in the OD ${odMin}–${odMax}mm range. Showing closest bore matches — OD range constraint relaxed. Consider these and verify OD fits your housing.`,
+        note: `No bearing found with ${bore}mm bore in the OD ${odMin}–${odMax}mm range. Showing closest bore matches; OD range constraint relaxed. Consider these and verify OD fits your housing.`,
       };
     }
 
@@ -77,7 +77,7 @@
       const s4 = DB.filter(b => b.type === type).slice(0, CFG.stage4MaxResults);
       if (s4.length > 0) return {
         results: s4,
-        note: `No bearing matched all your specifications. Showing all ${type} bearings in the catalog — check dimensions manually.`,
+        note: `No bearing matched all your specifications. Showing all ${type} bearings in the catalog; check dimensions manually.`,
       };
     }
 

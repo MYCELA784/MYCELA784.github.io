@@ -43,7 +43,7 @@
       specChip('OD',   b.od,   'mm'),
       specChip('Width', b.w,   'mm'),
       specChip('Sealing', b.sealing, null),
-      specChip('Cr', b.cr, 'kN'),
+      (b.cr != null ? specChip('Cr', b.cr, 'kN') : specChip('Cr', 'not verified', null)),
     ].join('');
     return `<article class="item">
       <div class="item-top">
@@ -193,7 +193,7 @@
     if (sfx.length) {
       sfxBox.className = 'modal-suffix';
       sfxBox.innerHTML = `<div class="modal-suffix-lbl">SUFFIX DECODED</div>` +
-        sfx.map(s => `<div><b>${s.code}</b> — ${s.desc}</div>`).join('');
+        sfx.map(s => `<div><b>${s.code}</b> ${s.desc}</div>`).join('');
       sfxBox.style.display = '';
     } else {
       sfxBox.style.display = 'none';
@@ -212,8 +212,8 @@
       ['Outer Diameter (D)', b.od   != null ? `${b.od} mm`   : null],
       ['Width (B)',          b.w    != null ? `${b.w} mm`    : null],
       ['Sealing',            b.sealing || null],
-      ['Dynamic Load Cr',    b.cr   != null ? `${b.cr} kN`   : null],
-      ['Static Load C0r',    b.c0r  != null ? `${b.c0r} kN`  : null],
+      ['Dynamic Load Cr',    b.cr   != null ? `${b.cr} kN`   : 'not verified'],
+      ['Static Load C0r',    b.c0r  != null ? `${b.c0r} kN`  : 'not verified'],
       ['Max Axial Load',     axial],
       ['Reference Speed',    b.speed_ref != null ? `${Number(b.speed_ref).toLocaleString()} rpm` : null],
       ['Limiting Speed',     b.rpm  != null ? `${Number(b.rpm).toLocaleString()} rpm` : null],
@@ -248,7 +248,7 @@
           const safe = x.id.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
           return `<button class="xref-chip" onclick="openModal('${safe}')">
             <span class="xref-chip-brand" style="background:${c}">${x.brand}</span>
-            ${x.pn} · ${x.cr != null ? x.cr : '—'} kN</button>`;
+            ${x.pn} · ${x.cr != null ? x.cr + ' kN' : 'not verified'}</button>`;
         }).join('');
       } else {
         xrefWrap.style.display = 'none';
@@ -262,7 +262,7 @@
       `<div class="modal-actions">
          ${ns.Basket ? ns.Basket.modalBtnHTML(b) : ''}
        </div>
-       <div class="modal-actions"><button class="modal-btn-wa" disabled title="Coming soon">WhatsApp Inquiry — Coming Soon</button></div>
+       <div class="modal-actions"><button class="modal-btn-wa" disabled title="Coming soon">WhatsApp Inquiry (coming soon)</button></div>
        <div class="modal-source">Source: ${b.source || 'Official manufacturer catalog'}</div>`;
        // Copy PN button in header, next to Close
     let copyBtn = document.getElementById('modal-copy-hdr');
@@ -329,11 +329,11 @@
       ['Bore',     b => b.bore + ' mm'],
       ['OD',       b => b.od + ' mm'],
       ['Width',    b => b.w + ' mm'],
-      ['Cr',       b => (b.cr  != null ? b.cr  : '—') + ' kN'],
-      ['C0r',      b => (b.c0r != null ? b.c0r : '—') + ' kN'],
-      ['Limiting speed', b => b.rpm ? Number(b.rpm).toLocaleString() + ' rpm' : '—'],
-      ['Sealing',  b => b.sealing || '—'],
-      ['Source',   b => b.source || '—'],
+      ['Cr',       b => b.cr  != null ? b.cr  + ' kN' : 'not verified'],
+      ['C0r',      b => b.c0r != null ? b.c0r + ' kN' : 'not verified'],
+      ['Limiting speed', b => b.rpm ? Number(b.rpm).toLocaleString() + ' rpm' : 'not verified'],
+      ['Sealing',  b => b.sealing || 'not verified'],
+      ['Source',   b => b.source || 'not verified'],
     ];
     const cmpEl    = document.getElementById('modal-compare');
     const detailEl = document.getElementById('modal-detail');
