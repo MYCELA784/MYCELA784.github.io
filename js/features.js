@@ -5,15 +5,44 @@
   var KEY = 'mycela_inquiry';
 
   function load() {
-    try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; }
+    var raw;
+    try { raw = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { raw = {}; }
+    return prune(raw);
   }
   function save(b) {
     try { localStorage.setItem(KEY, JSON.stringify(b)); } catch (e) {}
   }
 
+  // Drop basket entries whose id no longer resolves to a bearing, so a
+  // persisted basket can't carry phantom lines across a DB change (e.g.
+  // an id that was renamed or removed between sessions). Guard: if DB_MAP
+  // isn't populated (unexpected load order, or the DB failed to load)
+  // leave the basket alone rather than wipe it.
+  function prune(b) {
+    var map = ns.DB_MAP;
+    if (!map || !Object.keys(map).length) return b;
+    var out = {}, dropped = false;
+    Object.keys(b).forEach(function (id) {
+      if (map[id]) out[id] = b[id]; else dropped = true;
+    });
+    if (dropped) save(out);
+    return out;
+  }
+
   var basket = load();
 
-  function count() { return Object.keys(basket).length; }
+  // Basket entries whose id still resolves to a bearing, in insertion
+  // order, each with { id, qty, bearing }. Single source of truth for
+  // what the basket "contains": the renderers, the nav badge and the
+  // inquiry payload all read this, so none can disagree with another.
+  function resolvedItems() {
+    var map = ns.DB_MAP || {};
+    return Object.keys(basket)
+      .filter(function (id) { return map[id]; })
+      .map(function (id) { return { id: id, qty: basket[id].qty, bearing: map[id] }; });
+  }
+
+  function count() { return resolvedItems().length; }
   function has(id) { return !!basket[id]; }
   function add(id) { basket[id] = basket[id] || { qty: 10 }; save(basket); }
   function remove(id) { delete basket[id]; save(basket); }
@@ -42,7 +71,8 @@
 
   ns.Basket = { count: count, has: has, add: add, remove: remove, setQty: setQty,
                 btnHTML: btnHTML, modalBtnHTML: modalBtnHTML, updateNav: updateNav,
-                items: function () { return basket; } };
+                items: function () { return basket; },
+                resolvedItems: resolvedItems };
 
   window.toggleInquiry = function (id) {
     if (has(id)) remove(id); else add(id);
@@ -66,8 +96,8 @@
     if (fb) fb.style.display = 'none';
     if (!el) return;
 
-    var ids = Object.keys(basket);
-    if (!ids.length) {
+    var items = ns.Basket.resolvedItems();
+    if (!items.length) {
       el.innerHTML = '<div id="inquiry-page" class="empty-state">' +
         '<div class="empty-title">Your inquiry list is empty</div>' +
         '<div class="empty-sub">Add bearings from search results or the spec view, set quantities, and send one inquiry.</div>' +
@@ -75,10 +105,8 @@
       return;
     }
 
-    var rows = ids.map(function (id) {
-      var b = ns.DB_MAP[id];
-      if (!b) return '';
-      var s = safeId(id);
+    var rows = items.map(function (it) {
+      var b = it.bearing, s = safeId(it.id);
       var c = (ns.BRAND_COLORS && ns.BRAND_COLORS[b.brand]) || '#17150F';
       return '<div class="inq-row">' +
         '<span class="xref-chip-brand" style="background:' + c + '">' + b.brand + '</span>' +
@@ -86,13 +114,13 @@
         '<span class="inq-dims">' + b.bore + '×' + b.od + '×' + b.w + ' mm</span>' +
         '<span style="flex:1"></span>' +
         '<label class="inq-qty-lbl">Qty</label>' +
-        '<input type="number" class="inq-qty" value="' + basket[id].qty + '" min="1" step="1" onchange="MYCELA.Basket.setQty(\'' + s + '\', this.value)"/>' +
+        '<input type="number" class="inq-qty" value="' + it.qty + '" min="1" step="1" onchange="MYCELA.Basket.setQty(\'' + s + '\', this.value)"/>' +
         '<button class="inq-remove-btn" onclick="toggleInquiry(\'' + s + '\')">Remove</button>' +
         '</div>';
     }).join('');
 
     el.innerHTML = '<div id="inquiry-page" class="inq-card">' +
-      '<div class="inq-head"><span class="m-sec-lbl" style="margin:0">INQUIRY LIST · ' + ids.length + ' ITEMS</span>' +
+      '<div class="inq-head"><span class="m-sec-lbl" style="margin:0">INQUIRY LIST · ' + items.length + ' ITEMS</span>' +
       '<button class="inq-back" onclick="doSearch()">← Keep searching</button></div>' +
       '<div class="inq-tip">Tip: click a part number to reopen its full specs.</div>' +
       rows +

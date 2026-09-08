@@ -260,6 +260,8 @@
 
   // ── Basket ───────────────────────────────────────────────────────────────
   // Reads ns.Basket only (features.js — mycela_inquiry localStorage key).
+  // ns.Basket.count() / .resolvedItems() already exclude ids that don't
+  // resolve in DB_MAP, so the badge and the rendered list can't disagree.
   function updateBCount() {
     const n = ns.Basket.count();
     $('bCount').textContent = n;
@@ -268,19 +270,17 @@
   function renderBasketSheet() {
     $('sendBtn').closest('.sh-foot').style.display = '';
     updateBCount();
-    const items = ns.Basket.items();
-    const ids = Object.keys(items);
-    if (!ids.length) {
+    const items = ns.Basket.resolvedItems();
+    if (!items.length) {
       $('bBody').innerHTML = `<div class="sh-empty"><svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4 7h16l-1.3 11.2a2 2 0 0 1-2 1.8H7.3a2 2 0 0 1-2-1.8L4 7Z"/><path d="M9 7V5a3 3 0 0 1 6 0v2"/></svg>
         <p style="margin:0">Your list is empty.<br>Search for a part and add it here.</p></div>`;
       return;
     }
-    $('bBody').innerHTML = ids.map(id => {
-      const b = ns.DB_MAP[id];
-      if (!b) return '';
+    $('bBody').innerHTML = items.map(it => {
+      const b = it.bearing;
       return `<div class="brow"><div class="n"><b>${b.pn}</b><span>${b.brand} · ${b.type || ''}</span></div>
-        <input class="qty" type="number" min="1" value="${items[id].qty}" data-q="${id}">
-        <button class="rm" data-rm="${id}" aria-label="Remove">×</button></div>`;
+        <input class="qty" type="number" min="1" value="${it.qty}" data-q="${it.id}">
+        <button class="rm" data-rm="${it.id}" aria-label="Remove">×</button></div>`;
     }).join('') + `<p style="margin-top:20px;font-size:14px;color:var(--body)">Add as many parts as you need. You'll get one consolidated quote back.</p>`;
   }
   // Called after any basket mutation, from whichever entry point triggered it
@@ -321,11 +321,12 @@
   // #sendBtn swaps the basket sheet's item list for a small inquiry form;
   // "Ask us to source it" (zero-results state) opens the same form directly.
   function basketItemsPayload() {
-    const items = ns.Basket.items();
-    return Object.keys(items).map(id => {
-      const b = ns.DB_MAP[id];
-      return { brand: b ? b.brand : '', designation: b ? b.pn : id, qty: items[id].qty };
-    });
+    // Only resolvable entries — never send a dealer a line with a blank
+    // brand and an internal id in place of a part number. Same source as
+    // the renderers and the nav badge.
+    return ns.Basket.resolvedItems().map(it => ({
+      brand: it.bearing.brand, designation: it.bearing.pn, qty: it.qty,
+    }));
   }
 
   function showInquiryForm(prefillMessage) {
