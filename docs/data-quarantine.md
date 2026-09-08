@@ -23,6 +23,7 @@ not corrected.
 | Q5 | `SKF-205_EC` | `type` corrected; `apps` still wrong (flagged) |
 | Q6 | 22 duplicate-id rows (11 ids × 2) | all rows deleted (corrupt table region scraped twice) |
 | Q7 | 11 SKF `618xx/619xx MA` rows | `cr` + `c0r` lbf column → N (**corrected** from the SKF catalogue PDF) |
+| Q8 | 139 FAG DGBB rows | `bore` unstuck from a frozen 75 → derived from the designation (**corrected**) |
 
 Record count: 3715 extracted → **3706** after Q3 → **3684** after Q6.
 After `js/db.js`'s load-time sanity filter drops 18 malformed rows, the
@@ -298,3 +299,50 @@ between `618/560 MA` 345 and `618/850 MA` 559). Every replaced value was
 
 Integers land unquoted (`"cr":117`), same as Q4a's `w` values; the
 downstream assembler normalises numeric formatting.
+
+---
+
+## Q8 — FAG bore frozen at 75 mm  (`scripts/data-fixes/08-fag-618xx-619xx-bore-freeze.json`)
+
+`extract_fag.py`'s bore tracker (`current_d`) froze at 75 mm partway
+through the FAG large-DGBB tables and every later row inherited it. **139
+FAG rows** carry `bore` 75 against a designation that says otherwise —
+every 60xx / 62xx / 63xx / 64xx / 160xx / 618xx / 619xx row from bore
+code 16 (80 mm) upward, including the `-2RSR` / `-2Z` / `-Y` / `-M`
+variants. The last correct bore is 75 (the code-15 bearings); it recovers
+at the next section.
+
+**Only `bore` is wrong.** `od`, `w`, `cr`, `c0r`, `pu` on these rows are
+correct for the real bearing. Cross-check: all 139 have a row with the
+**identical base designation** in the SKF data; for **139 / 139** the FAG
+`od` and `w` match SKF's, and SKF's `bore` equals the derived value.
+
+`bore` **set** to the designation-encoded value — code × 5 for codes ≥ 04
+(00/01/02/03 → 10/12/15/17; none of the 139 fall in that range). Not
+nulled — the bore is fully determined by the part number.
+
+| derived bore | n | designation codes |
+|---|---|---|
+| 80 | 14 | …16 |
+| 85 | 14 | …17 |
+| 90 | 14 | …18 |
+| 95 | 12 | …19 |
+| 100 | 12 | …20 |
+| 105 | 11 | …21 |
+| 110 | 11 | …22 |
+| 120 | 9 | …24 |
+| 130 | 8 | …26 |
+| 140 | 5 | …28 |
+| 150 | 6 | …30 |
+| 160 | 6 | …32 |
+| 170 | 5 | …34 |
+| 180 | 4 | …36 |
+| 190 | 3 | …38 (incl. 61938) |
+| 200 | 3 | …40 |
+| 220 | 1 | 61944 |
+| 240 | 1 | 61948 |
+
+The extractor bug itself is fixed separately in
+`D:\IDEA 101\Data Base Building\Bearings\extract_fag.py` so a future
+run does not reproduce the freeze — see that folder's
+`docs/pipeline-archaeology.md`.
