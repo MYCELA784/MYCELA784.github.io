@@ -216,7 +216,6 @@ ns.Renderer.cards = function (results, state) {
          ${ns.Basket ? ns.Basket.modalBtnHTML(b) : ''}
          <button class="modal-btn-sup" onclick="closeModalDirect();showPage('suppliers')">Find Suppliers</button>
        </div>
-       <div class="modal-actions"><button class="modal-btn-wa" disabled title="Coming soon">WhatsApp Inquiry — Coming Soon</button></div>
        <div class="modal-source">Source: ${b.source || 'Official manufacturer catalog'}</div>`;
        // Copy PN button in header, next to Close
     let copyBtn = document.getElementById('modal-copy-hdr');

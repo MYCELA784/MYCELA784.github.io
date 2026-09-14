@@ -235,7 +235,6 @@ input::placeholder,textarea::placeholder{color:var(--border2)}
 .xref-chip:hover{transform:translateY(-2px)}
 .xref-chip-brand{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.1em;color:#fff;padding:1px 6px;border-radius:4px}
 .modal-actions{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
-.modal-btn-wa{flex:2;background:var(--bg3);color:var(--muted);border:none;border-radius:9px;padding:10px;font-size:12px;cursor:not-allowed;opacity:.65}
 .modal-btn-sup{flex:1;background:#002147;color:#fff;border:none;border-radius:9px;padding:10px;font-weight:500;font-size:13px;cursor:pointer;transition:transform .2s cubic-bezier(.34,1.56,.64,1)}
 .modal-btn-sup:hover{transform:translateY(-2px)}
 .dark .modal-btn-sup{background:#5B8FAB}

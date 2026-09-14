@@ -262,7 +262,6 @@
       `<div class="modal-actions">
          ${ns.Basket ? ns.Basket.modalBtnHTML(b) : ''}
        </div>
-       <div class="modal-actions"><button class="modal-btn-wa" disabled title="Coming soon">WhatsApp Inquiry (coming soon)</button></div>
        <div class="modal-source">Source: ${b.source || 'Official manufacturer catalog'}</div>`;
        // Copy PN button in header, next to Close
     let copyBtn = document.getElementById('modal-copy-hdr');
