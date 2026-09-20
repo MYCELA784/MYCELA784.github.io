@@ -27,6 +27,7 @@ not corrected.
 | Q9 | 29 DGBB rows (28 NTN, 1 SKF) | `rpm` implausible for the size; **not changed**, candidates for re-sourcing; calculator gated off |
 | Q9b | 26 SKF `32xx` / `33xx` rows | typed `Deep Groove Ball`, catalogue says double-row angular contact; `type` **not changed**, calculator gated off by designation |
 | Q9c | 38 SKF `70/…`, `718/…`, `719/…` rows | typed `Deep Groove Ball`, catalogue says angular contact; `type` **not changed**, calculator gated off by designation (radial-only `P = Fr` is wrong for these) |
+| Q10 | "Max Axial Load" spec on 3,605 rows | display-time guideline presented as a per-bearing rating; **removed** from both renderers (no data edited) |
 
 Record count: 3715 extracted → **3706** after Q3 → **3684** after Q6.
 After `js/db.js`'s load-time sanity filter drops 18 malformed rows, the
@@ -586,3 +587,63 @@ the calculator because its `rpm` is null.
 | SKF-718___1000_AMB | 718 / 1000 AMB | 1000×1220×100 | 923 | 73 |
 | SKF-718___1120_AMB | 718 / 1120 AMB | 1120×1360×106 | 1060 | 73 |
 | SKF-718___1250_AMB | 718 / 1250 AMB | 1250×1500×112 | 1140 | 73 |
+
+---
+
+## Q10 — "Max Axial Load" shown as a per-bearing rating  (**removed**, no changeset)
+
+The modal's spec grid showed **Max Axial Load** on every row with a `c0r`
+(3,605 of the 3,666 live rows; the 61 without a `c0r` never showed it).
+There is no such field: it is not a key in `bearings_db.js` and no extractor
+CSV has an axial column. It was computed at display time in `js/renderer.js`
+(and `js-legacy/renderer.js`) as `c0r × 0.5`, or `c0r × 0.25` when the
+designation matched `/^6[12][89]/` or `/^600/`, and printed with a `kN` unit
+as if it were a catalogue value. It was added in `c562033` ("Fix: DGBB type
+correction, add max axial load to modal") with no source cited. SKF's own
+product pages publish no such field (per the project owner; not checked from
+this machine).
+
+**Removed.** The row is gone from both renderers; nothing in `bearings_db.js`
+changes. `tests/dgbb.js` (section 7) fails if a spec, compare or card label
+containing "axial" reappears in either renderer, and was checked against the
+pre-fix files (both fail on `"Max Axial Load"`). `index.html` `?v=7` → `?v=8`.
+`index-legacy.html` loads `js-legacy/renderer.js` with no version tag, so
+returning visitors to that page pick the change up on normal HTTP cache
+expiry, not on a URL change.
+
+**What the number actually is.** SKF's catalogue does state a rule, printed
+p.254 under "Axial load carrying capacity" for deep groove ball bearings:
+pure axial load `Fa ≤ 0.5 C0`, and `Fa ≤ 0.25 C0` for small bearings
+(`d ≤ 12 mm`; the comparison sign did not survive text extraction) and light
+series bearings (diameter series 8, 9, 0 and 1). It adds that "excessive
+axial load can lead to a considerable reduction in bearing service life". So
+the figure was a guideline for *pure* axial load on *SKF deep groove*
+bearings, presented as a rating for every bearing. For the SKF 6205 the shown
+3.90 kN (`0.5 × 7.8`) does equal what that rule gives; the field was still
+unsourced and mislabelled.
+
+**Where it was wrong.**
+
+| | rows | what was wrong |
+|---|---|---|
+| Not deep groove | **2,673** | SKF's rule does not apply: angular contact 639, tapered roller 598, spherical roller 364, needle roller 326, thrust ball 227, spherical roller thrust 225, cylindrical roller 177, self-aligning ball 117. E.g. `NTN-51105` (thrust ball, C0 37 kN) showed 18.50 kN, and 58 plain `NU` cylindrical rollers, which carry no axial load by design, showed a number. |
+| Deep groove, matches the rule | 651 | correct for SKF's rule (including the 6205) |
+| Deep groove, **overstated 2×** | **281** | the regex missed the 0.25 cases: 240 by diameter series alone (`60xx` 105, `160xx` 86, `68xx` 20, `69xx` 19, `60/…` slash sizes 11 and others), 36 by bore ≤ 12 mm alone (miniature and small bores, e.g. 604, 608, 623, 625), 5 by both. By brand NTN 74, SKF 101, FAG 106. |
+| Deep groove, understated | 0 | none |
+
+**Direction of the error.** On the 932 deep groove rows it was **never
+understated** against SKF's rule (0 of 932): every error was an overstatement
+of permissible axial load, by exactly 2×, so all of them in the unsafe
+direction. For the 2,673 other rows there is no rule to compare to, so the
+direction is not defined; for the plain `NU` rollers it overstated by
+construction.
+
+**Also unverified.** SKF's rule was applied to NTN and FAG rows. Their own
+catalogues' axial statements were not checked.
+
+**Not restored.** Reinstating it for deep groove only would need the exact
+SKF rule (diameter series read from the designation, and the small-bearing
+test), a label saying it is a pure-axial-load guideline with its source, and
+would still sit directly above a calculator that does not offer axial or
+combined loading. Not done; if wanted later it is a display decision to make
+deliberately, not a data fix.

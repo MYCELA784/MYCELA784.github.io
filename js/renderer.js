@@ -333,14 +333,11 @@
       sfxBox.style.display = 'none';
     }
 
-    // Specs grid
-    const axial = (function () {
-      if (!b.c0r) return null;
-      const p = (b.pn || '');
-      const factor = /^6[12][89]/.test(p) || /^600/.test(p) ? 0.25 : 0.5;
-      return (b.c0r * factor).toFixed(2) + ' kN';
-    })();
-
+    // Specs grid. There is deliberately no "Max Axial Load" row: it was
+    // c0r * 0.5 (or 0.25) computed here at display time, a deep groove
+    // guideline shown as a per-bearing rating on every type. Removed; see
+    // docs/data-quarantine.md Q10. tests/dgbb.js fails if an axial spec
+    // label comes back.
     const specs = [
       ['Bore (d)',           b.bore != null ? `${b.bore} mm` : null],
       ['Outer Diameter (D)', b.od   != null ? `${b.od} mm`   : null],
@@ -348,7 +345,6 @@
       ['Sealing',            b.sealing || null],
       ['Dynamic Load Cr',    b.cr   != null ? `${b.cr} kN`   : 'not verified'],
       ['Static Load C0r',    b.c0r  != null ? `${b.c0r} kN`  : 'not verified'],
-      ['Max Axial Load',     axial],
       ['Reference Speed',    b.speed_ref != null ? `${Number(b.speed_ref).toLocaleString()} rpm` : null],
       ['Limiting Speed',     b.rpm  != null ? `${Number(b.rpm).toLocaleString()} rpm` : null],
       ['Mass',               (b.mass != null && b.mass > 0)

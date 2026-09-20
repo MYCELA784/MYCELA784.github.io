@@ -97,6 +97,29 @@ const offenders = scan.filter(f => claim.test(fs.readFileSync(path.join(ROOT, f)
 ok(offenders.length === 0, 'no source file or doc claims a manufacturer does not publish f0 / kr' +
    (offenders.length ? ' (' + offenders.join(', ') + ')' : ''));
 
+// ── 7. no axial spec label in either renderer (Q10) ───────────────────────
+// "Max Axial Load" was c0r * 0.5 computed at display time and shown as a
+// per-bearing rating on every type. A label containing "axial" in any modal
+// spec row, compare row or card chip is a regression: fail on it.
+function specLabels(src) {
+  const out = [];
+  let m;
+  const rowRe = /\[\s*'([^'\n]+)'\s*,/g;        // ['Bore (d)', ...] in the modal specs and compare tables
+  const chipRe = /specChip\(\s*'([^'\n]+)'/g;   // grid-card chips
+  while ((m = rowRe.exec(src))) out.push(m[1]);
+  while ((m = chipRe.exec(src))) out.push(m[1]);
+  return out;
+}
+const hasAxial = labels => labels.filter(l => /axial/i.test(l));
+ok(hasAxial(specLabels("['Max Axial Load',     axial],")).length === 1, 'self-check: the label scan catches the old "Max Axial Load" row');
+for (const f of ['js/renderer.js', 'js-legacy/renderer.js']) {
+  const labels = specLabels(fs.readFileSync(path.join(ROOT, f), 'utf8'));
+  ok(labels.includes('Bore (d)') && labels.includes('Static Load C0r') && labels.length >= 10,
+     `${f}: label scan is not vacuous (${labels.length} labels found)`);
+  ok(hasAxial(labels).length === 0, `${f}: no spec label mentions "axial"` +
+     (hasAxial(labels).length ? ' (' + hasAxial(labels).join(', ') + ')' : ''));
+}
+
 console.log(`\n${complete.filter(b => C.supports(b)).length} of ${dg.length} DGBB rows calculable; ${rejected.length} rejected on speed, ${fam3.length} as mistyped 32xx/33xx, ${fam7.length} as mistyped 7x`);
 console.log(failures ? failures + ' FAILED' : 'all passed');
 process.exit(failures ? 1 : 0);
