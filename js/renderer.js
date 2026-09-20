@@ -224,8 +224,26 @@
     const speedDetail = `n ${fmtRpm(r.n)}. Limiting speed ${fmtRpm(bg.speedLim)}, ` +
       `reference speed ${bg.speedRef == null ? 'not printed' : fmtRpm(bg.speedRef)}. ${speedNote(r)}`;
 
+    // Combined loading (Fa > 0) exists only for FAG rows and is worked out with
+    // FAG's own factor table; show every step so an engineer can check it.
+    const combined = r.Fa > 0;
+    const P = r.P;
+    const pRows = combined ? [
+      ['Axial load Fa · Fa / Fr', `${fmtN(r.Fa, 2)} kN · ${fmtN(P.ratio, 3)}`],
+      ['f0 (FAG, for this bearing) · f0·Fa/C0r', `${fmtN(bg.f0, 1)} · ${fmtN(P.key, 3)}`],
+      ['e · X · Y (interpolated)', `${fmtN(P.e, 3)} · ${fmtN(P.X, 2)} · ${fmtN(P.Y, 3)}`],
+      ['Factor table', P.table],
+      ['Equivalent dynamic load P',
+        `${fmtN(P.P, 2)} kN (${P.ratio <= P.e ? 'Fa/Fr is at or below e, so P = Fr' : 'Fa/Fr is above e, so P = X·Fr + Y·Fa'})`],
+    ] : [
+      ['Equivalent dynamic load P', `${fmtN(P.P, 2)} kN (radial only, so P = Fr)`],
+    ];
+    const clampNote = !combined || !P.clamped ? '' :
+      `<div class="calc-msg">f0·Fa/C0r = ${fmtN(P.key, 3)} is ${P.clamped === 'below' ? 'below the first row (0.3)' : 'above the last row (6)'} ` +
+      `of FAG's table, so that ${P.clamped === 'below' ? 'first' : 'last'} row is used.</div>`;
+
     const working = [
-      ['Equivalent dynamic load P', `${fmtN(r.P.P, 2)} kN (radial only, so P = Fr)`],
+      ...pRows,
       ['C / P', fmtN(r.CoverP, 2)],
       ['L10 = (C/P)³', `${fmtMrev(r.life.L10)} million rev`],
       ['L10h = 10⁶ / (60 · n) · L10', fmtHours(r.life.basicHours)],
@@ -237,8 +255,9 @@
 
     return `<div class="calc-headline">
         <b class="calc-big">${fmtHours(r.life.value)}</b>
-        <span class="calc-sub">${r.life.label} at Fr ${fmtN(r.Fr, 2)} kN and ${fmtRpm(r.n)}</span>
+        <span class="calc-sub">${r.life.label} at Fr ${fmtN(r.Fr, 2)} kN${combined ? `, Fa ${fmtN(r.Fa, 2)} kN` : ''} and ${fmtRpm(r.n)}</span>
       </div>
+      ${clampNote}
       ${calcCheck(r.minLoad.pass, r.minLoad.pass ? 'Minimum load met' : 'Below the minimum load', minDetail)}
       ${calcCheck(r.speed.pass, speedHead, speedDetail)}
       <div class="calc-work-lbl">Working</div>
@@ -246,24 +265,50 @@
         `<div class="calc-work-row"><span>${k}</span><span class="calc-work-val">${v}</span></div>`).join('')}</div>`;
   }
 
-  function calcSectionHTML() {
+  // Why combined loading is or is not offered on this row. Plain and neutral:
+  // it is about what our database holds, not about any manufacturer.
+  function combinedCaveat(b) {
+    const D = ns.DGBBCalc;
+    if (D.supportsCombined(b)) {
+      return `<p>Combined loading is available for FAG bearings only. Enter an axial load Fa to
+             include it. The equivalent load uses the calculation factor f0 that FAG publishes for
+             this bearing and FAG's own factor table, for normal operating clearance; no clearance
+             choice is offered. Our database currently holds f0 only for FAG parts, and we do not
+             combine one manufacturer's f0 with another's factor table.</p>`;
+    }
+    if (D.isFagDoubleRow(b)) {
+      return `<p>Radial load only. Combined loading is available for single row FAG bearings; FAG's
+             catalogue gives no separate factor table for this double row series.</p>`;
+    }
+    if (b.brand === 'FAG') {
+      return `<p>Radial load only. Combined loading is available for FAG bearings whose f0 is in our
+             database, and this one is not there yet.</p>`;
+    }
+    return `<p>Radial load only. Combined loading is currently available for FAG bearings only. It
+             needs the calculation factor f0, which our database holds only for FAG parts (taken
+             from FAG's own catalogue), and we do not combine one manufacturer's f0 with another's
+             factor table. f0 depends on ball diameter and ball count, so it cannot be worked out
+             from bore, OD and width.</p>`;
+  }
+
+  function calcSectionHTML(b) {
+    const combined = ns.DGBBCalc.supportsCombined(b);
     return `<details class="calc" id="modal-calc">
       <summary class="calc-sum">Check this bearing for your load
         <span class="calc-sum-hint">rating life, minimum load, speed</span></summary>
       <div class="calc-body">
-        <div class="calc-fields">
+        <div class="calc-fields${combined ? ' calc-fields-3' : ''}">
           <label class="calc-fld"><span>Radial load Fr</span>
             <input type="number" id="calc-fr" step="0.01" min="0" inputmode="decimal" placeholder="e.g. 2.65"><em>kN</em></label>
+          ${combined ? `<label class="calc-fld"><span>Axial load Fa (optional)</span>
+            <input type="number" id="calc-fa" step="0.01" min="0" inputmode="decimal" placeholder="0"><em>kN</em></label>` : ''}
           <label class="calc-fld"><span>Speed n</span>
             <input type="number" id="calc-n" step="10" min="0" inputmode="numeric" placeholder="e.g. 1450"><em>rpm</em></label>
         </div>
         <button class="btn btn-sm" id="calc-run" type="button">Calculate</button>
         <div class="calc-out" id="calc-out"></div>
         <div class="calc-caveats">
-          <p>Radial load only. Combined loading is not offered yet: it needs the calculation
-             factor f0, and the database does not carry f0. f0 depends on ball diameter and
-             ball count, so it cannot be worked out from bore, OD and width, and the
-             calculator does not guess one.</p>
+          ${combinedCaveat(b)}
           <p>The minimum load check uses the 0.01 &middot; Cr guideline. The more precise
              method needs a minimum load factor kr, which is not in the database, and the
              viscosity of your lubricant at operating temperature.</p>
@@ -278,6 +323,7 @@
 
   function wireCalc(b, box) {
     const frEl  = box.querySelector('#calc-fr');
+    const faEl  = box.querySelector('#calc-fa');   // present only where combined loading is offered
     const nEl   = box.querySelector('#calc-n');
     const outEl = box.querySelector('#calc-out');
     const runEl = box.querySelector('#calc-run');
@@ -286,18 +332,23 @@
     function run() {
       const Fr = parseFloat(frEl.value);
       const n  = parseFloat(nEl.value);
+      const Fa = faEl && faEl.value !== '' ? parseFloat(faEl.value) : 0;
       if (!(Fr > 0) || !(n > 0)) {
         outEl.innerHTML = `<div class="calc-msg">Enter a radial load and a speed, both above zero.</div>`;
         return;
       }
+      if (!(Fa >= 0)) {
+        outEl.innerHTML = `<div class="calc-msg">The axial load must be zero or more.</div>`;
+        return;
+      }
       try {
-        outEl.innerHTML = calcResultHTML(ns.DGBBCalc.evaluate({ bearing: b, Fr, n }));
+        outEl.innerHTML = calcResultHTML(ns.DGBBCalc.evaluate({ bearing: b, Fr, n, Fa }));
       } catch (e) {
         outEl.innerHTML = `<div class="calc-msg">${e.message}</div>`;
       }
     }
     runEl.addEventListener('click', run);
-    [frEl, nEl].forEach(el => el.addEventListener('keydown', e => { if (e.key === 'Enter') run(); }));
+    [frEl, faEl, nEl].filter(Boolean).forEach(el => el.addEventListener('keydown', e => { if (e.key === 'Enter') run(); }));
   }
 
   ns.Renderer.modal = function (id) {
@@ -361,7 +412,7 @@
     const calcBox = ensureSection('modal-calc-wrap', 'modal-specs', 'afterend');
     if (ns.DGBBCalc && ns.DGBBCalc.supports(b)) {
       calcBox.style.display = '';
-      calcBox.innerHTML = calcSectionHTML();
+      calcBox.innerHTML = calcSectionHTML(b);
       wireCalc(b, calcBox);
     } else {
       calcBox.style.display = 'none';

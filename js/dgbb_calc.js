@@ -1,9 +1,21 @@
 /* PUBLIC API
  *   MYCELA.DGBBCalc.supports(b)              — is this DB record calculable?
  *   MYCELA.DGBBCalc.fromRecord(b)            — DB record -> calculator inputs
- *   MYCELA.DGBBCalc.evaluate({bearing,Fr,n}) — the whole radial-only chain
- *   plus the pure primitives: calcP, calcL10, calcL10h, calcS0,
+ *   MYCELA.DGBBCalc.evaluate({bearing,Fr,n[,Fa]}) — the whole chain; Fa > 0 only
+ *                                            where supportsCombined(b)
+ *   MYCELA.DGBBCalc.supportsCombined(b)      — FAG single row rows that carry an f0
+ *   MYCELA.DGBBCalc.calcPFag({Fr,Fa,C0,f0})  — equivalent load from FAG's OWN table
+ *   plus the pure primitives: calcP (SKF table), calcL10, calcL10h, calcS0,
  *   checkMinLoad, checkSpeed.
+ *
+ * COMBINED LOADING IS FAG-ONLY, WITH FAG'S OWN TABLE. The database holds an
+ * f0 only for FAG single row deep groove rows (taken from FAG's catalogue),
+ * so Fa > 0 is offered for those alone, computed with FAG's Table 10
+ * (data/fag_tables.js), never with SKF's Table 9 (data/dgbb_tables.js): the
+ * two are different numbers and a mix was measured at -9.6% / +5.1% on life
+ * (docs/bearing-calculations.md 9a-4). evaluate() takes no caller-supplied
+ * f0; calcP (SKF table) is left as ported and is not reachable with a FAG
+ * f0 through evaluate().
  *
  * Copied from the bearing_calc project (dgbb_calc.js), where it was
  * validated against the catalogue's worked examples. The formulas below
@@ -42,7 +54,7 @@
 
 (function (root, factory) {
   if (typeof module !== 'undefined' && module.exports) {
-    const calc = factory(require('../data/dgbb_tables.js'));
+    const calc = factory(require('../data/dgbb_tables.js'), require('../data/fag_tables.js'));
     module.exports = calc;
     // The node test harnesses load these files in index.html's order against
     // a window shim, so attach there too — MYCELA.DGBBCalc then resolves the
@@ -52,10 +64,11 @@
     }
   } else {
     const ns = root.MYCELA = root.MYCELA || {};
-    ns.DGBBCalc = factory(ns.DGBB_TABLES);
+    ns.DGBBCalc = factory(ns.DGBB_TABLES, ns.FAG_TABLES);
   }
-})(typeof self !== 'undefined' ? self : this, function (tables) {
+})(typeof self !== 'undefined' ? self : this, function (tables, fagTables) {
   const { TABLE_9, TABLE_10_PAIRED, A1_TABLE, LIFE_EXPONENT } = tables;
+  const { FAG_TABLE_10, FAG_TABLE_10_META } = fagTables;
 
   // Linear interpolation of e/X/Y (Table 9) or e/Y1/Y2 (Table 10) by a
   // lookup key (f0*Fa/C0), matching the catalogue's own instruction
@@ -382,7 +395,71 @@
       speedRef: num(b.speed_ref),
       speedLim: b.rpm,
       dm: 0.5 * (b.bore + b.od),
+      f0: num(b.f0),
     };
+  }
+
+  // FAG's double row deep groove series (42xx, 43xx). The catalogue chapter
+  // has no separate factor table for them, so combined loading is not offered.
+  const FAG_DOUBLE_ROW = /^4[23]\d{2}(?!\d)/;
+
+  /** True for FAG's double row deep groove series (42xx, 43xx). */
+  function isFagDoubleRow(b) {
+    return b.brand === 'FAG' && FAG_DOUBLE_ROW.test(String(b.pn || '').toUpperCase().replace(/\s+/g, ''));
+  }
+
+  /**
+   * True only where combined loading (Fa > 0) can be computed honestly: a
+   * calculable FAG single row deep groove bearing whose record carries FAG's
+   * own f0. Nothing else: not SKF, not NTN, not a FAG row without an f0, not
+   * a FAG double row. There is no brand-agnostic version of this.
+   *
+   * @param {object} b - a MYCELA.DB_MAP record
+   * @returns {boolean}
+   */
+  function supportsCombined(b) {
+    if (!supports(b)) return false;
+    if (b.brand !== 'FAG') return false;
+    if (num(b.f0) == null) return false;
+    return !isFagDoubleRow(b);
+  }
+
+  /**
+   * Equivalent dynamic bearing load P from FAG's OWN factor table
+   * (data/fag_tables.js), for a single row FAG deep groove bearing at normal
+   * operating clearance, using FAG's own f0. There is deliberately no
+   * clearance or arrangement parameter: FAG prints neither.
+   *
+   *   key = f0.Fa/C0r ;  Fa/Fr <= e -> P = Fr ;  Fa/Fr > e -> P = X.Fr + Y.Fa
+   *
+   * e, X, Y are interpolated linearly between FAG's rows (as FAG's text says).
+   * Outside the table (key < 0.3 or > 6) the nearest row is used and the
+   * result says so in `clamped`.
+   *
+   * @param {object} p
+   * @param {number} p.Fr - radial load [kN], > 0
+   * @param {number} p.Fa - axial load [kN], >= 0
+   * @param {number} p.C0 - basic static load rating [kN] (c0r, from the same FAG catalogue)
+   * @param {number} p.f0 - FAG's calculation factor for this bearing
+   * @returns {{P:number, branch:string, e:number|null, X:number|null, Y:number|null,
+   *   ratio:number, key:number|null, clamped:'below'|'above'|null, table:string}}
+   */
+  function calcPFag({ Fr, Fa, C0, f0 }) {
+    if (!(Fr > 0)) throw new Error('calcPFag: Fr must be > 0');
+    if (Fa == null || !(Fa >= 0)) throw new Error('calcPFag: Fa required and >= 0 (use 0 for none)');
+    const table = FAG_TABLE_10_META.label;
+    if (Fa === 0) {
+      return { P: Fr, branch: 'Fa=0 -> P=Fr', e: null, X: null, Y: null, ratio: 0, key: null, clamped: null, table };
+    }
+    if (!(C0 > 0)) throw new Error('calcPFag: C0 (basic static load rating) required when Fa>0');
+    if (!(f0 > 0)) throw new Error('calcPFag: f0 is required when Fa>0');
+    const key = f0 * Fa / C0;
+    const ratio = Fa / Fr;
+    const { e, X, Y } = interpolateRow(FAG_TABLE_10, key, (r) => ({ e: r.e, X: r.X, Y: r.Y }));
+    const clamped = key < FAG_TABLE_10[0].key ? 'below'
+      : (key > FAG_TABLE_10[FAG_TABLE_10.length - 1].key ? 'above' : null);
+    if (ratio <= e) return { P: Fr, branch: 'Fa/Fr<=e: P=Fr', e, X, Y, ratio, key, clamped, table };
+    return { P: X * Fr + Y * Fa, branch: 'Fa/Fr>e: P=X.Fr+Y.Fa', e, X, Y, ratio, key, clamped, table };
   }
 
   /**
@@ -400,18 +477,29 @@
    * @param {object} p.bearing - a MYCELA.DB_MAP record
    * @param {number} p.Fr - radial load [kN]
    * @param {number} p.n - operating speed [r/min]
-   * @param {number} [p.Fa=0] - axial load [kN]; anything > 0 needs f0
-   * @param {number} [p.f0] - calculation factor; not in this project's data
+   * @param {number} [p.Fa=0] - axial load [kN]; anything > 0 is accepted only where
+   *   supportsCombined(bearing), and is then computed with FAG's own table. There is no
+   *   f0 parameter: the factor comes from the record, so it cannot be mixed with another
+   *   manufacturer's table.
    * @returns {{bearing:object, Fr:number, n:number, P:object, life:object,
    *   minLoad:object, speed:object, CoverP:number}}
    */
-  function evaluate({ bearing, Fr, n, Fa = 0, f0 = null }) {
+  function evaluate({ bearing, Fr, n, Fa = 0 }) {
     const bg = fromRecord(bearing);
     if (!bg) throw new Error('evaluate: this bearing is out of scope for the DGBB calculator');
     if (!(Fr > 0)) throw new Error('evaluate: Fr must be > 0 kN');
     if (!(n > 0)) throw new Error('evaluate: n must be > 0 r/min');
 
-    const P = calcP({ Fr, Fa, C0: bg.C0, f0 });
+    let P;
+    if (Fa > 0) {
+      if (!supportsCombined(bearing)) {
+        throw new Error('evaluate: combined loading (Fa > 0) is not offered for this bearing: f0 is required, ' +
+          'and the database carries f0 only for FAG single row deep groove bearings');
+      }
+      P = calcPFag({ Fr, Fa, C0: bg.C0, f0: bg.f0 });
+    } else {
+      P = calcP({ Fr, Fa: 0, C0: bg.C0 });   // Fa = 0: P = Fr, no factor table is read
+    }
     const life = calcL10h({ C: bg.Cr, P: P.P, n, p: LIFE_EXPONENT.ball });
     // kr is not in our data and the operating viscosity is an application
     // input, so checkMinLoad takes its 0.01*Cr guideline branch. dm and n
@@ -424,7 +512,7 @@
 
   return {
     calcP, calcL10, calcL10h, calcS0, checkMinLoad, checkSpeed, interpolateRow,
-    supports, fromRecord, evaluate, MIN_N_DM,
+    supports, supportsCombined, isFagDoubleRow, fromRecord, evaluate, calcPFag, MIN_N_DM,
     A1_TABLE, LIFE_EXPONENT,
   };
 });

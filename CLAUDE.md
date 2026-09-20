@@ -35,7 +35,8 @@ js/search/scoring.js    → MYCELA.SearchEngine.Scorers
 js/search/fallback.js   → MYCELA.SearchEngine.fallback()
 js/search/engine.js     → MYCELA.SearchEngine.fast()
 js/ai-refiner.js        → MYCELA.AIRefiner.refine()
-data/dgbb_tables.js     → MYCELA.DGBB_TABLES (catalogue tables, pure data)
+data/dgbb_tables.js     → MYCELA.DGBB_TABLES (SKF catalogue tables, pure data)
+data/fag_tables.js      → MYCELA.FAG_TABLES (FAG's own factor table, pure data)
 js/dgbb_calc.js         → MYCELA.DGBBCalc.* (modal load calculator)
 js/renderer.js          → MYCELA.Renderer.*
 js/router.js            → MYCELA.Router.showPage()
@@ -62,8 +63,9 @@ To add a new environment/application pattern, edit the rule tables in `js/search
 
 `js/dgbb_calc.js` (ported from the separate `bearing_calc` project, with its
 catalogue tables in `data/dgbb_tables.js`) computes basic rating life L10h,
-the minimum-load check and the speed check for **deep groove ball bearings
-under a radial load only**. `js/renderer.js` renders it as a collapsed
+the minimum-load check and the speed check for **deep groove ball bearings**,
+under a radial load for every eligible row and under a combined (radial + axial)
+load for FAG single row rows only (below). `js/renderer.js` renders it as a collapsed
 section under the modal's specs grid, and only when `DGBBCalc.supports(b)`
 is true — i.e. `type === 'Deep Groove Ball'`, `cr`, `c0r`, `bore`, `od`
 and `rpm` are all present, and `rpm` is plausible for the size (n·dm at or
@@ -73,13 +75,27 @@ family (`NOT_DEEP_GROOVE`: 64 SKF angular contact rows typed Deep Groove
 Ball, the `32xx`/`33xx` double-row ones in Q9b and the single-row `7x` ones in
 Q9c, where radial-only `P = Fr` would overstate life). Everything else gets no
 calculator.
-`node tests/dgbb.js` pins the gate.
+`node tests/dgbb.js` pins the gate and the FAG/SKF separation; `node tests/modal-calc.js`
+drives the modal UI; `node tests/apply-data-fixes.js` tests the changeset tool.
 
-Deliberate refusals, carried over from the source project: combined loading
-(Fa > 0) needs the factor f0. The database does not carry it (the catalogue
-PDF tables we extracted from do not list it; other sources do, see
-`bearing_calc` docs §9a), and it cannot be derived from the dimensions, so
-`calcP` throws rather than assuming one — do not add a default f0. Do not
+**Combined loading (Fa > 0) is FAG-only, with FAG's own table.** It needs the
+factor f0, which the database holds only for 297 FAG single row deep groove rows
+(data-fix Q11, taken from FAG's catalogue). Those rows, and only those
+(`DGBBCalc.supportsCombined`), get an axial-load input, computed by `calcPFag`
+with FAG's Table 10 (`data/fag_tables.js`), for normal operating clearance, with
+**no clearance selector**. Never use SKF's `TABLE_9` with a FAG f0 (the two are
+different numbers; the mix measured −9.6% to +5.1% on life, `bearing_calc` docs
+§9a-4): `evaluate()` takes no f0 argument, the factor comes from the record, and
+`tests/dgbb.js` section 8 fails if the separation breaks. There is deliberately
+no brand-agnostic version, and the UI says combined loading is currently
+available for FAG bearings only and why, in terms of our data. FAG double row
+(`42xx`/`43xx`) rows get none. NTN is a logged candidate, not built (Q12).
+
+Deliberate refusals, carried over from the source project: for every other row,
+combined loading needs an f0 the database does not carry (the catalogue PDF
+tables we extracted from do not list it; other sources do, see `bearing_calc`
+docs §9a), and it cannot be derived from the dimensions, so `calcP` throws
+rather than assuming one — do not add a default f0. Do not
 describe this as the manufacturer not publishing f0 or kr: it is a limit of
 our data. The minimum-load check uses the 0.01·Cr guideline for the same
 reason (no kr in the data). `a_SKF` is not calculated or exposed, so results are labelled *basic* rating life.
