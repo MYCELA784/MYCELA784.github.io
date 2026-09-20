@@ -14,8 +14,14 @@
  * changeset.json: [
  *   { "id": "NTN-NU2320", "op": "set", "fields": { "cr": null, "c0r": null } },
  *   { "id": "NTN-4T-32205R2_", "op": "delete" },
- *   { "id": "NTN-8200", "op": "delete_all" }
+ *   { "id": "NTN-8200", "op": "delete_all" },
+ *   { "id": "FAG-6205-C", "op": "add", "fields": { "f0": 13.8 } }
  * ]
+ * "add" appends NEW fields to a record, before its closing brace. Every
+ * named field must be absent from that record (an existing field aborts the
+ * run: overwrite with "set" instead), the key must be a plain identifier, and
+ * the value must be null, a finite number or a string. Because it can only
+ * add, re-running the same changeset aborts rather than double-applying.
  * A "set" value may be null, a finite number, or a string. Every field must
  * resolve to exactly one `"field":<value>` inside that record's span or the
  * run aborts with no file written. "delete" requires the id to be unique;
@@ -109,8 +115,49 @@ changes.forEach(ch => {
     return;
   }
 
+  if (ch.op === 'add') {
+    if (!ch.fields || typeof ch.fields !== 'object' || !Object.keys(ch.fields).length) {
+      die(`${ch.id}: "add" needs a non-empty "fields" object`);
+    }
+    Object.keys(ch.fields).forEach(f => {
+      if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(f)) die(`${ch.id}: bad field name ${JSON.stringify(f)}`);
+      const nv = ch.fields[f];
+      const isNum = typeof nv === 'number' && isFinite(nv);
+      const isStr = typeof nv === 'string';
+      if (nv !== null && !isNum && !isStr) die(`${ch.id}.${f}: bad value ${JSON.stringify(nv)}`);
+      if (span.indexOf(`"${f}":`) !== -1) die(`${ch.id}: field "${f}" already exists (use "set" to change it)`);
+      const lit = nv === null ? 'null' : isStr ? JSON.stringify(nv) : String(nv);
+      const newSpan = span.slice(0, -1) + `,"${f}":${lit}}`;
+      console.log(`${ch.id}\t${f}: (added) ${lit}`);
+      out = out.slice(0, start) + newSpan + out.slice(start + span.length);
+      span = newSpan;
+      applied++;
+    });
+    return;
+  }
+
   die(`${ch.id}: unknown op ${ch.op}`);
 });
+
+// Post-check: the output must still be a flat, parseable DB, and every added
+// field must have landed with exactly the requested value. Nothing is written
+// unless this passes.
+{
+  const sb2 = { window: {} };
+  vm.createContext(sb2);
+  try { vm.runInContext(out, sb2, { filename: outPath }); } catch (e) { die('output does not parse: ' + e.message); }
+  const after = sb2.window.MYCELA_DB;
+  if (!Array.isArray(after)) die('output did not produce window.MYCELA_DB');
+  const opens2 = (out.match(/\{/g) || []).length;
+  if (opens2 !== after.length) die(`output brace count ${opens2} !== record count ${after.length}`);
+  changes.filter(c => c.op === 'add').forEach(c => {
+    const rec = after.find(r => r.id === c.id);
+    if (!rec) die(`post-check: ${c.id} missing from output`);
+    Object.keys(c.fields).forEach(f => {
+      if (rec[f] !== c.fields[f]) die(`post-check: ${c.id}.${f} is ${JSON.stringify(rec[f])}, expected ${JSON.stringify(c.fields[f])}`);
+    });
+  });
+}
 
 fs.writeFileSync(outPath, out, 'utf8');
 console.log(`\nWrote ${outPath}  (${applied} field/record change(s); byte-identical to ${inPath} otherwise).`);
