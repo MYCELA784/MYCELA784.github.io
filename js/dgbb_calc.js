@@ -307,6 +307,35 @@
   // row simply gets no calculator until it is re-sourced.
   const MIN_N_DM = 275000;
 
+  // Designation families that are typed 'Deep Groove Ball' in bearings_db.js
+  // but are not deep groove bearings. Excluded by designation, not by the
+  // stored type, because the type field is the thing that is wrong. All from
+  // the SKF US Bearings Catalog (SKF Catalog_pdf_preview_medium.pdf), printed
+  // page numbers; the source CSV the extractor wrote also types every one of
+  // these Angular Contact Ball.
+  //
+  // 32xx / 33xx (26 rows): double row angular contact. p.81 "Double row, 40
+  // deg contact angle", Series 3308 DNRCBM - 3313 DNRCBM; p.82 Series 3200 A
+  // - 3220 A and p.83 Series 3302 A - 3322 A, "Double row, 30 deg contact
+  // angle". At Fa = 0 calcP never reads the deep groove X/Y factors and p = 3
+  // holds for any ball bearing, so the radial-only arithmetic is not itself
+  // wrong here. Gated because this section is scoped to deep groove ball
+  // bearings and the 0.01*C minimum load is a deep groove guideline (Q9b).
+  //
+  // 7x / 7xx slash series (38 rows, all SKF, bores 500-1250 mm): angular
+  // contact. p.68 "Single row ... Angular contact ball bearings, Series 7024 B
+  // - 70/1250 AMB"; p.72 "Single row", Series 71964 AC - 719/710 ACMB; p.73
+  // Series 71872 AC - 718/1250 AMB. Here the calculator IS wrong, and in the
+  // dangerous direction: a single row angular contact bearing under a radial
+  // load develops an induced axial load, so P is greater than Fr and P = Fr
+  // overstates the life. The output would look entirely plausible (Q9c).
+  //
+  // Both are matched on the whitespace-stripped designation. No genuine deep
+  // groove designation starts with 7 or is 32xx/33xx (ISO 15: 60xx, 62xx,
+  // 63xx, 64xx, 160xx, 618xx, 619xx, 67xx-69xx), and the slash-coded deep
+  // groove sizes in the data (60/500, 618/560, 619/500) all start with 6.
+  const NOT_DEEP_GROOVE = /^(3[23]\d{2}(?!\d)|7\d)/;
+
   function num(v) {
     return (typeof v === 'number' && isFinite(v) && v > 0) ? v : null;
   }
@@ -314,10 +343,11 @@
   /**
    * True only for a record this calculator can actually be run on: a deep
    * groove ball bearing carrying every field the chain consumes, with a
-   * limiting speed that is physically plausible for its size (MIN_N_DM).
-   * Everything else (tapered roller, thrust, an unrated or quarantined row,
-   * a row whose stored rpm is evidently another column) is out of scope --
-   * the caller must not render the calculator for it.
+   * limiting speed that is physically plausible for its size (MIN_N_DM), and
+   * a designation that is not a mistyped non-deep-groove family
+   * (NOT_DEEP_GROOVE). Everything else (tapered roller, thrust, an unrated
+   * or quarantined row, a row whose stored rpm is evidently another column)
+   * is out of scope -- the caller must not render the calculator for it.
    *
    * @param {object} b - a MYCELA.DB_MAP record
    * @returns {boolean}
@@ -325,6 +355,7 @@
   function supports(b) {
     if (!b || b.type !== 'Deep Groove Ball') return false;
     if (!REQUIRED.every((k) => num(b[k]) != null)) return false;
+    if (NOT_DEEP_GROOVE.test(String(b.pn || '').toUpperCase().replace(/\s+/g, ''))) return false;
     return b.rpm * 0.5 * (b.bore + b.od) >= MIN_N_DM;
   }
 

@@ -27,7 +27,10 @@ const nDm = b => b.rpm * 0.5 * (b.bore + b.od);
 const REQ = ['cr', 'c0r', 'bore', 'od', 'rpm'];
 const dg = M.DB.filter(b => b.type === 'Deep Groove Ball');
 const complete = dg.filter(b => REQ.every(k => b[k] > 0));
-const rejected = complete.filter(b => !C.supports(b));
+// 32xx / 33xx and 7x are rejected by designation (sections 2b, 2c), not by speed
+const isFam3 = b => /^3[23]\d{2}(?!\d)/.test(String(b.pn).toUpperCase().replace(/\s+/g, ''));
+const isFam7 = b => /^7\d/.test(String(b.pn).toUpperCase().replace(/\s+/g, ''));
+const rejected = complete.filter(b => !C.supports(b) && !isFam3(b) && !isFam7(b));
 
 // ── 1. the gate rejects on speed, only on speed ───────────────────────────
 ok(rejected.every(b => nDm(b) < C.MIN_N_DM), 'every complete DGBB row the gate rejects is below MIN_N_DM');
@@ -38,6 +41,28 @@ ok(dg.filter(b => !complete.includes(b)).every(b => !C.supports(b)), 'a row miss
 ok(C.supports(M.DB_MAP['NTN-6201']) === false, 'NTN-6201 (rpm 620, real value near 24 000) is rejected');
 ok(C.supports(M.DB_MAP['NTN-6303']) === true, 'NTN-6303 (rpm 19 000) is still supported');
 ok(!C.supports({ type: 'Tapered Roller', cr: 20, c0r: 20, bore: 30, od: 62, rpm: 9000 }), 'a tapered roller is not supported');
+
+// ── 2b. mistyped families: typed Deep Groove Ball, catalogue says angular contact ──
+// SKF 32xx / 33xx are double row angular contact (SKF US catalogue printed pp.81-83).
+// Gated by designation because the type field is what is wrong (Q9b).
+const fam3 = dg.filter(isFam3);
+ok(fam3.length === 26, `26 rows typed DGBB carry a 32xx/33xx designation (got ${fam3.length})`);
+ok(fam3.every(b => b.brand === 'SKF') && fam3.every(b => !C.supports(b)), 'all 26 are SKF and none is supported');
+ok(C.supports(M.DB_MAP['SKF-3309_DNRCBM']) === false && C.supports(M.DB_MAP['SKF-3315_A']) === false,
+   'SKF-3309_DNRCBM and SKF-3315_A get no calculator');
+ok(dg.filter(b => C.supports(b)).every(b => !isFam3(b)), 'no calculable row has a 32xx/33xx designation');
+
+// ── 2c. single row angular contact, 7x series (Q9c) ───────────────────────
+// Unlike 2b this one is wrong, not merely out of scope: radial-only P = Fr
+// overstates the life when the bearing develops an induced axial load.
+const norm = b => String(b.pn).toUpperCase().replace(/\s+/g, '');
+const fam7 = dg.filter(isFam7);
+ok(fam7.length === 38, `38 rows typed DGBB carry a 7x designation (got ${fam7.length})`);
+ok(fam7.every(b => b.brand === 'SKF') && fam7.every(b => !C.supports(b)), 'all 38 are SKF and none is supported');
+ok(dg.filter(b => C.supports(b)).every(b => !/^7\d/.test(norm(b))), 'no calculable row has a 7x designation');
+ok(C.supports(M.DB_MAP['SKF-618___560_MA']) === true, 'slash-coded deep groove (SKF 618/560 MA) is still supported');
+const fagDouble = dg.filter(b => /^4[23]\d{2}/.test(norm(b)) && C.supports(b));
+ok(fagDouble.length === 24 && fagDouble.every(b => b.brand === 'FAG'), 'FAG 42xx/43xx double row deep groove stay calculable (24)');
 
 // ── 3. the floor sits in a real gap, so it is not a tuned edge ────────────
 const below = Math.max(...complete.map(nDm).filter(v => v < C.MIN_N_DM));
@@ -60,6 +85,6 @@ ok(refused, 'Fa > 0 without f0 still throws the f0 explanation');
 const r = C.evaluate({ bearing: M.DB_MAP['NTN-6303'], Fr: 2, n: 1000 });
 ok(r.life.label === 'basic rating life (L10h)', 'life is labelled basic rating life (a_SKF not exposed)');
 
-console.log(`\n${complete.filter(b => C.supports(b)).length} of ${dg.length} DGBB rows calculable; ${rejected.length} rejected on speed`);
+console.log(`\n${complete.filter(b => C.supports(b)).length} of ${dg.length} DGBB rows calculable; ${rejected.length} rejected on speed, ${fam3.length} as mistyped 32xx/33xx, ${fam7.length} as mistyped 7x`);
 console.log(failures ? failures + ' FAILED' : 'all passed');
 process.exit(failures ? 1 : 0);

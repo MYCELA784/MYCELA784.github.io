@@ -68,7 +68,11 @@ section under the modal's specs grid, and only when `DGBBCalc.supports(b)`
 is true — i.e. `type === 'Deep Groove Ball'`, `cr`, `c0r`, `bore`, `od`
 and `rpm` are all present, and `rpm` is plausible for the size (n·dm at or
 above `MIN_N_DM`, derived in `js/dgbb_calc.js`; 29 rows fail it, logged as
-Q9 in `docs/data-quarantine.md`). Everything else gets no calculator.
+Q9 in `docs/data-quarantine.md`) and the designation is not a mistyped
+family (`NOT_DEEP_GROOVE`: 64 SKF angular contact rows typed Deep Groove
+Ball, the `32xx`/`33xx` double-row ones in Q9b and the single-row `7x` ones in
+Q9c, where radial-only `P = Fr` would overstate life). Everything else gets no
+calculator.
 `node tests/dgbb.js` pins the gate.
 
 Deliberate refusals, carried over from the source project: combined loading

@@ -261,10 +261,10 @@
         <div class="calc-out" id="calc-out"></div>
         <div class="calc-caveats">
           <p>Radial load only. There is no axial load input, because the equivalent load
-             under a combined load needs the calculation factor f0. This catalogue does not
-             print f0 for deep groove ball bearings, and it cannot be derived from bore, OD
-             and width: it needs ball diameter and ball count. Rather than guess a value,
-             the calculator does not take an axial load at all.</p>
+             under a combined load needs the calculation factor f0. The database does not
+             carry f0 (SKF does not print it for deep groove ball bearings), and it cannot
+             be derived from bore, OD and width: it needs ball diameter and ball count.
+             Rather than guess a value, the calculator does not take an axial load at all.</p>
           <p>The result is the basic rating life L10h, at 90% reliability (a1 = 1) and with
              no life modification factor (a_SKF = 1). a_SKF is read off a chart rather than
              computed, so it is not applied here and this is not an SKF rating life.</p>

@@ -25,6 +25,8 @@ not corrected.
 | Q7 | 11 SKF `618xx/619xx MA` rows | `cr` + `c0r` lbf column → N (**corrected** from the SKF catalogue PDF) |
 | Q8 | 139 FAG DGBB rows | `bore` unstuck from a frozen 75 → derived from the designation (**corrected**) |
 | Q9 | 29 DGBB rows (28 NTN, 1 SKF) | `rpm` implausible for the size; **not changed**, candidates for re-sourcing; calculator gated off |
+| Q9b | 26 SKF `32xx` / `33xx` rows | typed `Deep Groove Ball`, catalogue says double-row angular contact; `type` **not changed**, calculator gated off by designation |
+| Q9c | 38 SKF `70/…`, `718/…`, `719/…` rows | typed `Deep Groove Ball`, catalogue says angular contact; `type` **not changed**, calculator gated off by designation (radial-only `P = Fr` is wrong for these) |
 
 Record count: 3715 extracted → **3706** after Q3 → **3684** after Q6.
 After `js/db.js`'s load-time sanity filter drops 18 malformed rows, the
@@ -428,8 +430,159 @@ data alone cannot say whether those six are wrong or merely low. Excluding
 them errs towards no calculator. To gate only the unambiguous 23, set
 `MIN_N_DM` to 100 000.
 
-**Related, not investigated here.** `SKF-3200_A` also has `cr` 0.007 kN, and
-the 25 calculable SKF rows with a `33xx` designation (`SKF-3308_DNRCBM`, `SKF-3315_A` etc.)
-look like SKF double-row angular-contact designations typed as
-`Deep Groove Ball`. If so they should not offer a deep-groove calculator.
-Worth checking against the catalogue when Q9 is re-sourced.
+**Related.** `SKF-3200_A` is also one of the 26 mistyped rows in Q9b below
+(and has `cr` 0.007 kN); it is gated by both rules.
+
+---
+
+## Q9b — SKF 32xx / 33xx typed `Deep Groove Ball`  (candidates, **no changeset**)
+
+26 SKF rows carry `type: "Deep Groove Ball"` but are **double-row angular
+contact ball bearings**. The `type` field is left as it is in this pass;
+the modal load calculator is switched off for them by designation
+(`NOT_DEEP_GROOVE` in `js/dgbb_calc.js`, `/^3[23]\d{2}(?!\d)/` on the
+whitespace-stripped designation).
+
+**Verified against the SKF US Bearings Catalog**
+(`SKF Catalog_pdf_preview_medium.pdf`, printed page numbers), not by
+designation pattern alone:
+
+| printed page | catalogue heading | designations | rows |
+|---|---|---|---|
+| 81 | Double row, 40° contact angle — Angular contact ball bearings, Series 3308 DNRCBM – 3313 DNRCBM | 3308, 3309, 3310, 3311, 3313 DNRCBM | 5 |
+| 82 | Double row, 30° contact angle — Series 3200 A – 3220 A | 3200 A | 1 |
+| 83 | Double row, 30° contact angle — Series 3302 A – 3322 A | 3302 A … 3322 A | 20 |
+
+The dimensions and ratings stored on the rows match the catalogue (for
+example 3309 DNRCBM: 45×100×39.7, C 61 800 N, C0 52 000 N, reference speed
+6 000, limiting 6 300). The extractor's own CSV
+(`0901d196807026e8_pdf_preview_medium_skf_bearings.csv`) also types all 26
+`Angular Contact Ball`, so the type was lost after extraction: the assembler
+(`assemble_db.py`) passes `type` through unchanged from the site's previous
+`bearings_db.js`, which is where it was already wrong.
+
+**What the calculator would have got wrong, and what it would not.** At
+`Fa = 0` (the only case it supports) `calcP` returns `P = Fr` and never
+reads the deep-groove X/Y factors, and `p = 3` is right for any ball
+bearing, so for a *double*-row angular contact bearing under a pure radial
+load the L10h arithmetic is not itself wrong. It is gated anyway because
+the section is scoped to deep groove ball bearings, the `0.01·Cr` minimum
+load is a deep-groove guideline, and nothing in the validation covered this
+family. (For *single*-row angular contact the radial-only `P = Fr` **is**
+wrong: see the note below on `70/…` and `719/…`.)
+
+| id | pn | bore×od×w | cr [kN] |
+|---|---|---|---|
+| SKF-3308_DNRCBM | 3308 DNRCBM | 40×90×36.5 | 49.4 |
+| SKF-3309_DNRCBM | 3309 DNRCBM | 45×100×39.7 | 61.8 |
+| SKF-3310_DNRCBM | 3310 DNRCBM | 50×110×44.4 | 81.9 |
+| SKF-3311_DNRCBM | 3311 DNRCBM | 55×120×49.2 | 95.6 |
+| SKF-3313_DNRCBM | 3313 DNRCBM | 65×140×58.7 | 138 |
+| SKF-3200_A | 3200 A | 10×30×14 | 0.007 |
+| SKF-3302_A | 3302 A | 15×42×19 | 15.1 |
+| SKF-3303_A | 3303 A | 17×47×22.2 | 21.6 |
+| SKF-3304_A | 3304 A | 20×52×22.2 | 23.6 |
+| SKF-3305_A | 3305 A | 25×62×25.4 | 32 |
+| SKF-3306_A | 3306 A | 30×72×30.2 | 42.5 |
+| SKF-3307_A | 3307 A | 35×80×34.9 | 52 |
+| SKF-3308_A | 3308 A | 40×90×36.5 | 64 |
+| SKF-3309_A | 3309 A | 45×100×39.7 | 75 |
+| SKF-3310_A | 3310 A | 50×110×44.4 | 90 |
+| SKF-3311_A | 3311 A | 55×120×49.2 | 112 |
+| SKF-3312_A | 3312 A | 60×130×54 | 127 |
+| SKF-3313_A | 3313 A | 65×140×58.7 | 146 |
+| SKF-3314_A | 3314 A | 70×150×63.5 | 163 |
+| SKF-3315_A | 3315 A | 75×160×68.3 | 176 |
+| SKF-3316_A | 3316 A | 80×170×68.3 | 193 |
+| SKF-3317_A | 3317 A | 85×180×73 | 208 |
+| SKF-3318_A | 3318 A | 90×190×73 | 208 |
+| SKF-3319_A | 3319 A | 95×200×77.8 | 240 |
+| SKF-3320_A | 3320 A | 100×215×82.6 | 255 |
+| SKF-3322_A | 3322 A | 110×240×92.1 | 291 |
+
+---
+
+## Q9c — SKF 70/…, 718/…, 719/… typed `Deep Groove Ball`  (candidates, **no changeset**)
+
+38 SKF rows carry `type: "Deep Groove Ball"` but are **angular contact ball
+bearings** (bores 500–1250 mm). As with Q9b the `type` field is left alone
+and the modal load calculator is switched off for them by designation
+(`NOT_DEEP_GROOVE` in `js/dgbb_calc.js`, the `7\d` branch: any designation
+that starts with 7 after whitespace is stripped; no ISO 15 deep groove
+designation does). The regex matches these 38 and nothing else in the data.
+
+**Verified against the SKF US Bearings Catalog**
+(`SKF Catalog_pdf_preview_medium.pdf`, printed page numbers), not by
+designation pattern alone:
+
+| printed page | catalogue heading | rows |
+|---|---|---|
+| 68 | Single row, Angular contact ball bearings, Series 7024 B – 70/1250 AMB | 19 |
+| 72 | Single row, Angular contact ball bearings, Series 71964 AC – 719/710 ACMB | 5 |
+| 73 | Angular contact ball bearings, Series 71872 AC – 718/1250 AMB (this page does not print "single row"; same product family as pp.68 and 72) | 14 |
+
+The extractor's CSV (`0901d196807026e8_pdf_preview_medium_skf_bearings.csv`)
+also types all 38 `Angular Contact Ball`, so, as in Q9b, the wrong type came
+in from the site's previous `bearings_db.js`. These 38 plus the 26 in Q9b are
+exactly the 64 rows where the CSV type and the DB type disagree, apart from
+`NTN-6200` (below).
+
+**Why this one is worse than Q9b.** The calculator supports `Fa = 0` only and
+returns `P = Fr`. That is defensible for a double-row angular contact bearing
+under a pure radial load (Q9b), but **not** for a single-row one: an angular
+contact bearing loaded radially develops an induced axial load, so the real
+equivalent load `P = X·Fr + Y·Fa` exceeds `Fr`. Using `P = Fr` therefore
+**overstates the life**, in the unsafe direction, and the output looks
+entirely plausible. That is the reason these are gated rather than
+labelled.
+
+**Checked and not gated** (also typed `Deep Groove Ball`; the catalogue says
+they are deep groove): FAG `42xx-BB-TVH` / `43xx-BB-TVH` are titled "Deep
+groove ball bearings, double row" (FAG HR 1, PDF p.282), and the calculator's
+`Fa = 0` arithmetic is valid for a double-row deep groove bearing; FAG
+`622xx-2RSR` is on a "single row" deep groove page (HR 1, PDF p.240);
+`60/…`, `62/…`, `63/…`, `618/…`, `619/…` slash-coded sizes are ordinary deep
+groove. `NTN-6200` is typed `Deep Groove Ball` by the DB but `Tapered Roller`
+by the CSV (its 77.788 mm OD is an inch size); it is already excluded from
+the calculator because its `rpm` is null.
+
+| id | pn | bore×od×w | cr [kN] | printed page |
+|---|---|---|---|---|
+| SKF-70___500_B | 70 / 500 B | 500×720×100 | 637 | 68 |
+| SKF-70___530_B | 70 / 530 B | 530×780×112 | 741 | 68 |
+| SKF-70___560_AMB | 70 / 560 AMB | 560×820×115 | 793 | 68 |
+| SKF-708___600_AMB | 708 / 600 AMB | 600×730×42 | 338 | 68 |
+| SKF-70___600_AGMB | 70 / 600 AGMB | 600×870×118 | 884 | 68 |
+| SKF-70___630_AMB | 70 / 630 AMB | 630×920×128 | 956 | 68 |
+| SKF-70___670_AMB | 70 / 670 AMB | 670×980×136 | 1170 | 68 |
+| SKF-70___710_AMB | 70 / 710 AMB | 710×1030×140 | 1190 | 68 |
+| SKF-70___750_AMB | 70 / 750 AMB | 750×1090×150 | 1300 | 68 |
+| SKF-70___800_AMB | 70 / 800 AMB | 800×1150×155 | 1250 | 68 |
+| SKF-70___850_AMB | 70 / 850 AMB | 850×1220×165 | 1380 | 68 |
+| SKF-70___900_AMB | 70 / 900 AMB | 900×1280×170 | 1560 | 68 |
+| SKF-70___950_AMB | 70 / 950 AMB | 950×1360×180 | 1630 | 68 |
+| SKF-70___1000_AMB | 70 / 1000 AMB | 1000×1420×185 | 1630 | 68 |
+| SKF-70___1060_AMB | 70 / 1060 AMB | 1060×1500×195 | 1680 | 68 |
+| SKF-70___1120_AMB | 70 / 1120 AMB | 1120×1580×200 | 1720 | 68 |
+| SKF-70___1180_AMB | 70 / 1180 AMB | 1180×1660×212 | 1740 | 68 |
+| SKF-708___1250_AMB | 708 / 1250 AMB | 1250×1500×80 | 806 | 68 |
+| SKF-70___1250_AMB | 70 / 1250 AMB | 1250×1750×218 | 1780 | 68 |
+| SKF-719___500_AGMB | 719 / 500 AGMB | 500×670×78 | 553 | 72 |
+| SKF-719___530_ACM | 719 / 530 ACM | 530×710×82 | 618 | 72 |
+| SKF-719___560_AMB | 719 / 560 AMB | 560×750×85 | 592 | 72 |
+| SKF-719___600_ACM | 719 / 600 ACM | 600×800×90 | 715 | 72 |
+| SKF-719___710_ACMB | 719 / 710 ACMB | 710×950×106 | 852 | 72 |
+| SKF-718___500_AM | 718 / 500 AM | 500×620×56 | 390 | 73 |
+| SKF-718___530_AMB | 718 / 530 AMB | 530×650×56 | 390 | 73 |
+| SKF-718___560_AMB | 718 / 560 AMB | 560×680×56 | 397 | 73 |
+| SKF-718___600_AMB | 718 / 600 AMB | 600×730×60 | 449 | 73 |
+| SKF-718___670_AMB | 718 / 670 AMB | 670×820×69 | 527 | 73 |
+| SKF-718___670_ACMB | 718 / 670 ACMB | 670×820×69 | 553 | 73 |
+| SKF-718___710_AMB | 718 / 710 AMB | 710×870×74 | 572 | 73 |
+| SKF-718___710_ACMB | 718 / 710 ACMB | 710×870×74 | 605 | 73 |
+| SKF-718___750_AGMB | 718 / 750 AGMB | 750×920×78 | 618 | 73 |
+| SKF-718___750_ACMB | 718 / 750 ACMB | 750×920×78 | 650 | 73 |
+| SKF-718___850_AMB | 718 / 850 AMB | 850×1030×82 | 689 | 73 |
+| SKF-718___1000_AMB | 718 / 1000 AMB | 1000×1220×100 | 923 | 73 |
+| SKF-718___1120_AMB | 718 / 1120 AMB | 1120×1360×106 | 1060 | 73 |
+| SKF-718___1250_AMB | 718 / 1250 AMB | 1250×1500×112 | 1140 | 73 |
