@@ -35,6 +35,8 @@ js/search/scoring.js    → MYCELA.SearchEngine.Scorers
 js/search/fallback.js   → MYCELA.SearchEngine.fallback()
 js/search/engine.js     → MYCELA.SearchEngine.fast()
 js/ai-refiner.js        → MYCELA.AIRefiner.refine()
+data/dgbb_tables.js     → MYCELA.DGBB_TABLES (catalogue tables, pure data)
+js/dgbb_calc.js         → MYCELA.DGBBCalc.* (modal load calculator)
 js/renderer.js          → MYCELA.Renderer.*
 js/router.js            → MYCELA.Router.showPage()
 js/supplier-form.js     → MYCELA.SupplierForm.submit()
@@ -55,6 +57,24 @@ Order matters. Never reorder these `<script>` tags.
 **All numeric weights live in `js/config.js`** under `CONFIG.scoring` — never hardcoded in scorer files. To adjust ranking, edit only `config.js`. The keys map directly to scorer function names in `js/search/scoring.js` (e.g. `CONFIG.scoring.boreExact` → `Scorers.bore()`).
 
 To add a new environment/application pattern, edit the rule tables in `js/search/rules.js` — no logic changes needed.
+
+### Modal load calculator
+
+`js/dgbb_calc.js` (ported from the separate `bearing_calc` project, with its
+catalogue tables in `data/dgbb_tables.js`) computes basic rating life L10h,
+the minimum-load check and the speed check for **deep groove ball bearings
+under a radial load only**. `js/renderer.js` renders it as a collapsed
+section under the modal's specs grid, and only when `DGBBCalc.supports(b)`
+is true — i.e. `type === 'Deep Groove Ball'` and `cr`, `c0r`, `bore`, `od`
+and `rpm` are all present. Everything else gets no calculator.
+
+Deliberate refusals, carried over from the source project: combined loading
+(Fa > 0) needs the factor f0, which this catalogue does not print for DGBB
+and which cannot be derived from the dimensions, so `calcP` throws rather
+than assuming one — do not add a default f0. `a_SKF` is chart-only, so it is
+never computed or exposed and results are labelled *basic* rating life.
+Formulas are unchanged from `bearing_calc`; keep them that way so the two
+copies cannot drift.
 
 ### Debug mode
 

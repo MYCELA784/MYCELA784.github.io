@@ -4,6 +4,10 @@
  *   MYCELA.Renderer.closeModal()          — close modal (and compare view)
  *   MYCELA.Renderer.toggleCompare(id, on) — add/remove a bearing from compare
  *   MYCELA.Renderer.openCompare()         — open the compare table in #modal-compare
+ *
+ * The modal's load calculator is built here too (calcSectionHTML /
+ * wireCalc), but it is display only — every number comes from
+ * MYCELA.DGBBCalc, see js/dgbb_calc.js.
  */
 (function (ns) {
   ns.Renderer = ns.Renderer || {};
@@ -166,6 +170,134 @@
     return el;
   }
 
+  // ── Load calculator (deep groove ball bearings, radial load only) ──────────
+  // Arithmetic lives in MYCELA.DGBBCalc; this formats it and nothing else.
+  // The section is rendered only for records DGBBCalc.supports() accepts —
+  // a tapered roller, a thrust bearing or a row with no verified cr/c0r/rpm
+  // gets no calculator at all rather than a broken one.
+
+  // Null values read "not verified" and user-facing strings carry no em
+  // dash, the same as every other string this renderer emits (see 61ef492).
+  function fmtHours(h) {
+    if (h == null || !isFinite(h)) return 'not computable';
+    if (h >= 1e6) return (h / 1e6).toFixed(1) + ' million h';
+    if (h >= 1000) return (Math.round(h / 100) * 100).toLocaleString() + ' h';
+    return Math.round(h) + ' h';
+  }
+  function fmtN(v, d) { return (v == null || !isFinite(v)) ? 'not verified' : Number(v).toFixed(d); }
+  // L10 spans orders of magnitude (a lightly loaded bearing runs to eight
+  // figures of million revolutions), so group it rather than print it raw.
+  function fmtMrev(v) {
+    if (v == null || !isFinite(v)) return 'not computable';
+    return Number(v).toLocaleString(undefined, { maximumFractionDigits: v >= 1e4 ? 0 : 1 });
+  }
+  function fmtRpm(v) { return (v == null || !isFinite(v)) ? 'not verified' : Number(v).toLocaleString() + ' rpm'; }
+
+  function calcCheck(pass, headline, detail) {
+    return `<div class="calc-check${pass ? '' : ' calc-flag'}">
+        <span class="calc-mark">${pass ? '✓' : '✕'}</span>
+        <div><b>${headline}</b><span class="calc-sub">${detail}</span></div>
+      </div>`;
+  }
+
+  // DGBBCalc's own note strings cite pages of the SKF catalogue the formulas
+  // were transcribed from. The rows here are also NTN and FAG, so those page
+  // numbers would point a reader at the wrong book: same substance, said in
+  // this site's own words instead.
+  function speedNote(r) {
+    if (r.speed.exceedsLimiting) return 'Past the mechanical limit of the bearing as catalogued.';
+    if (r.speed.exceedsReference === null) return 'No reference speed is printed for this bearing, so the limiting speed is the only cap.';
+    if (r.speed.exceedsReference) return 'Above the reference speed, so a detailed thermal analysis is recommended.';
+    return 'Within the reference speed.';
+  }
+
+  function calcResultHTML(r) {
+    const bg = r.bearing;
+
+    const minDetail = r.minLoad.pass
+      ? `Fr ${fmtN(r.Fr, 2)} kN is at or above Frm ${fmtN(r.minLoad.Frm, 3)} kN, the 0.01·Cr guideline.`
+      : `Fr ${fmtN(r.Fr, 2)} kN is under Frm ${fmtN(r.minLoad.Frm, 3)} kN, the 0.01·Cr guideline. ` +
+        `Too lightly loaded, the balls can skid and smear.`;
+
+    const speedHead = r.speed.exceedsLimiting ? 'Above the limiting speed'
+      : (r.speed.exceedsReference ? 'Under the limiting speed, over the reference speed' : 'Speed within limits');
+    const speedDetail = `n ${fmtRpm(r.n)}. Limiting speed ${fmtRpm(bg.speedLim)}, ` +
+      `reference speed ${bg.speedRef == null ? 'not printed' : fmtRpm(bg.speedRef)}. ${speedNote(r)}`;
+
+    const working = [
+      ['Equivalent dynamic load P', `${fmtN(r.P.P, 2)} kN (radial only, so P = Fr)`],
+      ['C / P', fmtN(r.CoverP, 2)],
+      ['L10 = (C/P)³', `${fmtMrev(r.life.L10)} million rev`],
+      ['L10h = 10⁶ / (60 · n) · L10', fmtHours(r.life.basicHours)],
+      ['Reliability a1 · life factor a_SKF', `${fmtN(r.life.a1, 0)} · ${fmtN(r.life.a_SKF, 0)}`],
+      ['dm = 0.5 · (d + D)', `${fmtN(bg.dm, 1)} mm`],
+      ['Frm = 0.01 · Cr', `${fmtN(r.minLoad.Frm, 3)} kN`],
+      ['Ratings used', `Cr ${bg.Cr} kN, C0r ${bg.C0} kN`],
+    ];
+
+    return `<div class="calc-headline">
+        <b class="calc-big">${fmtHours(r.life.value)}</b>
+        <span class="calc-sub">${r.life.label} at Fr ${fmtN(r.Fr, 2)} kN and ${fmtRpm(r.n)}</span>
+      </div>
+      ${calcCheck(r.minLoad.pass, r.minLoad.pass ? 'Minimum load met' : 'Below the minimum load', minDetail)}
+      ${calcCheck(r.speed.pass, speedHead, speedDetail)}
+      <div class="calc-work-lbl">Working</div>
+      <div class="calc-work">${working.map(([k, v]) =>
+        `<div class="calc-work-row"><span>${k}</span><span class="calc-work-val">${v}</span></div>`).join('')}</div>`;
+  }
+
+  function calcSectionHTML() {
+    return `<details class="calc" id="modal-calc">
+      <summary class="calc-sum">Check this bearing for your load
+        <span class="calc-sum-hint">rating life, minimum load, speed</span></summary>
+      <div class="calc-body">
+        <div class="calc-fields">
+          <label class="calc-fld"><span>Radial load Fr</span>
+            <input type="number" id="calc-fr" step="0.01" min="0" inputmode="decimal" placeholder="e.g. 2.65"><em>kN</em></label>
+          <label class="calc-fld"><span>Speed n</span>
+            <input type="number" id="calc-n" step="10" min="0" inputmode="numeric" placeholder="e.g. 1450"><em>rpm</em></label>
+        </div>
+        <button class="btn btn-sm" id="calc-run" type="button">Calculate</button>
+        <div class="calc-out" id="calc-out"></div>
+        <div class="calc-caveats">
+          <p>Radial load only. There is no axial load input, because the equivalent load
+             under a combined load needs the calculation factor f0. This catalogue does not
+             print f0 for deep groove ball bearings, and it cannot be derived from bore, OD
+             and width: it needs ball diameter and ball count. Rather than guess a value,
+             the calculator does not take an axial load at all.</p>
+          <p>The result is the basic rating life L10h, at 90% reliability (a1 = 1) and with
+             no life modification factor (a_SKF = 1). a_SKF is read off a chart rather than
+             computed, so it is not applied here and this is not an SKF rating life.</p>
+          <p>Indicative calculation, to be verified by the specifying engineer.</p>
+        </div>
+      </div>
+    </details>`;
+  }
+
+  function wireCalc(b, box) {
+    const frEl  = box.querySelector('#calc-fr');
+    const nEl   = box.querySelector('#calc-n');
+    const outEl = box.querySelector('#calc-out');
+    const runEl = box.querySelector('#calc-run');
+    if (!frEl || !nEl || !outEl || !runEl) return;
+
+    function run() {
+      const Fr = parseFloat(frEl.value);
+      const n  = parseFloat(nEl.value);
+      if (!(Fr > 0) || !(n > 0)) {
+        outEl.innerHTML = `<div class="calc-msg">Enter a radial load and a speed, both above zero.</div>`;
+        return;
+      }
+      try {
+        outEl.innerHTML = calcResultHTML(ns.DGBBCalc.evaluate({ bearing: b, Fr, n }));
+      } catch (e) {
+        outEl.innerHTML = `<div class="calc-msg">${e.message}</div>`;
+      }
+    }
+    runEl.addEventListener('click', run);
+    [frEl, nEl].forEach(el => el.addEventListener('keydown', e => { if (e.key === 'Enter') run(); }));
+  }
+
   ns.Renderer.modal = function (id) {
     const b = ns.DB_MAP[id];
     if (!b) return;
@@ -226,6 +358,17 @@
       .filter(([k, v]) => v != null)
       .map(([k, v]) => `<div class="spec-cell"><div class="spec-lbl">${k}</div><div class="spec-val">${v}</div></div>`)
       .join('');
+
+    // Load calculator (under the specs, above the rest)
+    const calcBox = ensureSection('modal-calc-wrap', 'modal-specs', 'afterend');
+    if (ns.DGBBCalc && ns.DGBBCalc.supports(b)) {
+      calcBox.style.display = '';
+      calcBox.innerHTML = calcSectionHTML();
+      wireCalc(b, calcBox);
+    } else {
+      calcBox.style.display = 'none';
+      calcBox.innerHTML = '';
+    }
 
     // Apps — hidden pending re-sourcing of the applications data. The audit
     // (docs/apps-type-audit.md) found the field wrong at scale, not just in

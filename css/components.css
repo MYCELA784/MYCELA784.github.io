@@ -71,3 +71,55 @@
 /* ---- compare trigger + per-card checkbox ---- */
 #compareBtn{font-family:var(--ui)}
 .cmp-chk{width:16px;height:16px;accent-color:var(--accent);cursor:pointer;margin-left:auto}
+
+/* ---- load calculator in the detail modal (renderer.js calcSectionHTML) ----
+   Deep groove ball bearings only; the renderer decides whether to emit it.
+   Tokens only — a failed check is marked with the accent, not a new colour,
+   so it still reads correctly in dark mode. */
+.calc{border:1px solid var(--hair);border-radius:var(--r-md);background:var(--soft);margin-bottom:20px}
+.calc[open]{background:var(--card)}
+.calc-sum{display:flex;align-items:center;gap:9px;list-style:none;cursor:pointer;padding:11px 14px;
+  font-size:13.5px;font-weight:600;color:var(--ink)}
+.calc-sum::-webkit-details-marker{display:none}
+.calc-sum::after{content:'+';margin-left:auto;color:var(--faint);font-weight:500}
+.calc[open] .calc-sum::after{content:'−'}
+.calc-sum-hint{font-size:11px;font-weight:400;color:var(--faint)}
+.calc-body{padding:13px 14px 14px;border-top:1px solid var(--hair)}
+
+.calc-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.calc-fld{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.calc-fld>span{flex:1 0 100%;font-size:10px;color:var(--faint);text-transform:uppercase;letter-spacing:.08em}
+.calc-fld input{flex:1;min-width:0;height:40px;padding:0 12px;background:var(--card);border:1.5px solid var(--hair);
+  border-radius:var(--r-md);font-family:var(--data);font-size:13px;color:var(--ink)}
+.calc-fld input:focus{outline:none;border-color:var(--accent)}
+.calc-fld em{width:28px;font-style:normal;font-size:12px;color:var(--body)}
+
+.calc-out{margin-top:13px}
+.calc-out:empty{display:none}
+.calc-msg{padding:9px 12px;background:var(--soft);border:1px solid var(--hair);border-radius:var(--r-md);
+  font-size:12.5px;color:var(--body)}
+.calc-headline{padding:11px 13px;margin-bottom:9px;background:var(--accent-soft);border-radius:var(--r-md)}
+.calc-big{display:block;font-family:var(--data);font-weight:500;font-size:22px;color:var(--ink);letter-spacing:-.02em}
+.calc-sub{display:block;margin-top:3px;font-size:11.5px;line-height:1.5;color:var(--body)}
+.calc-check{display:flex;align-items:flex-start;gap:9px;padding:9px 12px;margin-bottom:7px;
+  border:1px solid var(--hair);border-radius:var(--r-md);font-size:12.5px;color:var(--ink)}
+.calc-check b{font-weight:600}
+.calc-mark{font-family:var(--data);color:var(--body);line-height:1.45}
+.calc-flag{border-color:var(--accent);background:var(--accent-soft)}
+.calc-flag .calc-mark{color:var(--accent)}
+
+.calc-work-lbl{margin:13px 0 4px;font-size:10px;color:var(--faint);text-transform:uppercase;letter-spacing:.08em}
+.calc-work{border-top:1px solid var(--hair)}
+.calc-work-row{display:flex;justify-content:space-between;gap:12px;padding:5px 0;
+  border-bottom:1px solid var(--hair);font-size:11.5px;color:var(--faint)}
+.calc-work-val{font-family:var(--data);color:var(--body);text-align:right}
+
+.calc-caveats{margin-top:14px;padding-top:11px;border-top:1px solid var(--hair)}
+.calc-caveats p{margin:0 0 7px;font-size:11px;line-height:1.55;color:var(--faint)}
+.calc-caveats p:last-child{margin-bottom:0;color:var(--body)}
+
+@media (max-width:560px){
+  .calc-fields{grid-template-columns:1fr}
+  .calc-work-row{flex-direction:column;gap:2px}
+  .calc-work-val{text-align:left}
+}
