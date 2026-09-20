@@ -260,14 +260,16 @@
         <button class="btn btn-sm" id="calc-run" type="button">Calculate</button>
         <div class="calc-out" id="calc-out"></div>
         <div class="calc-caveats">
-          <p>Radial load only. There is no axial load input, because the equivalent load
-             under a combined load needs the calculation factor f0. The database does not
-             carry f0 (SKF does not print it for deep groove ball bearings), and it cannot
-             be derived from bore, OD and width: it needs ball diameter and ball count.
-             Rather than guess a value, the calculator does not take an axial load at all.</p>
+          <p>Radial load only. Combined loading is not offered yet: it needs the calculation
+             factor f0, and the database does not carry f0. f0 depends on ball diameter and
+             ball count, so it cannot be worked out from bore, OD and width, and the
+             calculator does not guess one.</p>
+          <p>The minimum load check uses the 0.01 &middot; Cr guideline. The more precise
+             method needs a minimum load factor kr, which is not in the database, and the
+             viscosity of your lubricant at operating temperature.</p>
           <p>The result is the basic rating life L10h, at 90% reliability (a1 = 1) and with
-             no life modification factor (a_SKF = 1). a_SKF is read off a chart rather than
-             computed, so it is not applied here and this is not an SKF rating life.</p>
+             no life modification factor (a_SKF = 1). a_SKF is not calculated here, so this
+             is not an SKF rating life.</p>
           <p>Indicative calculation, to be verified by the specifying engineer.</p>
         </div>
       </div>

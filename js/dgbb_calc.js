@@ -31,12 +31,13 @@
  * case would overstate what was actually computed.
  *
  * PRACTICAL SCOPE RIGHT NOW: radial-only (Fa=0). calcP's combined-load
- * branch (Fa>0) needs f0, which is not present anywhere in this
- * catalogue's DGBB tables and is not derivable from bore/OD/width -- it
- * needs ball diameter and ball count, which we don't have (see docs
- * section 8). calcP throws rather than guessing a default the moment
- * Fa>0 without an explicit f0. Do not add a default f0 to work around
- * that error -- see the docs note for why.
+ * branch (Fa>0) needs f0. f0 is not in this project's data: it was not
+ * in the catalogue PDF tables we extracted from (other sources do carry
+ * it, e.g. FAG's catalogue prints it), and it is not derivable from
+ * bore/OD/width -- it needs ball diameter and ball count, which we don't
+ * have (see docs section 8). calcP throws rather than guessing a default
+ * the moment Fa>0 without an explicit f0. Do not add a default f0 to work
+ * around that error -- see the docs note for why.
  */
 
 (function (root, factory) {
@@ -87,8 +88,8 @@
    * @param {number} p.Fa - actual axial load [kN], 0 if none
    * @param {number} p.C0 - basic static load rating [kN] (c0r)
    * @param {number} [p.f0] - calculation factor. REQUIRED only if Fa>0.
-   *   Not present in this catalogue's DGBB product tables (see docs
-   *   section 8) -- the caller must supply it from elsewhere. If Fa=0,
+   *   Not in this project's data (see docs section 8) -- the caller must
+   *   supply it from elsewhere. If Fa=0,
    *   f0 is never consulted (Fa/Fr=0 <= e always holds, whatever e is).
    * @param {'Normal'|'C3'|'C4'} [p.clearance='Normal']
    * @param {'single'|'tandem'|'paired'} [p.arrangement='single'] -
@@ -110,8 +111,8 @@
     if (C0 == null || C0 <= 0) throw new Error('calcP: C0 (basic static load rating) required when Fa>0');
     if (f0 == null) {
       throw new Error(
-        'calcP: f0 is required when Fa>0, but is not present in this catalogue\'s ' +
-        'DGBB product tables (docs/bearing-calculations.md section 8) -- supply it explicitly.'
+        'calcP: f0 is required when Fa>0, but the bearing data carries no f0, so ' +
+        'combined loading is not offered (docs/bearing-calculations.md section 8) -- supply it explicitly.'
       );
     }
     const key = f0 * Fa / C0;
@@ -148,7 +149,7 @@
    * @param {number} p.P - equivalent dynamic bearing load [kN] (calcP)
    * @param {number} [p.p=3] - life exponent, 3 for ball bearings (DGBB)
    * @param {number} [p.a1=1] - reliability life adjustment factor (Table 3)
-   * @param {number} [p.a_SKF=1] - life modification factor (chart-only, see above)
+   * @param {number} [p.a_SKF=1] - life modification factor (not computed here, see above)
    * @returns {{L10:number, value:number, a1:number, a_SKF:number, label:string}}
    */
   function calcL10({ C, P, p = 3, a1 = 1, a_SKF = 1 }) {
@@ -212,9 +213,9 @@
   /**
    * Minimum radial load check. Uses the precise DGBB formula
    * (Frm = kr.(v.n/1000)^(2/3).(dm/100)^2) only if kr is supplied --
-   * kr is NOT present in this catalogue's DGBB product tables (see
-   * docs section 6a), so the default is the general 0.01*C guideline,
-   * which IS computable from data this catalogue provides.
+   * kr is not in this project's data (see docs section 6a), so the default
+   * is the general 0.01*C guideline, which IS computable from the data we
+   * do have. That is a limit of our data, not a statement about what SKF publishes.
    *
    * @param {object} p
    * @param {number} p.Fr - actual radial load on the bearing [kN]
@@ -222,7 +223,7 @@
    * @param {number} [p.dm] - bearing mean diameter [mm] = 0.5(bore+od); required for the precise formula
    * @param {number} [p.n] - rotational speed [r/min]; required for the precise formula
    * @param {number} [p.viscosity] - actual operating oil viscosity [mm^2/s]; required for the precise formula
-   * @param {number} [p.kr] - minimum load factor; not extractable from this catalogue for DGBB, must be supplied explicitly
+   * @param {number} [p.kr] - minimum load factor; not in this project's data, must be supplied explicitly
    * @returns {{Frm:number, method:string, pass:boolean}}
    */
   function checkMinLoad({ Fr, Cr, dm = null, n = null, viscosity = null, kr = null }) {
@@ -234,7 +235,7 @@
     } else {
       if (!(Cr > 0)) throw new Error('checkMinLoad: Cr required and > 0 for the guideline fallback');
       Frm = 0.01 * Cr;
-      method = 'guideline fallback: Frm = 0.01*Cr (p.106; kr/viscosity not supplied or not available for DGBB from this catalogue, see docs section 6a)';
+      method = 'guideline fallback: Frm = 0.01*Cr (p.106; kr and viscosity not supplied, so the precise method is not used, see docs section 6a)';
     }
     return { Frm, method, pass: Fr >= Frm };
   }
@@ -400,7 +401,7 @@
    * @param {number} p.Fr - radial load [kN]
    * @param {number} p.n - operating speed [r/min]
    * @param {number} [p.Fa=0] - axial load [kN]; anything > 0 needs f0
-   * @param {number} [p.f0] - calculation factor; not in this catalogue
+   * @param {number} [p.f0] - calculation factor; not in this project's data
    * @returns {{bearing:object, Fr:number, n:number, P:object, life:object,
    *   minLoad:object, speed:object, CoverP:number}}
    */
@@ -412,8 +413,8 @@
 
     const P = calcP({ Fr, Fa, C0: bg.C0, f0 });
     const life = calcL10h({ C: bg.Cr, P: P.P, n, p: LIFE_EXPONENT.ball });
-    // kr and the operating viscosity are not available for DGBB from this
-    // catalogue, so checkMinLoad takes its 0.01*Cr guideline branch. dm and n
+    // kr is not in our data and the operating viscosity is an application
+    // input, so checkMinLoad takes its 0.01*Cr guideline branch. dm and n
     // are passed for the display only; without kr they are not consulted.
     const minLoad = checkMinLoad({ Fr, Cr: bg.Cr, dm: bg.dm, n });
     const speed = checkSpeed({ n, speedRef: bg.speedRef, speedLim: bg.speedLim });

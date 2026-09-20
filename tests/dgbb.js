@@ -85,6 +85,18 @@ ok(refused, 'Fa > 0 without f0 still throws the f0 explanation');
 const r = C.evaluate({ bearing: M.DB_MAP['NTN-6303'], Fr: 2, n: 1000 });
 ok(r.life.label === 'basic rating life (L10h)', 'life is labelled basic rating life (a_SKF not exposed)');
 
+// ── 6. wording guard: never say a manufacturer does not publish f0 / kr ────
+// That was written once, and was false (SKF's product pages list both; it is
+// only the catalogue PDF tables we extracted from that do not). Say "not in
+// our data" or "not in the catalogue PDF" instead.
+const fs = require('fs');
+const scan = ['CLAUDE.md', 'js/dgbb_calc.js', 'js/renderer.js', 'data/dgbb_tables.js']
+  .concat(fs.readdirSync(path.join(ROOT, 'docs')).filter(f => f.endsWith('.md')).map(f => 'docs/' + f));
+const claim = /(SKF|FAG|NTN|manufacturer|the maker)s?\s+(does not|doesn't|do not|never)\s+(print|publish|list)|\b(f0|kr)\b[^.\n]{0,60}\b(never published|not published|unpublished)/i;
+const offenders = scan.filter(f => claim.test(fs.readFileSync(path.join(ROOT, f), 'utf8')));
+ok(offenders.length === 0, 'no source file or doc claims a manufacturer does not publish f0 / kr' +
+   (offenders.length ? ' (' + offenders.join(', ') + ')' : ''));
+
 console.log(`\n${complete.filter(b => C.supports(b)).length} of ${dg.length} DGBB rows calculable; ${rejected.length} rejected on speed, ${fam3.length} as mistyped 32xx/33xx, ${fam7.length} as mistyped 7x`);
 console.log(failures ? failures + ' FAILED' : 'all passed');
 process.exit(failures ? 1 : 0);

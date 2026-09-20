@@ -76,10 +76,13 @@ calculator.
 `node tests/dgbb.js` pins the gate.
 
 Deliberate refusals, carried over from the source project: combined loading
-(Fa > 0) needs the factor f0, which this catalogue does not print for DGBB
-and which cannot be derived from the dimensions, so `calcP` throws rather
-than assuming one — do not add a default f0. `a_SKF` is chart-only, so it is
-never computed or exposed and results are labelled *basic* rating life.
+(Fa > 0) needs the factor f0. The database does not carry it (the catalogue
+PDF tables we extracted from do not list it; other sources do, see
+`bearing_calc` docs §9a), and it cannot be derived from the dimensions, so
+`calcP` throws rather than assuming one — do not add a default f0. Do not
+describe this as the manufacturer not publishing f0 or kr: it is a limit of
+our data. The minimum-load check uses the 0.01·Cr guideline for the same
+reason (no kr in the data). `a_SKF` is not calculated or exposed, so results are labelled *basic* rating life.
 Formulas are unchanged from `bearing_calc`; keep them that way so the two
 copies cannot drift.
 
