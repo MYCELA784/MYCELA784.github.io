@@ -24,6 +24,7 @@ not corrected.
 | Q6 | 22 duplicate-id rows (11 ids × 2) | all rows deleted (corrupt table region scraped twice) |
 | Q7 | 11 SKF `618xx/619xx MA` rows | `cr` + `c0r` lbf column → N (**corrected** from the SKF catalogue PDF) |
 | Q8 | 139 FAG DGBB rows | `bore` unstuck from a frozen 75 → derived from the designation (**corrected**) |
+| Q9 | 29 DGBB rows (28 NTN, 1 SKF) | `rpm` implausible for the size; **not changed**, candidates for re-sourcing; calculator gated off |
 
 Record count: 3715 extracted → **3706** after Q3 → **3684** after Q6.
 After `js/db.js`'s load-time sanity filter drops 18 malformed rows, the
@@ -346,3 +347,89 @@ The extractor bug itself is fixed separately in
 `D:\IDEA 101\Data Base Building\Bearings\extract_fag.py` so a future
 run does not reproduce the freeze — see that folder's
 `docs/pipeline-archaeology.md`.
+
+---
+
+## Q9 — implausible limiting speed on 29 DGBB rows  (candidates, **no changeset**)
+
+Unlike Q1–Q8 nothing in `bearings_db.js` is edited for this one. It is
+logged so the rows get re-sourced; the only action taken is that the modal
+load calculator will not run on them (`DGBBCalc.supports()`, floor
+`MIN_N_DM = 275 000` in `js/dgbb_calc.js`, derivation in the comment
+there and reproduced by `tests/dgbb.js`).
+
+**What was found.** 29 `Deep Groove Ball` rows have a stored `rpm` (the
+limiting speed) that cannot be one. The size-independent test is the
+speed factor n·dm (`rpm × 0.5·(bore+od)`): across the 784 DGBB rows that
+carry every field the calculator needs, the median is 636 500 and the
+lower quartile 519 625. These 29 sit between 6 000 and 261 000; the next
+row up is 313 600. NTN-6201 is the type case, stored at 620 rpm on a
+12 mm bore where the real limit is near 24 000.
+
+**Pattern.** 18 of the 29 carry an `rpm` equal, to within 3% and mostly
+to the digit, to `cr` converted from kN to kgf (× 101.97): NTN-6201
+`cr` 6.1 kN = 622 kgf, stored rpm 620; NTN-6301 9.7 kN = 989 kgf, stored
+990; NTN-6202 7.75 kN = 790 kgf, stored 790. That looks like the
+extractor reading the kgf load column into the speed field. It is a
+hypothesis about the cause, **not** a correction: the true limiting
+speeds still have to come from the NTN catalogue. Control: only 6 of the
+other 755 eligible rows match `rpm ≈ cr` in kgf, and those are 45–105 mm
+bearings with an ordinary four-figure limiting speed (SKF-6018 6 300,
+FAG-6213 6 300 and so on): coincidence, not the same fault.
+
+The other 11 do not fit the kgf pattern: NTN-6013 / 6014 / 6015 / 6016
+(65–80 mm bore, 570–900 rpm against `cr` 30–47 kN), NTN-16030 / 16032 /
+6848 / 6852 (150–260 mm bore, 600–900 rpm), NTN-6701 / 6702 (12–15 mm,
+7 600–9 500 rpm) and SKF-3200_A.
+
+**Where they are.** 28 of 29 are NTN and 26 of those are in the first
+110 rows of the file (22 at indices 2–74, 4 at 100–109), where 103 NTN DGBB rows
+carry an `rpm`, so roughly a quarter of that head section. Not a single
+contiguous block: also two rows at indices 844–845 (NTN-6701 / 6702) and
+SKF-3200_A at index 1327.
+
+| id | pn | bore×od | stored rpm | n·dm | cr [kN] | rpm ≈ cr in kgf |
+|---|---|---|---|---|---|---|
+| SKF-3200_A | 3200 A | 10×30 | 300 | 6,000 | 0.007 | no |
+| NTN-6002 | 6002 | 15×32 | 570 | 13,395 | 5.6 | yes |
+| NTN-6201 | 6201 | 12×32 | 620 | 13,640 | 6.1 | yes |
+| NTN-16003 | 16003 | 17×35 | 695 | 18,070 | 6.8 | yes |
+| NTN-6003 | 6003 | 17×35 | 695 | 18,070 | 6.8 | yes |
+| NTN-6904 | 6904 | 20×37 | 650 | 18,525 | 6.4 | yes |
+| NTN-6202 | 6202 | 15×35 | 790 | 19,750 | 7.75 | yes |
+| NTN-6807 | 6807 | 35×47 | 500 | 20,500 | 4.9 | yes |
+| NTN-6905 | 6905 | 25×42 | 715 | 23,953 | 7.05 | yes |
+| NTN-6301 | 6301 | 12×37 | 990 | 24,255 | 9.7 | yes |
+| NTN-16004 | 16004 | 20×42 | 810 | 25,110 | 7.9 | yes |
+| NTN-6203 | 6203 | 17×40 | 980 | 27,930 | 9.6 | yes |
+| NTN-6809 | 6809 | 45×58 | 550 | 28,325 | 5.35 | yes |
+| NTN-6906 | 6906 | 30×47 | 740 | 28,490 | 7.25 | yes |
+| NTN-6004 | 6004 | 20×42 | 955 | 29,605 | 9.4 | yes |
+| NTN-16005 | 16005 | 25×47 | 855 | 30,780 | 8.35 | yes |
+| NTN-6810 | 6810 | 50×65 | 670 | 38,525 | 6.6 | yes |
+| NTN-6907 | 6907 | 35×55 | 975 | 43,875 | 9.55 | yes |
+| NTN-6013 | 6013 | 65×100 | 570 | 47,025 | 30.5 | no |
+| NTN-6811 | 6811 | 55×72 | 900 | 57,150 | 8.8 | yes |
+| NTN-6015 | 6015 | 75×115 | 700 | 66,500 | 39.5 | no |
+| NTN-6014 | 6014 | 70×110 | 900 | 81,000 | 38 | no |
+| NTN-6016 | 6016 | 80×125 | 850 | 87,125 | 47.5 | no |
+| NTN-16032 | 16032 | 160×240 | 600 | 120,000 | 99 | no |
+| NTN-6702 | 6702 | 15×21 | 7600 | 136,800 | 0.94 | no |
+| NTN-6701 | 6701 | 12×18 | 9500 | 142,500 | 0.93 | no |
+| NTN-16030 | 16030 | 150×225 | 850 | 159,375 | 96.5 | no |
+| NTN-6848 | 6848 | 240×300 | 650 | 175,500 | 85 | no |
+| NTN-6852 | 6852 | 260×320 | 900 | 261,000 | 87 | no |
+
+**Confidence within the 29.** The 23 rows at or below n·dm 87 125 are
+unambiguous. The last six (NTN-16032, 6702, 6701, 16030, 6848, 6852, n·dm
+120 000 to 261 000) are gap-based: they are excluded by the same outlier
+fence as the rest, and every FAG and SKF row sits above 313 600, but the
+data alone cannot say whether those six are wrong or merely low. Excluding
+them errs towards no calculator. To gate only the unambiguous 23, set
+`MIN_N_DM` to 100 000.
+
+**Related, not investigated here.** `SKF-3200_A` also has `cr` 0.007 kN, and
+the 25 calculable SKF rows with a `33xx` designation (`SKF-3308_DNRCBM`, `SKF-3315_A` etc.)
+look like SKF double-row angular-contact designations typed as
+`Deep Groove Ball`. If so they should not offer a deep-groove calculator.
+Worth checking against the catalogue when Q9 is re-sourced.

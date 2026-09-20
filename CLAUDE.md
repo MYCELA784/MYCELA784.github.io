@@ -65,8 +65,11 @@ catalogue tables in `data/dgbb_tables.js`) computes basic rating life L10h,
 the minimum-load check and the speed check for **deep groove ball bearings
 under a radial load only**. `js/renderer.js` renders it as a collapsed
 section under the modal's specs grid, and only when `DGBBCalc.supports(b)`
-is true — i.e. `type === 'Deep Groove Ball'` and `cr`, `c0r`, `bore`, `od`
-and `rpm` are all present. Everything else gets no calculator.
+is true — i.e. `type === 'Deep Groove Ball'`, `cr`, `c0r`, `bore`, `od`
+and `rpm` are all present, and `rpm` is plausible for the size (n·dm at or
+above `MIN_N_DM`, derived in `js/dgbb_calc.js`; 29 rows fail it, logged as
+Q9 in `docs/data-quarantine.md`). Everything else gets no calculator.
+`node tests/dgbb.js` pins the gate.
 
 Deliberate refusals, carried over from the source project: combined loading
 (Fa > 0) needs the factor f0, which this catalogue does not print for DGBB

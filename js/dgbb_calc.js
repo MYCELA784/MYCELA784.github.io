@@ -274,9 +274,38 @@
 
   // Fields a radial-only DGBB calculation cannot proceed without. bearings_db.js
   // carries nulls for load ratings and speeds it could not verify, so this is
-  // a real gate, not a formality: 148 of the 932 Deep Groove Ball rows fail it
-  // and get no calculator.
+  // a real gate, not a formality: 148 of the 932 Deep Groove Ball rows fail it.
   const REQUIRED = ['cr', 'c0r', 'bore', 'od', 'rpm'];
+
+  // Plausibility floor on the stored limiting speed, as a speed factor
+  // n * dm  [r/min * mm], dm = 0.5 * (bore + od).
+  //
+  // Why n*dm and not a rpm-per-bore table: limiting speed falls as the
+  // bearing gets bigger, so a fixed rpm floor is wrong at one end or the
+  // other (240 rpm is right for a 1500 mm bore, absurd for a 12 mm one).
+  // n*dm is roughly size-independent for a given lubrication/seal class.
+  //
+  // Where 275 000 comes from: over the 784 rows that pass REQUIRED,
+  // log10(n*dm) has Q1 = 5.716 (519 625), Q3 = 5.853 (712 500), so IQR =
+  // 0.137. The lower Tukey fence at k = 2 is 10^(Q1 - 2*IQR) = 276 375.
+  // The 29 rows below it sit apart: the next row up is 313 600 (a FAG
+  // 4303 in a dense FAG run that carries on to ~400 000), and the
+  // nearest below is 261 000. Any floor inside that 261 000..313 600 gap
+  // rejects the same 29 rows, so 275 000 is the fence rounded down into
+  // the gap, not a tuned value. (k = 1.5 gives 323 629 and would clip the
+  // FAG 4303 row, which is why k = 2.) Quartiles are robust to the 29
+  // themselves, so computing this over the 784 rather than the 755 that
+  // survive does not move it.
+  //
+  // What it catches: rows whose rpm cannot be a limiting speed. 18 of the
+  // 29 carry a value equal, to the digit, to Cr converted to kgf (NTN-6201:
+  // rpm 620, Cr 6.1 kN = 622 kgf), i.e. the extractor read the wrong
+  // column. See docs/data-quarantine.md Q9. What it does NOT catch: a
+  // too-high rpm, or a wrong value that still lands above the floor.
+  //
+  // This is a gate, not a correction. The stored value is left alone; the
+  // row simply gets no calculator until it is re-sourced.
+  const MIN_N_DM = 275000;
 
   function num(v) {
     return (typeof v === 'number' && isFinite(v) && v > 0) ? v : null;
@@ -284,16 +313,19 @@
 
   /**
    * True only for a record this calculator can actually be run on: a deep
-   * groove ball bearing carrying every field the chain consumes. Everything
-   * else (tapered roller, thrust, an unrated or quarantined row) is out of
-   * scope -- the caller must not render the calculator for it.
+   * groove ball bearing carrying every field the chain consumes, with a
+   * limiting speed that is physically plausible for its size (MIN_N_DM).
+   * Everything else (tapered roller, thrust, an unrated or quarantined row,
+   * a row whose stored rpm is evidently another column) is out of scope --
+   * the caller must not render the calculator for it.
    *
    * @param {object} b - a MYCELA.DB_MAP record
    * @returns {boolean}
    */
   function supports(b) {
     if (!b || b.type !== 'Deep Groove Ball') return false;
-    return REQUIRED.every((k) => num(b[k]) != null);
+    if (!REQUIRED.every((k) => num(b[k]) != null)) return false;
+    return b.rpm * 0.5 * (b.bore + b.od) >= MIN_N_DM;
   }
 
   /**
@@ -360,7 +392,7 @@
 
   return {
     calcP, calcL10, calcL10h, calcS0, checkMinLoad, checkSpeed, interpolateRow,
-    supports, fromRecord, evaluate,
+    supports, fromRecord, evaluate, MIN_N_DM,
     A1_TABLE, LIFE_EXPONENT,
   };
 });
