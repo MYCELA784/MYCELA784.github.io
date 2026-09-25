@@ -51,7 +51,7 @@ Order matters. Never reorder these `<script>` tags.
 
 1. **`MYCELA.SearchEngine.fast(q)`** — instant local search. Calls `parse()` to extract structured intent (bore/OD/width in mm, load ratings, type, brand, sealing, application tags, environment notes), then scores every bearing in `MYCELA.DB` using `Scorers.*`. Returns up to `CONFIG.search.maxResults` results, each with `_score`, `_matchType`, `_breakdown`.
 2. **`MYCELA.SearchEngine.fallback(q)`** — if step 1 returns zero results, progressively relaxes constraints through 5 stages (tolerances in `CONFIG.fallback`).
-3. **`MYCELA.AIRefiner.refine(q)`** — async POST to `https://mycela-backend.onrender.com/search` (backend holds the Claude API key). Returns `{ matches: id[], explanation?, tips? }` or `null`. Never blocks the UI; silently no-ops on failure. Timeout from `CONFIG.search.aiTimeoutMs`.
+3. **`MYCELA.AIRefiner.refine(q)`** — async POST to `https://mycela-backend.onrender.com/search` (backend holds the Claude API key). Returns `{ matches: id[], explanation?, tips? }` or `null`. Never blocks the UI; silently no-ops on failure. Timeout from `CONFIG.search.aiTimeoutMs`. Steps 1–2 run on every keystroke; this call (and the zero-result telemetry POST) waits until typing pauses for `CONFIG.search.aiDebounceMs`, a newer query aborts the in-flight request, and a response for a superseded query is dropped. `node tests/search-debounce.js` pins this.
 
 ### Tuning search ranking
 

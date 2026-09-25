@@ -130,17 +130,54 @@
     fetch(ENDPOINT, { method: 'POST', body: JSON.stringify({ type: 'zero_result', query: q, pageUrl: location.href }) }).catch(() => {});
   }
 
+  // ── Backend calls (AI refine + zero-result telemetry) ─────────────────────
+  // Local search renders on every keystroke; the backend only hears about a
+  // query once typing pauses for CONFIG.search.aiDebounceMs. A newer query
+  // cancels the pending timer and any in-flight request, and a response for
+  // anything but the latest query is dropped.
+  let latestQ = null;
+  let aiTimer = null;
+  let aiCtrl  = null;
+
+  function cancelBackend() {
+    clearTimeout(aiTimer);
+    aiTimer = null;
+    if (aiCtrl) { aiCtrl.abort(); aiCtrl = null; }
+    latestQ = null;
+  }
+
+  function scheduleBackend(q, zeroHits) {
+    cancelBackend();
+    latestQ = q;
+    aiTimer = setTimeout(() => {
+      aiTimer = null;
+      if (zeroHits) reportZeroResult(q);
+      const ctrl = aiCtrl = new AbortController();
+      MYCELA.AIRefiner.refine(q, ctrl.signal).then(resp => {
+        if (ctrl !== aiCtrl || q !== latestQ) return;
+        aiCtrl = null;
+        if (!resp) return;
+        if (DEBUG) { console.group('MYCELA ?debug=1 — AI response'); console.log(resp); console.groupEnd(); }
+        const matched = (resp.matches || []).map(id => MYCELA.DB_MAP[id]).filter(Boolean);
+        if (matched.length > 0) {
+          results = matched;
+          renderResults();
+        }
+      }).catch(() => {});
+    }, MYCELA.CONFIG.search.aiDebounceMs);
+  }
+
   async function doSearch(queryOverride, display) {
     const q = (queryOverride != null ? queryOverride : $('q').value).trim();
-    if (!q) { $('results').classList.remove('on'); return; }
+    if (!q) { cancelBackend(); $('results').classList.remove('on'); return; }
 
     fBrands = new Set();
     fSeals  = new Set();
 
     let hits = MYCELA.SearchEngine.fast(q);
     let note = null;
-    if (hits.length === 0) {
-      reportZeroResult(q);
+    const zeroHits = hits.length === 0;
+    if (zeroHits) {
       const fb = MYCELA.SearchEngine.fallback(q);
       hits = fb.results;
       note = fb.note;
@@ -161,15 +198,7 @@
       console.groupEnd();
     }
 
-    MYCELA.AIRefiner.refine(q).then(resp => {
-      if (!resp) return;
-      if (DEBUG) { console.group('MYCELA ?debug=1 — AI response'); console.log(resp); console.groupEnd(); }
-      const matched = (resp.matches || []).map(id => MYCELA.DB_MAP[id]).filter(Boolean);
-      if (matched.length > 0) {
-        results = matched;
-        renderResults();
-      }
-    }).catch(() => {});
+    scheduleBackend(q, zeroHits);
   }
 
   // ── Autocomplete ─────────────────────────────────────────────────────────
@@ -216,6 +245,7 @@
     $('q').addEventListener('keydown', e => { if (e.key === 'Enter' && acIdx < 0) doSearch(); });
     $('clearSearch').addEventListener('click', () => {
       $('q').value = '';
+      cancelBackend();
       $('results').classList.remove('on');
       closeAc();
       scrollTo({ top: 0, behavior: 'smooth' });

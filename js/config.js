@@ -11,6 +11,9 @@
     search: {
       maxResults:  30,
       aiTimeoutMs: 12000,
+      // Typing pause before a query goes to the backend (AI refine and
+      // zero-result telemetry). Local search does not wait for it.
+      aiDebounceMs:  350,
       backendUrl:  'https://mycela-backend.onrender.com/search',
     },
     scoring: {
