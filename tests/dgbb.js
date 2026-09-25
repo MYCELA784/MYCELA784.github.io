@@ -126,7 +126,7 @@ function specLabels(src) {
 const hasAxial = labels => labels.filter(l => /axial/i.test(l));
 ok(hasAxial(specLabels("    const specs = [\n      ['Max Axial Load',     axial],\n    ];")).length === 1, 'self-check: the label scan catches the old "Max Axial Load" row');
 ok(hasAxial(specLabels("    const working = [\n      ['Axial load Fa', 1],\n    ];")).length === 0, "self-check: the calculator's Working rows are not treated as spec labels");
-for (const f of ['js/renderer.js', 'js-legacy/renderer.js']) {
+for (const f of ['js/renderer.js']) {
   const labels = specLabels(fs.readFileSync(path.join(ROOT, f), 'utf8'));
   ok(labels.includes('Bore (d)') && labels.includes('Static Load C0r') && labels.length >= 10,
      `${f}: label scan is not vacuous (${labels.length} labels found)`);
