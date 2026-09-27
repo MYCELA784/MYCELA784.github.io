@@ -4,11 +4,13 @@
  * Search-box backend traffic tests (audit finding B11): local search runs on
  * every keystroke, but the zero-result telemetry only fires once typing
  * pauses for CONFIG.search.aiDebounceMs, and a newer query or clearing the
- * box cancels a pending report.
+ * box cancels a pending report. Each report carries the fallback's stage as
+ * fallbackStage, so the gap log can tell "no such size" from "unparsable".
  *
  * The AI refiner tests (one call per pause, abort on newer input, stale
  * responses dropped) were removed with js/ai-refiner.js on 2026-09-27: the
- * backend only indexed 50 of 1,719 bearings, predated the June rebuild, and
+ * backend only ever saw 50 bearings, its own index had 1,719 rows against the
+ * live catalogue's 3,666, that index predated the June rebuild, and
  * its free-tier cold starts exceeded the 12 s client timeout. The recording
  * fetch still fails the run if anything calls the old backend.
  *
@@ -80,7 +82,11 @@ NS.DB_MAP = { A: NS.DB[0], B: NS.DB[1] };
 const LOCAL = [];        // queries the local engine saw
 NS.SearchEngine = {
   fast: q => { LOCAL.push(q); return q.startsWith('zz') ? [] : [ROW('A')]; },
-  fallback: () => ({ results: [], note: null }),
+  // "zzs…" stands in for a size the fallback relaxes (stage 3), "zz0…" for a
+  // size with nothing near it (stage 0), any other "zz…" for gibberish (null).
+  fallback: q => q.startsWith('zzs') ? { results: [ROW('B')], note: 'near', stage: 3 }
+               : q.startsWith('zz0') ? { results: [], note: null, stage: 0 }
+               : { results: [], note: null, stage: null },
   parse: () => ({}),
 };
 const RENDERED = [];     // ids per Renderer.cards call
@@ -109,6 +115,19 @@ function type(text) { q.value = text; q.fire('input'); }
   eq(zero(), [], 'no zero-result telemetry before the debounce elapses');
   await wait(150);
   eq(zero(), ['zzqx'], 'zero-result telemetry fires once, for the final query only');
+  const last = () => TELEMETRY[TELEMETRY.length - 1];
+  ok('fallbackStage' in last() && last().fallbackStage === null,
+     'nothing parsable: fallbackStage is sent, as null');
+
+  // 2b. the payload tells "no such size" apart from "unparsable"
+  type('zzs12');
+  await wait(DEBOUNCE + 50);
+  eq([last().query, last().fallbackStage], ['zzs12', 3],
+     'fallback supplied results: still reported, with the stage that did');
+  type('zz0999');
+  await wait(DEBOUNCE + 50);
+  eq([last().query, last().fallbackStage], ['zz0999', 0],
+     'a size with nothing within tolerance: fallbackStage 0');
 
   // 3. a query with hits typed during the pause cancels the pending report
   TELEMETRY.length = 0;

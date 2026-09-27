@@ -121,13 +121,17 @@
 
   // ── Zero-result telemetry (deduped per browser session) ────────────────────
   const ZERO_KEY = 'mycela_zero_reported';
-  function reportZeroResult(q) {
+  // fallbackStage tells the gap log what kind of miss this was: 1–4 means the
+  // fallback relaxed a real size or type into results ("no such size"), 0 a
+  // size or type with nothing near it, null nothing parsable to relax from.
+  // See the PUBLIC API note in js/search/fallback.js.
+  function reportZeroResult(q, fallbackStage) {
     let seen = [];
     try { seen = JSON.parse(sessionStorage.getItem(ZERO_KEY)) || []; } catch (e) {}
     if (seen.includes(q)) return;
     seen.push(q);
     try { sessionStorage.setItem(ZERO_KEY, JSON.stringify(seen)); } catch (e) {}
-    fetch(ENDPOINT, { method: 'POST', body: JSON.stringify({ type: 'zero_result', query: q, pageUrl: location.href }) }).catch(() => {});
+    fetch(ENDPOINT, { method: 'POST', body: JSON.stringify({ type: 'zero_result', query: q, fallbackStage, pageUrl: location.href }) }).catch(() => {});
   }
 
   // ── Zero-result telemetry debounce ─────────────────────────────────────────
@@ -142,12 +146,12 @@
     zeroTimer = null;
   }
 
-  function scheduleTelemetry(q, zeroHits) {
+  function scheduleTelemetry(q, zeroHits, fallbackStage) {
     cancelTelemetry();
     if (!zeroHits) return;
     zeroTimer = setTimeout(() => {
       zeroTimer = null;
-      reportZeroResult(q);
+      reportZeroResult(q, fallbackStage);
     }, MYCELA.CONFIG.search.aiDebounceMs);
   }
 
@@ -160,11 +164,13 @@
 
     let hits = MYCELA.SearchEngine.fast(q);
     let note = null;
+    let fbStage = null;
     const zeroHits = hits.length === 0;
     if (zeroHits) {
       const fb = MYCELA.SearchEngine.fallback(q);
       hits = fb.results;
       note = fb.note;
+      fbStage = fb.stage;
     }
 
     results = hits;
@@ -182,7 +188,7 @@
       console.groupEnd();
     }
 
-    scheduleTelemetry(q, zeroHits);
+    scheduleTelemetry(q, zeroHits, fbStage);
   }
 
   // ── Autocomplete ─────────────────────────────────────────────────────────

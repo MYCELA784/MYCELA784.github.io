@@ -112,6 +112,10 @@ function runCase(c, index) {
     const n = SE.fallback(c.query).results.length;
     if (n !== c.fallbackCount) errs.push(`fallbackCount ${c.fallbackCount}: got ${n}`);
   }
+  if ('fallbackStage' in c) {
+    const st = SE.fallback(c.query).stage;
+    if (st !== c.fallbackStage) errs.push(`fallbackStage ${c.fallbackStage}: got ${JSON.stringify(st)}`);
+  }
   if (c.topSealing && (!top || top.sealing !== c.topSealing)) errs.push(`topSealing: expected ${c.topSealing} got ${top ? top.sealing : '(none)'}`);
   if (c.topType && (!top || top.type !== c.topType)) errs.push(`topType: expected ${c.topType} got ${top ? top.type : '(none)'}`);
   if (c.topBoreIn) {

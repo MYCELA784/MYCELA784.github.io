@@ -1,5 +1,9 @@
 /* PUBLIC API (consumed by engine.js)
- *   MYCELA.SearchEngine.fallback(q) → { results: bearing[], note: string }
+ *   MYCELA.SearchEngine.fallback(q) → { results: bearing[], note: string|null, stage }
+ *     stage: 1–4  the stage that supplied the results
+ *            0    the query had a bore or a type, but nothing within tolerance
+ *            null the query had no bore and no type: nothing to relax from
+ *     app.js sends it with the zero-result telemetry as fallbackStage.
  *
  * Progressive relaxation when fast() returns zero results. Needs a bore
  * (stages 1–3) or a bearing type (stage 4); anything else returns no results.
@@ -41,7 +45,7 @@
         .sort((a, b) => Math.abs(a.bore - bore) - Math.abs(b.bore - bore))
         .slice(0, CFG.stage1MaxResults);
       if (s1.length > 0) return {
-        results: s1,
+        results: s1, stage: 1,
         note: `No bearing found with ${bore}mm bore in the OD ${odMin}–${odMax}mm range. Showing closest bore matches; OD range constraint relaxed. Consider these and verify OD fits your housing.`,
       };
     }
@@ -55,7 +59,7 @@
       if (s2.length > 0) {
         const avail = [...new Set(s2.map(b => b.sealing))].join(', ');
         return {
-          results: s2,
+          results: s2, stage: 2,
           note: `No ${sealing.toLowerCase()} bearing found with exact ${bore}mm bore. Available sealings for this size: ${avail}. Consider ordering the Open variant and fitting an external seal, or requesting sealed variants direct from the supplier.`,
         };
       }
@@ -68,7 +72,7 @@
         .sort((a, b) => Math.abs(a.bore - bore) - Math.abs(b.bore - bore))
         .slice(0, CFG.stage3MaxResults);
       if (s3.length > 0) return {
-        results: s3,
+        results: s3, stage: 3,
         note: `Exact specification not found in the current catalog (${DB.length} bearings). Showing available bearings near ${bore}mm bore. For your full requirements, contact a specialized industrial distributor.`,
       };
     }
@@ -77,7 +81,7 @@
     if (hasType) {
       const s4 = DB.filter(b => b.type === type).slice(0, CFG.stage4MaxResults);
       if (s4.length > 0) return {
-        results: s4,
+        results: s4, stage: 4,
         note: `No bearing matched all your specifications. Showing all ${type} bearings in the catalog; check dimensions manually.`,
       };
     }
@@ -87,6 +91,6 @@
     // shows its empty state. A generic "common bearings" stage used to fill
     // this in with the first deep groove rows in the DB, which served none of
     // these queries; removed 2026-09-27.
-    return { results: [], note: null };
+    return { results: [], note: null, stage: (hasBore || hasType) ? 0 : null };
   };
 })(window.MYCELA = window.MYCELA || {});
