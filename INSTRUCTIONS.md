@@ -16,8 +16,7 @@ The structure must be 14 files, not 6. Use this exact tree:
       scoring.js                  ← partNumber(), brand(), bore(), od(), width(), loads(), rpm(), sealing(), applications() — each reads CONFIG.scoring
       fallback.js                 ← progressive relaxation stages
       engine.js                   ← SearchEngine = { parse, fast, fallback, scoreBearing }
-    ai-refiner.js                 ← AIRefiner.refine(query)
-    renderer.js                   ← Renderer.cards(), .modal(), .filterBar(), .aiBox(), .matchBadge()
+    renderer.js                   ← Renderer.cards(), .modal(), .filterBar(), .matchBadge()
     router.js                     ← Router.showPage(name)
     supplier-form.js              ← SupplierForm.submit()
     canvas.js                     ← MyceliumCanvas.init()
@@ -39,7 +38,7 @@ Reasons each split exists, in case the rationale isn't obvious:
   fallback, and engine API are five distinct concerns. Each becomes a 
   short, focused file. This is where the most future tuning happens — it 
   must be the most modular part.
-- Separate ai-refiner, renderer, router, supplier-form, canvas, app: 
+- Separate renderer, router, supplier-form, canvas, app: 
   each handles ONE thing. When I want to change the modal, I open 
   renderer.js. When I want to change page nav, I open router.js. I 
   shouldn't be scrolling through a 400-line app.js to find anything.
@@ -57,7 +56,6 @@ Update index.html script load order accordingly:
   <script src="js/search/scoring.js"></script>
   <script src="js/search/fallback.js"></script>
   <script src="js/search/engine.js"></script>
-  <script src="js/ai-refiner.js"></script>
   <script src="js/renderer.js"></script>
   <script src="js/router.js"></script>
   <script src="js/supplier-form.js"></script>

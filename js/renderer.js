@@ -477,19 +477,6 @@
     if (cmpEl) cmpEl.classList.remove('open');
     if (detailEl) detailEl.style.display = '';
   };
-  ns.Renderer.aiBox = function (text, tips) {
-    const box = document.getElementById('ai-box');
-    if (!box) return;
-    const txtEl = document.getElementById('ai-box-text');
-    if (txtEl) txtEl.textContent = text || '';
-    const tipsEl = document.getElementById('ai-tips-row');
-    if (tipsEl && tips && tips.length) {
-      tipsEl.innerHTML = tips.map(t =>
-        `<button class="ai-tip" onclick="quickSearch('${String(t).replace(/'/g, "\\'")}')">${t}</button>`
-      ).join('');
-    }
-    box.style.display = text ? '' : 'none';
-  };
   ns.Renderer.filterBar = function (show) {
     const bar = document.getElementById('filter-bar');
     if (bar) bar.style.display = show ? '' : 'none';
