@@ -10,10 +10,13 @@
   ns.CONFIG = {
     search: {
       maxResults:  30,
+      // UNUSED since 2026-09-27: the AI refiner (js/ai-refiner.js) that read
+      // aiTimeoutMs and backendUrl was removed. Kept for reference only.
       aiTimeoutMs: 12000,
-      // Typing pause before a query goes to the backend (AI refine and
-      // zero-result telemetry). Local search does not wait for it.
+      // Typing pause before a zero-result query is sent to the telemetry
+      // endpoint. Local search does not wait for it.
       aiDebounceMs:  350,
+      // UNUSED since 2026-09-27 (see aiTimeoutMs).
       backendUrl:  'https://mycela-backend.onrender.com/search',
     },
     scoring: {

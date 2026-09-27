@@ -2,15 +2,20 @@
 'use strict';
 /*
  * Search-box backend traffic tests (audit finding B11): local search runs on
- * every keystroke, but the AI refiner and the zero-result telemetry only fire
- * once typing pauses for CONFIG.search.aiDebounceMs. A newer query aborts the
- * in-flight request, and a response for a superseded query is never rendered.
+ * every keystroke, but the zero-result telemetry only fires once typing
+ * pauses for CONFIG.search.aiDebounceMs, and a newer query or clearing the
+ * box cancels a pending report.
+ *
+ * The AI refiner tests (one call per pause, abort on newer input, stale
+ * responses dropped) were removed with js/ai-refiner.js on 2026-09-27: the
+ * backend only indexed 50 of 1,719 bearings, predated the June rebuild, and
+ * its free-tier cold starts exceeded the 12 s client timeout. The recording
+ * fetch still fails the run if anything calls the old backend.
  *
  *   node tests/search-debounce.js
  *
- * Loads the real js/config.js, js/ai-refiner.js and js/app.js against a
- * minimal DOM shim, a stub search engine and a recording fetch. Exits
- * non-zero on any failure.
+ * Loads the real js/config.js and js/app.js against a minimal DOM shim, a
+ * stub search engine and a recording fetch. Exits non-zero on any failure.
  */
 const path = require('path');
 const ROOT = path.join(__dirname, '..');
@@ -54,27 +59,17 @@ global.sessionStorage = (() => { const s = {}; return { getItem: k => (k in s ? 
 global.window = global;
 global.MYCELA = {};
 
-// ── recording fetch: backend calls stay pending until the test settles them
-const BACKEND = [];      // { query, signal, resolve }
+// ── recording fetch ──────────────────────────────────────────────────────
+const BACKEND = [];      // URLs of any call to the removed AI backend
 const TELEMETRY = [];    // parsed bodies sent to the Apps Script endpoint
-let ignoreAbort = false; // true: a request keeps going after abort (a response that raced it)
 global.fetch = (url, opts) => {
-  const body = JSON.parse(opts.body);
-  if (/onrender\.com/.test(url)) {
-    return new Promise((resolve, reject) => {
-      const call = { query: body.query, signal: opts.signal, aborted: false,
-        resolve: matches => resolve({ ok: true, json: async () => ({ matches }) }) };
-      opts.signal.addEventListener('abort', () => { call.aborted = true; if (!ignoreAbort) reject(new Error('aborted')); });
-      BACKEND.push(call);
-    });
-  }
-  TELEMETRY.push(body);
+  if (/onrender\.com/.test(url)) BACKEND.push(url);
+  else TELEMETRY.push(JSON.parse(opts.body));
   return Promise.resolve({ ok: true, json: async () => ({ ok: true }) });
 };
 
 // ── stub modules app.js depends on ───────────────────────────────────────
 require(path.join(ROOT, 'js', 'config.js'));
-require(path.join(ROOT, 'js', 'ai-refiner.js'));
 const NS = global.MYCELA;
 const DEBOUNCE = NS.CONFIG.search.aiDebounceMs;
 eq(DEBOUNCE, 350, 'CONFIG.search.aiDebounceMs is 350');
@@ -98,58 +93,41 @@ const q = els.q;
 function type(text) { q.value = text; q.fire('input'); }
 
 (async () => {
-  // 1. typing a part number: local search per keystroke, one backend call
+  const zero = () => TELEMETRY.filter(t => t.type === 'zero_result').map(t => t.query);
+
+  // 1. local search runs per keystroke; no refiner is loaded
+  ok(!NS.AIRefiner, 'MYCELA.AIRefiner is not defined');
   type('6'); type('62'); type('620'); type('6205');
   eq(LOCAL.slice(-4), ['6', '62', '620', '6205'], 'local search runs on every keystroke');
-  eq(BACKEND.length, 0, 'no backend call while typing');
-  await wait(DEBOUNCE - 100);
-  eq(BACKEND.length, 0, 'no backend call before the debounce elapses');
-  await wait(150);
-  eq(BACKEND.map(c => c.query), ['6205'], 'one backend call, for the final query only');
-
-  // 2. a newer query aborts the in-flight request
-  type('6206');
-  ok(BACKEND[0].aborted, 'new input aborts the in-flight request for "6205"');
   await wait(DEBOUNCE + 50);
-  eq(BACKEND.map(c => c.query), ['6205', '6206'], 'the newer query goes out after its own debounce');
-  const before = RENDERED.length;
-  BACKEND[1].resolve(['B']);
-  await wait(10);
-  eq(RENDERED.slice(before), [['B']], 'the current query\'s AI matches are rendered');
+  eq(zero(), [], 'a query with hits sends no zero-result telemetry');
 
-  // 3. a response for a superseded query that arrives anyway is dropped
-  ignoreAbort = true;
-  type('6207');
-  await wait(DEBOUNCE + 50);
-  const stale = BACKEND[2];
-  eq(stale.query, '6207', 'request for "6207" in flight');
-  type('6208');
-  const mark = RENDERED.length;       // 6208's local render already happened
-  stale.resolve(['B']);
-  await wait(10);
-  eq(RENDERED.length, mark, 'a response for a superseded query never renders');
-  ignoreAbort = false;
-
-  // 4. zero-result telemetry: once, for the final query, after the pause
-  await wait(DEBOUNCE + 50);
-  TELEMETRY.length = 0;
+  // 2. zero-result telemetry: once, for the final query, after the pause
   type('zz'); type('zzq'); type('zzqx');
-  eq(TELEMETRY.length, 0, 'no zero-result telemetry while typing');
-  await wait(DEBOUNCE + 50);
-  eq(TELEMETRY.filter(t => t.type === 'zero_result').map(t => t.query), ['zzqx'],
-     'zero-result telemetry fires once, for the final query only');
+  eq(zero(), [], 'no zero-result telemetry while typing');
+  await wait(DEBOUNCE - 100);
+  eq(zero(), [], 'no zero-result telemetry before the debounce elapses');
+  await wait(150);
+  eq(zero(), ['zzqx'], 'zero-result telemetry fires once, for the final query only');
 
-  // 5. clearing the box cancels a pending call
-  const n = BACKEND.length;
-  type('6210');
+  // 3. a query with hits typed during the pause cancels the pending report
+  TELEMETRY.length = 0;
+  type('zzy'); type('6206');
+  await wait(DEBOUNCE + 50);
+  eq(zero(), [], 'a newer query with hits cancels the pending zero-result report');
+
+  // 4. clearing the box cancels a pending report
+  type('zzw');
   els.clearSearch.fire('click');
   await wait(DEBOUNCE + 50);
-  eq(BACKEND.length, n, 'clear button cancels the pending backend call');
+  eq(zero(), [], 'clear button cancels the pending zero-result report');
 
-  // 6. emptying the input by typing cancels a pending call too
-  type('6211'); type('');
+  // 5. emptying the input by typing cancels a pending report too
+  type('zzv'); type('');
   await wait(DEBOUNCE + 50);
-  eq(BACKEND.length, n, 'deleting the query cancels the pending backend call');
+  eq(zero(), [], 'deleting the query cancels the pending zero-result report');
+
+  eq(BACKEND, [], 'nothing calls the removed AI backend');
 
   console.log(failures ? `\n${failures} failure(s)` : '\nall passed');
   process.exit(failures ? 1 : 0);
