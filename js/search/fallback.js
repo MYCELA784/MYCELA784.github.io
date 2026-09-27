@@ -1,7 +1,8 @@
 /* PUBLIC API (consumed by engine.js)
  *   MYCELA.SearchEngine.fallback(q) → { results: bearing[], note: string }
  *
- * Progressive relaxation when fast() returns zero results.
+ * Progressive relaxation when fast() returns zero results. Needs a bore
+ * (stages 1–3) or a bearing type (stage 4); anything else returns no results.
  * Stage tolerances read from MYCELA.CONFIG.fallback.
  */
 (function (ns) {
@@ -81,10 +82,11 @@
       };
     }
 
-    // Stage 5 — common DGBB fallback
-    return {
-      results: DB.filter(b => b.type === 'Deep Groove Ball').slice(0, CFG.stage5MaxResults),
-      note: `No match found for your query in the current catalog. This may be a specialized bearing not yet indexed. Showing common bearing types for reference. Try contacting the manufacturer directly with your specifications.`,
-    };
+    // Nothing to relax from: no bore and no type (gibberish, a bare brand,
+    // an application word, an unknown designation). Return nothing so the UI
+    // shows its empty state. A generic "common bearings" stage used to fill
+    // this in with the first deep groove rows in the DB, which served none of
+    // these queries; removed 2026-09-27.
+    return { results: [], note: null };
   };
 })(window.MYCELA = window.MYCELA || {});

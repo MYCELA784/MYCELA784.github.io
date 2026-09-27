@@ -152,6 +152,12 @@
   { "query": "NU205", "topN": 40, "allDesignation": true, "countAtMost": 4,
     "top": "NTN-NU205E",
     "note": "audit D: one brand carries NU205 — return it and stop, do not pad with NU2205 / 6205" },
-  { "query": "fag", "topN": 40, "countAtMost": 0,
-    "note": "audit D: a bare brand qualifies nothing — fast() returns empty, app.js hands off to fallback" }
+  { "query": "fag", "topN": 40, "countAtMost": 0, "fallbackCount": 0,
+    "note": "audit D: a bare brand qualifies nothing — fast() returns empty, and the fallback has no bore or type to relax from, so the empty state shows (not 6 unrelated NTN rows, as the removed stage 5 did)" },
+  { "query": "]';l,mngf", "topN": 40, "countAtMost": 0, "fallbackCount": 0,
+    "note": "gibberish: no parsable intent → empty state, not relaxed matches" },
+  { "query": "pump", "topN": 40, "countAtMost": 0, "fallbackCount": 0,
+    "note": "an application word alone gives the fallback nothing to relax from → empty state" },
+  { "query": "bore 12 od 90", "topN": 40, "countAtMost": 0, "fallbackCount": 8,
+    "note": "a real size with no exact match still gets relaxed matches (stage 1)" }
 ]

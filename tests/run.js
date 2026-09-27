@@ -108,6 +108,10 @@ function runCase(c, index) {
   if (typeof c.countAtMost === 'number' && ids.length > c.countAtMost) {
     errs.push(`countAtMost ${c.countAtMost}: got ${ids.length} (${ids})`);
   }
+  if (typeof c.fallbackCount === 'number') {
+    const n = SE.fallback(c.query).results.length;
+    if (n !== c.fallbackCount) errs.push(`fallbackCount ${c.fallbackCount}: got ${n}`);
+  }
   if (c.topSealing && (!top || top.sealing !== c.topSealing)) errs.push(`topSealing: expected ${c.topSealing} got ${top ? top.sealing : '(none)'}`);
   if (c.topType && (!top || top.type !== c.topType)) errs.push(`topType: expected ${c.topType} got ${top ? top.type : '(none)'}`);
   if (c.topBoreIn) {

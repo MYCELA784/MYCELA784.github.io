@@ -49,7 +49,7 @@ Order matters. Never reorder these `<script>` tags.
 ### Search pipeline (`js/app.js` → `doSearch()`)
 
 1. **`MYCELA.SearchEngine.fast(q)`** — instant local search. Calls `parse()` to extract structured intent (bore/OD/width in mm, load ratings, type, brand, sealing, application tags, environment notes), then scores every bearing in `MYCELA.DB` using `Scorers.*`. Returns up to `CONFIG.search.maxResults` results, each with `_score`, `_matchType`, `_breakdown`.
-2. **`MYCELA.SearchEngine.fallback(q)`** — if step 1 returns zero results, progressively relaxes constraints through 5 stages (tolerances in `CONFIG.fallback`).
+2. **`MYCELA.SearchEngine.fallback(q)`** — if step 1 returns zero results, progressively relaxes constraints through 4 stages (tolerances in `CONFIG.fallback`). It needs a bore (stages 1–3) or a bearing type (stage 4) to relax from; any other query (gibberish, a bare brand, an application word, an unknown designation) gets no results and the empty state. The old stage 5, which filled that case with the first 6 deep groove rows in the DB, was removed 2026-09-27.
 
 Zero-result queries are also POSTed to the telemetry endpoint, but only once typing pauses for `CONFIG.search.aiDebounceMs`; a newer query or clearing the box cancels the pending report. `node tests/search-debounce.js` pins this.
 

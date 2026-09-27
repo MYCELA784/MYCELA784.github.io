@@ -66,7 +66,6 @@
       stage2MaxResults: 8,
       stage3MaxResults: 8,
       stage4MaxResults: 8,
-      stage5MaxResults: 6,
     },
   };
 })(window.MYCELA = window.MYCELA || {});
