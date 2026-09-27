@@ -30,10 +30,14 @@ not corrected.
 | Q10 | "Max Axial Load" spec on 3,605 rows | display-time guideline presented as a per-bearing rating; **removed** from both renderers (no data edited) |
 | Q11 | 297 FAG single row DGBB rows | new field `f0` **added** (FAG's calculation factor, from FAG's own catalogue); enables combined loading for those rows |
 | Q12 | NTN `f0` | **candidate, not built**: NTN prints it, but the same row region produced the Q9 corruption |
+| Q13 | 12 NTN rows with impossible dimensions | all rows deleted (5 contradicted by SKF/FAG for the same designation, 7 impossible by shape) |
+| Q14 | `FAG-80750` | `c0r` 0.005 kN with no `cr`; **logged, not changed** |
+| Q15 | `NTN-32217U` | `cr` 36 kN against SKF 32217's 263; **logged, not changed** |
 
-Record count: 3715 extracted → **3706** after Q3 → **3684** after Q6.
-After `js/db.js`'s load-time sanity filter drops 18 malformed rows, the
-live searchable catalogue is **3666** and every `id` is now unique.
+Record count: 3715 extracted → **3706** after Q3 → **3684** after Q6 →
+**3672** after Q13. After `js/db.js`'s load-time sanity filter drops 18
+malformed rows, the live searchable catalogue is **3654** (3666 before
+Q13) and every `id` is unique.
 
 ---
 
@@ -528,7 +532,7 @@ The extractor's CSV (`0901d196807026e8_pdf_preview_medium_skf_bearings.csv`)
 also types all 38 `Angular Contact Ball`, so, as in Q9b, the wrong type came
 in from the site's previous `bearings_db.js`. These 38 plus the 26 in Q9b are
 exactly the 64 rows where the CSV type and the DB type disagree, apart from
-`NTN-6200` (below).
+`NTN-6200` (below; deleted in Q13).
 
 **Why this one is worse than Q9b.** The calculator supports `Fa = 0` only and
 returns `P = Fr`. That is defensible for a double-row angular contact bearing
@@ -546,8 +550,8 @@ groove ball bearings, double row" (FAG HR 1, PDF p.282), and the calculator's
 `622xx-2RSR` is on a "single row" deep groove page (HR 1, PDF p.240);
 `60/…`, `62/…`, `63/…`, `618/…`, `619/…` slash-coded sizes are ordinary deep
 groove. `NTN-6200` is typed `Deep Groove Ball` by the DB but `Tapered Roller`
-by the CSV (its 77.788 mm OD is an inch size); it is already excluded from
-the calculator because its `rpm` is null.
+by the CSV (its 77.788 mm OD is an inch size); it was excluded from
+the calculator because its `rpm` was null, and the row is now deleted (Q13).
 
 | id | pn | bore×od×w | cr [kN] | printed page |
 |---|---|---|---|---|
@@ -719,3 +723,97 @@ extracted from that region until Q9 is understood and the NTN row layout is
 verified. Before this could be built: fix or explain Q9; verify NTN's own e/X/Y
 table (not checked; it must not be mixed with SKF's or FAG's); then extract and
 verify as for Q11. Scope if built: NTN's 83 calculator-eligible rows.
+
+---
+
+## Q13 — NTN rows with impossible dimensions  (`scripts/data-fixes/13-ntn-implausible-dimensions.json`)
+
+Found in live testing: `NTN-6200` showed 10 × 77.788 × 19.842 mm, the same
+inch contamination as Q6 Block A. **12 rows deleted (3684 → 3672 raw; live
+3666 → 3654).** Same approach as Q6: deletion, not correction, because
+no value in these rows can be trusted. None of the 12 was referenced
+by another row's `alt`, and all 12 were live (the `js/db.js` sanity filter
+passed them).
+
+**Why `NTN-6200` survived Q6.** Q6 was found by looking for *duplicate ids*:
+Block A's rows had been scraped twice. `NTN-6200` appears once and "6200" is a
+valid designation, so that check never saw it. Nothing in the pipeline tested
+dimensions for plausibility. The Block A pattern described in Q6 ("no
+`source` field") does not help either: no NTN row has a `source` field (0 of
+860).
+
+**How the 12 were found.** Three scans over `bearings_db.js`:
+
+1. *Inch-fraction dimensions*: non-integer mm values that are a multiple of
+   1/64″. 20 rows, but 19 are genuine metric catalogue values that happen to
+   be inch fractions (tapered roller widths 18.25, 38.5, 63.5; 33xx widths
+   25.4). Only `NTN-6200` is contaminated. This scan alone is not a usable
+   detector.
+2. *Same designation at another brand*: each of the 189 NTN rows whose `pn`
+   also exists at SKF or FAG was compared on bore/OD/width (±0.6 mm).
+   5 mismatches.
+3. *Shape*: OD more than 4× the bore, and the Block A pattern (bore 10, a bare
+   round number as `pn`).
+
+**Certain: contradicted by SKF/FAG for the same designation (5).**
+
+| id | ours d×D×B (mm) | reference | what went wrong |
+|---|---|---|---|
+| NTN-6200 | 10 × 77.788 × 19.842 | SKF-6200, FAG-6200-C: 10 × 30 × 9 | OD = 3 1/16″, B = 25/32″; `cr` 57.5 kN (SKF: 5.4), `speed_ref` 4600. The whole row comes from an inch-series tapered table: the extractor's CSV types it `Tapered Roller` (see Q9c). |
+| NTN-2310 | 45 × 50 × 9 | SKF-2310: 50 × 110 × 40 | columns shifted: our OD is the real bore, and our bore is 5 mm short |
+| NTN-2311 | 50 × 54 × 10 | SKF-2311: 55 × 120 × 43 | same shift |
+| NTN-2312 | 55 × 58 × 11 | SKF-2312: 60 × 130 × 46 | same shift |
+| NTN-3068 | 340 × 430 × 404 | SKF-3068: 340 × 520 × 133 | width is 0.94 × OD and equals `cr` (404); `c0r` 28 kN on a 340 mm bore |
+
+**Shape-suspect: no cross-reference, impossible on their face (7).**
+Recorded with the reasoning so they can be re-sourced if the designations
+turn out to be real.
+
+| id | pn / type | ours d×D×B (mm) | reasoning |
+|---|---|---|---|
+| NTN-1310 | 1310 Self-Aligning Ball | 50 × 280 × 100 | a 1310 is 50 × 110 × 27; an OD of 5.6× the bore is not a self-aligning ball bearing; `cr`/`c0r` null |
+| NTN-1410 | 1410 Spherical Roller | 50 × 280 × 109 | same 50 × 280 pair as NTN-1310; OD 5.6× bore; `cr`/`c0r` null; "1410" is not a spherical roller designation |
+| NTN-1030 | 1030 Spherical Roller | 150 × 870 × 50 | an OD of 5.8× the bore at 50 mm wide is not a rolling bearing; `cr` 74 kN is far too low for an 870 mm OD |
+| NTN-17000 | 17000 Cylindrical Roller | 10 × 47 × 16 | Block A pattern: bore 10, a bare round `pn` that is not an NTN cylindrical roller designation (NTN uses NU/NJ/NUP/N… prefixes) |
+| NTN-15000 | 15000 Cylindrical Roller | 10 × 55 × 19 | same pattern |
+| NTN-9400 | 9400 Cylindrical Roller | 10 × 80 × 23 | same pattern; OD 8× bore |
+| NTN-8600 | 8600 Cylindrical Roller | 10 × 90 × 26 | same pattern; OD 9× bore |
+
+The four bore-10 cylindrical rows have integer, metric-looking dimensions,
+which is why the inch scan missed them. They carry the cylindrical roller
+canned `apps` list, not Block A's.
+
+**Gaps this leaves.** Real NTN parts that now have no row and need a fresh
+pull from the NTN catalogue: **NTN 6200, 2310, 2311, 2312, 3068, 1310.** The
+same designations remain searchable at SKF (6200, 2310–2312, 3068) and FAG
+(6200). The other six ids (1410, 1030, 17000, 15000, 9400, 8600) are probably
+not real NTN designations; re-source only if a catalogue shows otherwise.
+
+**Not done.** No plausibility check was added to `js/db.js` or the extractor,
+so another row like these would again pass the load-time filter. The
+cross-brand comparison above is the most reliable detector found and could
+become a data test.
+
+---
+
+## Q14 — `FAG-80750`: `c0r` 0.005 kN, no `cr`  (**logged, not changed**)
+
+`FAG-80750`, typed `Deep Groove Ball`, 20 × 80 × 25.4 mm, `cr` null,
+`c0r` 0.005 kN (5 N), `mass` 36, `source` "FAG Rolling Bearings Catalog".
+A 5 N static rating on a 20 × 80 bearing is off by orders of magnitude, and
+"80750" is not a standard deep groove designation. Found during the Q13 inch
+scan (its 25.4 mm width). Not edited: it needs checking against FAG's
+catalogue to decide whether the load is mis-scaled or the whole row is noise.
+No calculator runs on it (`cr` and `rpm` are null).
+
+---
+
+## Q15 — `NTN-32217U`: `cr` 36 kN against SKF 32217's 263  (**logged, not changed**)
+
+`NTN-32217U`, tapered roller, 85 × 150 × 38.5 mm: `cr` 36, `c0r` 30,
+`rpm` 900. `SKF-32217`, same dimensions: `cr` 263, `c0r` 285, `rpm` 4300.
+NTN's value is about 7× too low. The dimensions agree, so this is a
+load-column problem, not a bad row like Q13. `NTN-32317U` (85 × 180 × 63.5,
+`cr` 60 against SKF-32317's 501) looks like the same fault. Not edited: the
+NTN tapered roller loads need checking as a block against NTN's catalogue,
+as Q1 did for NTN cylindrical roller loads.

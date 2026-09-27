@@ -1,0 +1,14 @@
+[
+  { "id": "NTN-6200",  "op": "delete" },
+  { "id": "NTN-2310",  "op": "delete" },
+  { "id": "NTN-2311",  "op": "delete" },
+  { "id": "NTN-2312",  "op": "delete" },
+  { "id": "NTN-3068",  "op": "delete" },
+  { "id": "NTN-1310",  "op": "delete" },
+  { "id": "NTN-1410",  "op": "delete" },
+  { "id": "NTN-1030",  "op": "delete" },
+  { "id": "NTN-17000", "op": "delete" },
+  { "id": "NTN-15000", "op": "delete" },
+  { "id": "NTN-9400",  "op": "delete" },
+  { "id": "NTN-8600",  "op": "delete" }
+]
