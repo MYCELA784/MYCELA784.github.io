@@ -23,6 +23,19 @@
   }
   function firstAccept(f) { return (f && f.accept && f.accept[0]) || null; }
 
+  // The one place a dimension goes into a note: "OD 90 mm" when the query
+  // gave one value (prefer, or min equal to max), "OD 25–30 mm" for a real
+  // range, "OD up to 90 mm" / "OD from 90 mm" for an open one.
+  function dimText(label, f) {
+    if (!f) return null;
+    const n = v => +v.toFixed(2);
+    const lo = f.min, hi = f.max;
+    if (f.prefer != null) return `${label} ${n(f.prefer)} mm`;
+    if (lo != null && hi != null) return lo === hi ? `${label} ${n(lo)} mm` : `${label} ${n(lo)}–${n(hi)} mm`;
+    if (hi != null) return `${label} up to ${n(hi)} mm`;
+    return lo != null ? `${label} from ${n(lo)} mm` : null;
+  }
+
   ns.SearchEngine.fallback = function (q) {
     const p       = ns.SearchEngine.parse(q);
     const CFG     = MYCELA.CONFIG.fallback;
@@ -46,7 +59,7 @@
         .slice(0, CFG.stage1MaxResults);
       if (s1.length > 0) return {
         results: s1, stage: 1,
-        note: `No bearing found with ${bore}mm bore in the OD ${odMin}–${odMax}mm range. Showing closest bore matches; OD range constraint relaxed. Consider these and verify OD fits your housing.`,
+        note: `No bearing found with ${dimText('bore', p.bore)} and ${dimText('OD', p.od)}. Showing closest bore matches; OD range constraint relaxed. Consider these and verify OD fits your housing.`,
       };
     }
 

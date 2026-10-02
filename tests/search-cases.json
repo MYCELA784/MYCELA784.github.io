@@ -161,5 +161,11 @@
   { "query": "bore 12 od 90", "topN": 40, "countAtMost": 0, "fallbackCount": 8, "fallbackStage": 1,
     "note": "a real size with no exact match still gets relaxed matches (stage 1)" },
   { "query": "bore 1900", "topN": 40, "countAtMost": 0, "fallbackCount": 0, "fallbackStage": 0,
-    "note": "a size with nothing within tolerance: no results, but fallbackStage 0 (not null) so the gap log reads it as a size miss" }
+    "note": "a size with nothing within tolerance: no results, but fallbackStage 0 (not null) so the gap log reads it as a size miss" },
+  { "query": "bore 12 od 90", "fallbackNoteHas": "and OD 90 mm.", "fallbackNoteLacks": ["90–90", "90-90"],
+    "note": "fallback wording: a single OD value reads 'OD 90 mm', not a 90-90 range" },
+  { "query": "od 25 to 30 bore 40", "fallbackStage": 1, "fallbackNoteHas": "and OD 25–30 mm.",
+    "note": "fallback wording: a real OD range still reads as a range" },
+  { "query": "bore 12 od 90", "fallbackNoteHas": "with bore 12 mm and", "fallbackNoteLacks": ["12–12", "12-12"],
+    "note": "fallback wording: a single bore value reads 'bore 12 mm'" }
 ]

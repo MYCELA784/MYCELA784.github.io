@@ -136,28 +136,34 @@
 
   // ── Zero-result telemetry debounce ─────────────────────────────────────────
   // Local search renders on every keystroke; the telemetry endpoint only hears
-  // about a zero-result query once typing pauses for
-  // CONFIG.search.aiDebounceMs. A newer query cancels the pending timer.
-  // (The AI refiner that also used this debounce was removed 2026-09-27.)
+  // about a zero-result query when the user presses Enter, or once typing has
+  // paused for CONFIG.search.zeroReportIdleMs, whichever comes first. A newer
+  // query restarts the wait, so a pause mid-word ("bore 12 od 9" on the way to
+  // "od 90") is never logged. The query and stage are read when the report is
+  // sent, from the latest search, not from when the wait started.
   let zeroTimer = null;
+  let current = { q: '', zeroHits: false, fallbackStage: null };
 
   function cancelTelemetry() {
     clearTimeout(zeroTimer);
     zeroTimer = null;
   }
 
+  function flushTelemetry() {
+    cancelTelemetry();
+    if (current.q && current.zeroHits) reportZeroResult(current.q, current.fallbackStage);
+  }
+
   function scheduleTelemetry(q, zeroHits, fallbackStage) {
     cancelTelemetry();
+    current = { q, zeroHits, fallbackStage };
     if (!zeroHits) return;
-    zeroTimer = setTimeout(() => {
-      zeroTimer = null;
-      reportZeroResult(q, fallbackStage);
-    }, MYCELA.CONFIG.search.aiDebounceMs);
+    zeroTimer = setTimeout(flushTelemetry, MYCELA.CONFIG.search.zeroReportIdleMs);
   }
 
   async function doSearch(queryOverride, display) {
     const q = (queryOverride != null ? queryOverride : $('q').value).trim();
-    if (!q) { cancelTelemetry(); $('results').classList.remove('on'); return; }
+    if (!q) { cancelTelemetry(); current.q = ''; $('results').classList.remove('on'); return; }
 
     fBrands = new Set();
     fSeals  = new Set();
@@ -232,10 +238,11 @@
 
   function initSearchBox() {
     $('q').addEventListener('input', () => { renderAc($('q').value); doSearch(); });
-    $('q').addEventListener('keydown', e => { if (e.key === 'Enter' && acIdx < 0) doSearch(); });
+    $('q').addEventListener('keydown', e => { if (e.key === 'Enter' && acIdx < 0) { doSearch(); flushTelemetry(); } });
     $('clearSearch').addEventListener('click', () => {
       $('q').value = '';
       cancelTelemetry();
+      current.q = '';
       $('results').classList.remove('on');
       closeAc();
       scrollTo({ top: 0, behavior: 'smooth' });

@@ -2,10 +2,12 @@
 'use strict';
 /*
  * Search-box backend traffic tests (audit finding B11): local search runs on
- * every keystroke, but the zero-result telemetry only fires once typing
- * pauses for CONFIG.search.aiDebounceMs, and a newer query or clearing the
- * box cancels a pending report. Each report carries the fallback's stage as
- * fallbackStage, so the gap log can tell "no such size" from "unparsable".
+ * every keystroke, but the zero-result telemetry only fires on Enter or once
+ * typing pauses for CONFIG.search.zeroReportIdleMs, whichever comes first. A
+ * newer query or clearing the box cancels a pending report, so a pause
+ * mid-typing never logs a half-typed query, and a query is sent at most once
+ * per session. Each report carries the fallback's stage as fallbackStage, so
+ * the gap log can tell "no such size" from "unparsable".
  *
  * The AI refiner tests (one call per pause, abort on newer input, stale
  * responses dropped) were removed with js/ai-refiner.js on 2026-09-27: the
@@ -73,18 +75,19 @@ global.fetch = (url, opts) => {
 // ── stub modules app.js depends on ───────────────────────────────────────
 require(path.join(ROOT, 'js', 'config.js'));
 const NS = global.MYCELA;
-const DEBOUNCE = NS.CONFIG.search.aiDebounceMs;
-eq(DEBOUNCE, 350, 'CONFIG.search.aiDebounceMs is 350');
+const DEBOUNCE = NS.CONFIG.search.zeroReportIdleMs;
+eq(DEBOUNCE, 2000, 'CONFIG.search.zeroReportIdleMs is 2000');
 
 const ROW = id => ({ id, pn: id, brand: 'SKF', type: 'Deep Groove Ball' });
 NS.DB = [ROW('A'), ROW('B')];
 NS.DB_MAP = { A: NS.DB[0], B: NS.DB[1] };
 const LOCAL = [];        // queries the local engine saw
 NS.SearchEngine = {
-  fast: q => { LOCAL.push(q); return q.startsWith('zz') ? [] : [ROW('A')]; },
+  fast: q => { LOCAL.push(q); return /^(zz|bore )/.test(q) ? [] : [ROW('A')]; },
   // "zzs…" stands in for a size the fallback relaxes (stage 3), "zz0…" for a
   // size with nothing near it (stage 0), any other "zz…" for gibberish (null).
-  fallback: q => q.startsWith('zzs') ? { results: [ROW('B')], note: 'near', stage: 3 }
+  // "bore …" stands in for a real dimension query the fallback relaxes.
+  fallback: q => /^(zzs|bore )/.test(q) ? { results: [ROW('B')], note: 'near', stage: 3 }
                : q.startsWith('zz0') ? { results: [], note: null, stage: 0 }
                : { results: [], note: null, stage: null },
   parse: () => ({}),
@@ -97,6 +100,7 @@ require(path.join(ROOT, 'js', 'app.js'));
 
 const q = els.q;
 function type(text) { q.value = text; q.fire('input'); }
+function enter() { q.fire('keydown', { key: 'Enter' }); }
 
 (async () => {
   const zero = () => TELEMETRY.filter(t => t.type === 'zero_result').map(t => t.query);
@@ -145,6 +149,38 @@ function type(text) { q.value = text; q.fire('input'); }
   type('zzv'); type('');
   await wait(DEBOUNCE + 50);
   eq(zero(), [], 'deleting the query cancels the pending zero-result report');
+
+  // 6. a pause mid-typing does not log the half-typed query
+  TELEMETRY.length = 0;
+  type('bore 12 od 9');
+  await wait(500);
+  type('bore 12 od 90');
+  await wait(DEBOUNCE - 600);
+  eq(zero(), [], 'no report for the half-typed query after a 500 ms pause');
+  await wait(800);
+  eq(zero(), ['bore 12 od 90'], 'one report, for the finished query only');
+
+  // 7. Enter sends at once, without waiting for the idle timer
+  TELEMETRY.length = 0;
+  type('zzs77');
+  enter();
+  eq(zero(), ['zzs77'], 'Enter sends the zero-result report immediately');
+  await wait(DEBOUNCE + 100);
+  eq(zero(), ['zzs77'], 'the idle timer does not send it a second time');
+
+  // 8. the same query is not sent twice in a session
+  type('bore 12 od 90');
+  enter();
+  type('zzs77');
+  await wait(DEBOUNCE + 100);
+  eq(zero(), ['zzs77'], 'a query already reported this session is not sent again');
+
+  // 9. a query that has hits at send time sends nothing on Enter
+  TELEMETRY.length = 0;
+  type('zzt'); type('6207');
+  enter();
+  await wait(DEBOUNCE + 100);
+  eq(zero(), [], 'Enter on a query with hits sends nothing');
 
   eq(BACKEND, [], 'nothing calls the removed AI backend');
 

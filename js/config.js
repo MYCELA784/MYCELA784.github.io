@@ -14,8 +14,8 @@
       // aiTimeoutMs and backendUrl was removed. Kept for reference only.
       aiTimeoutMs: 12000,
       // Typing pause before a zero-result query is sent to the telemetry
-      // endpoint. Local search does not wait for it.
-      aiDebounceMs:  350,
+      // endpoint (Enter sends it at once). Local search does not wait for it.
+      zeroReportIdleMs: 2000,
       // UNUSED since 2026-09-27 (see aiTimeoutMs).
       backendUrl:  'https://mycela-backend.onrender.com/search',
     },
