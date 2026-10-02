@@ -173,5 +173,18 @@
   { "query": "skf bore 12 od 90", "fallbackStage": 1, "fallbackBrandsOnly": "SKF", "fallbackTopBore": 12,
     "note": "a brand the query names holds in the fallback (was all NTN)" },
   { "query": "bore 12.5 od 90", "fallbackStage": 1, "fallbackTopBore": 12,
-    "note": "variety never outranks closeness: the closest bore still comes first" }
+    "note": "variety never outranks closeness: the closest bore still comes first" },
+  { "query": "bore 12 od 90", "fallbackTopOd": 37, "fallbackMinBrands": 2,
+    "fallbackNotAhead": { "pn": "61801", "of": ["6301", "6201"] }, "fallbackRankedFrom": { "bore": 12, "od": 90 },
+    "note": "fallback ranks OD closeness after bore: the OD 37 parts (6301s) first, 61801 (OD 21) never ahead of a 6301/6201" },
+  { "query": "bore 12 od 90", "fallbackUniqueBase": true,
+    "baseDesignation": { "6201-C-2HRS": "6201-C", "6201-C-2Z": "6201-C", "61809-2RSR-Y": "61809-Y", "NA 4901 2RS": "NA-4901",
+                         "NA 4900 RS": "NA-4900", "5201SCZZ": "5201SC", "6201LLU": "6201", "6201-C": "6201-C" },
+    "note": "fallback shows one card per bearing: no two results share brand + base designation" },
+  { "query": "bore 12 od 90 sealed", "fallbackStage": 1, "fallbackHasPn": "6301-C-2HRS", "fallbackLacksPn": ["6301-C", "6301-C-2Z"], "fallbackUniqueBase": true,
+    "note": "a sealed query keeps the sealed variant of a bearing that comes sealed" },
+  { "query": "skf bore 12 od 90", "fallbackBrandsOnly": "SKF", "fallbackTopOd": 37, "fallbackRankedFrom": { "bore": 12, "od": 90 },
+    "note": "a named brand still holds, ordered by OD closeness" },
+  { "query": "6201", "inTop": ["FAG-6201-C", "FAG-6201-C-2HRS", "FAG-6201-C-2Z"], "inTopN": 10,
+    "note": "fast() is not collapsed: exact search still lists every seal variant" }
 ]

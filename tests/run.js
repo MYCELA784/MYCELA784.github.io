@@ -132,6 +132,43 @@ function runCase(c, index) {
     if (c.fallbackBrandsOnly && (!fr.length || !setEq(brands, [].concat(c.fallbackBrandsOnly)))) errs.push(`fallbackBrandsOnly [${c.fallbackBrandsOnly}]: got [${brands}]`);
     if ('fallbackTopBore' in c && (!fr[0] || fr[0].bore !== c.fallbackTopBore)) errs.push(`fallbackTopBore ${c.fallbackTopBore}: got ${fr[0] ? fr[0].bore : '(none)'}`);
   }
+  if (c.fallbackTopOd != null || c.fallbackNotAhead || c.fallbackUniqueBase || c.fallbackHasPn || c.fallbackLacksPn || c.fallbackRankedFrom) {
+    const fr = SE.fallback(c.query).results;
+    const pns = fr.map(b => b.pn);
+    if (c.fallbackTopOd != null && (!fr[0] || fr[0].od !== c.fallbackTopOd)) errs.push(`fallbackTopOd ${c.fallbackTopOd}: got ${fr[0] ? fr[0].od : '(none)'}`);
+    if (c.fallbackNotAhead) {
+      // no row whose pn starts with .pn may sit ahead of a row whose pn starts with any of .of
+      const pos = pre => pns.map((pn, i) => (pn.indexOf(pre) === 0 ? i : -1)).filter(i => i >= 0);
+      const late = pos(c.fallbackNotAhead.pn);
+      const others = [].concat(...c.fallbackNotAhead.of.map(pos));
+      if (late.some(i => others.some(j => i < j))) errs.push(`fallbackNotAhead: ${c.fallbackNotAhead.pn} ahead of [${c.fallbackNotAhead.of}] in [${pns}]`);
+    }
+    if (c.fallbackUniqueBase) {
+      const seen = new Set();
+      fr.forEach(b => {
+        const k = b.brand + '|' + SE.baseDesignation(b.pn);
+        if (seen.has(k)) errs.push(`fallbackUniqueBase: ${k} twice in [${pns}]`);
+        seen.add(k);
+      });
+    }
+    [].concat(c.fallbackHasPn || []).forEach(pn => { if (pns.indexOf(pn) === -1) errs.push(`fallbackHasPn ${pn}: got [${pns}]`); });
+    [].concat(c.fallbackLacksPn || []).forEach(pn => { if (pns.indexOf(pn) !== -1) errs.push(`fallbackLacksPn ${pn}: present`); });
+    if (c.fallbackRankedFrom) {
+      // (bore distance, OD distance) never decreases down the list
+      const want = c.fallbackRankedFrom;
+      const k = b => [Math.abs(b.bore - want.bore), Math.abs(b.od - want.od)];
+      for (let i = 1; i < fr.length; i++) {
+        const a = k(fr[i - 1]), z = k(fr[i]);
+        if (z[0] < a[0] || (z[0] === a[0] && z[1] < a[1])) errs.push(`fallbackRankedFrom: ${pns[i]} is closer than ${pns[i - 1]} above it`);
+      }
+    }
+  }
+  if (c.baseDesignation) {
+    Object.keys(c.baseDesignation).forEach(pn => {
+      const got = SE.baseDesignation(pn);
+      if (got !== c.baseDesignation[pn]) errs.push(`baseDesignation ${pn}: expected ${c.baseDesignation[pn]} got ${got}`);
+    });
+  }
   if (c.topSealing && (!top || top.sealing !== c.topSealing)) errs.push(`topSealing: expected ${c.topSealing} got ${top ? top.sealing : '(none)'}`);
   if (c.topType && (!top || top.type !== c.topType)) errs.push(`topType: expected ${c.topType} got ${top ? top.type : '(none)'}`);
   if (c.topBoreIn) {
