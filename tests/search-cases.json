@@ -167,5 +167,11 @@
   { "query": "od 25 to 30 bore 40", "fallbackStage": 1, "fallbackNoteHas": "and OD 25–30 mm.",
     "note": "fallback wording: a real OD range still reads as a range" },
   { "query": "bore 12 od 90", "fallbackNoteHas": "with bore 12 mm and", "fallbackNoteLacks": ["12–12", "12-12"],
-    "note": "fallback wording: a single bore value reads 'bore 12 mm'" }
+    "note": "fallback wording: a single bore value reads 'bore 12 mm'" },
+  { "query": "bore 12 od 90", "fallbackMinBrands": 2, "fallbackTopBore": 12,
+    "note": "fallback mixes brands within an equal-bore tier (was all NTN), and the first result is still an exact 12 mm bore" },
+  { "query": "skf bore 12 od 90", "fallbackStage": 1, "fallbackBrandsOnly": "SKF", "fallbackTopBore": 12,
+    "note": "a brand the query names holds in the fallback (was all NTN)" },
+  { "query": "bore 12.5 od 90", "fallbackStage": 1, "fallbackTopBore": 12,
+    "note": "variety never outranks closeness: the closest bore still comes first" }
 ]

@@ -23,6 +23,26 @@
   }
   function firstAccept(f) { return (f && f.accept && f.accept[0]) || null; }
 
+  // The one place every stage turns its candidates into a result list. Rows
+  // are ranked by dist (closest first, never traded for variety); rows with
+  // the same dist form a tier, and inside a tier brands take turns in
+  // alphabetical order, each brand keeping its DB order. Without this the
+  // DB's brand order (NTN first) filled every slot with one brand.
+  function pickMixed(rows, dist, max) {
+    const out = [];
+    const sorted = rows.slice().sort((a, b) => dist(a) - dist(b));
+    for (let i = 0; i < sorted.length && out.length < max; ) {
+      const d = dist(sorted[i]);
+      const byBrand = {};
+      for (; i < sorted.length && dist(sorted[i]) === d; i++) {
+        (byBrand[sorted[i].brand] = byBrand[sorted[i].brand] || []).push(sorted[i]);
+      }
+      const queues = Object.keys(byBrand).sort().map(k => byBrand[k]);
+      while (queues.some(qu => qu.length)) queues.forEach(qu => { if (qu.length) out.push(qu.shift()); });
+    }
+    return out.slice(0, max);
+  }
+
   // The one place a dimension goes into a note: "OD 90 mm" when the query
   // gave one value (prefer, or min equal to max), "OD 25–30 mm" for a real
   // range, "OD up to 90 mm" / "OD from 90 mm" for an open one.
@@ -39,7 +59,12 @@
   ns.SearchEngine.fallback = function (q) {
     const p       = ns.SearchEngine.parse(q);
     const CFG     = MYCELA.CONFIG.fallback;
-    const DB      = MYCELA.DB;
+    // A brand the query named (or excluded) holds in every stage.
+    const brandF  = p.brand;
+    const DB      = MYCELA.DB.filter(b =>
+      !brandF || ((!brandF.accept.length || brandF.accept.includes(b.brand)) &&
+                  !(brandF.exclude || []).includes(b.brand)));
+    const boreDist = b => Math.abs(b.bore - bore);
     const bore    = numVal(p.bore);
     const odMin   = p.od ? p.od.min : null;
     const odMax   = p.od ? p.od.max : null;
@@ -52,11 +77,9 @@
 
     // Stage 1 — relax OD range, keep bore ± stage1BoreTol and sealing
     if (hasBore && hasODR) {
-      const s1 = DB
-        .filter(b => Math.abs(b.bore - bore) <= CFG.stage1BoreTol &&
-                     (!hasSeal || b.sealing === sealing))
-        .sort((a, b) => Math.abs(a.bore - bore) - Math.abs(b.bore - bore))
-        .slice(0, CFG.stage1MaxResults);
+      const s1 = pickMixed(DB.filter(b => boreDist(b) <= CFG.stage1BoreTol &&
+                                          (!hasSeal || b.sealing === sealing)),
+                           boreDist, CFG.stage1MaxResults);
       if (s1.length > 0) return {
         results: s1, stage: 1,
         note: `No bearing found with ${dimText('bore', p.bore)} and ${dimText('OD', p.od)}. Showing closest bore matches; OD range constraint relaxed. Consider these and verify OD fits your housing.`,
@@ -65,10 +88,8 @@
 
     // Stage 2 — relax sealing, keep bore ± stage2BoreTol
     if (hasBore && hasSeal) {
-      const s2 = DB
-        .filter(b => Math.abs(b.bore - bore) <= CFG.stage2BoreTol)
-        .sort((a, b) => Math.abs(a.bore - bore) - Math.abs(b.bore - bore))
-        .slice(0, CFG.stage2MaxResults);
+      const s2 = pickMixed(DB.filter(b => boreDist(b) <= CFG.stage2BoreTol),
+                           boreDist, CFG.stage2MaxResults);
       if (s2.length > 0) {
         const avail = [...new Set(s2.map(b => b.sealing))].join(', ');
         return {
@@ -80,19 +101,17 @@
 
     // Stage 3 — bore only
     if (hasBore) {
-      const s3 = DB
-        .filter(b => Math.abs(b.bore - bore) <= CFG.stage3BoreTol)
-        .sort((a, b) => Math.abs(a.bore - bore) - Math.abs(b.bore - bore))
-        .slice(0, CFG.stage3MaxResults);
+      const s3 = pickMixed(DB.filter(b => boreDist(b) <= CFG.stage3BoreTol),
+                           boreDist, CFG.stage3MaxResults);
       if (s3.length > 0) return {
         results: s3, stage: 3,
-        note: `Exact specification not found in the current catalog (${DB.length} bearings). Showing available bearings near ${bore}mm bore. For your full requirements, contact a specialized industrial distributor.`,
+        note: `Exact specification not found in the current catalog (${MYCELA.DB.length} bearings). Showing available bearings near ${bore}mm bore. For your full requirements, contact a specialized industrial distributor.`,
       };
     }
 
     // Stage 4 — type only
     if (hasType) {
-      const s4 = DB.filter(b => b.type === type).slice(0, CFG.stage4MaxResults);
+      const s4 = pickMixed(DB.filter(b => b.type === type), () => 0, CFG.stage4MaxResults);
       if (s4.length > 0) return {
         results: s4, stage: 4,
         note: `No bearing matched all your specifications. Showing all ${type} bearings in the catalog; check dimensions manually.`,

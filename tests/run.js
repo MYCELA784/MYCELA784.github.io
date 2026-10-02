@@ -125,6 +125,13 @@ function runCase(c, index) {
       if (note.indexOf(t) !== -1) errs.push(`fallbackNoteLacks ${JSON.stringify(t)}: got ${JSON.stringify(note)}`);
     });
   }
+  if (c.fallbackMinBrands || c.fallbackBrandsOnly || 'fallbackTopBore' in c) {
+    const fr = SE.fallback(c.query).results;
+    const brands = [...new Set(fr.map(b => b.brand))];
+    if (c.fallbackMinBrands && brands.length < c.fallbackMinBrands) errs.push(`fallbackMinBrands ${c.fallbackMinBrands}: got [${brands}]`);
+    if (c.fallbackBrandsOnly && (!fr.length || !setEq(brands, [].concat(c.fallbackBrandsOnly)))) errs.push(`fallbackBrandsOnly [${c.fallbackBrandsOnly}]: got [${brands}]`);
+    if ('fallbackTopBore' in c && (!fr[0] || fr[0].bore !== c.fallbackTopBore)) errs.push(`fallbackTopBore ${c.fallbackTopBore}: got ${fr[0] ? fr[0].bore : '(none)'}`);
+  }
   if (c.topSealing && (!top || top.sealing !== c.topSealing)) errs.push(`topSealing: expected ${c.topSealing} got ${top ? top.sealing : '(none)'}`);
   if (c.topType && (!top || top.type !== c.topType)) errs.push(`topType: expected ${c.topType} got ${top ? top.type : '(none)'}`);
   if (c.topBoreIn) {
