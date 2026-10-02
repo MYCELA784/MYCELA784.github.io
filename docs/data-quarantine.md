@@ -33,6 +33,7 @@ not corrected.
 | Q13 | 12 NTN rows with impossible dimensions | all rows deleted (5 contradicted by SKF/FAG for the same designation, 7 impossible by shape) |
 | Q14 | `FAG-80750` | `c0r` 0.005 kN with no `cr`; **logged, not changed** |
 | Q15 | `NTN-32217U` | `cr` 36 kN against SKF 32217's 263; **logged, not changed** |
+| Q16 | `SKF-24013-2RS5W` | `sealing` Open → Sealed (**corrected**: the designation's `2RS5` is SKF's sealed suffix) |
 
 Record count: 3715 extracted → **3706** after Q3 → **3684** after Q6 →
 **3672** after Q13. After `js/db.js`'s load-time sanity filter drops 18
@@ -817,3 +818,33 @@ load-column problem, not a bad row like Q13. `NTN-32317U` (85 × 180 × 63.5,
 `cr` 60 against SKF-32317's 501) looks like the same fault. Not edited: the
 NTN tapered roller loads need checking as a block against NTN's catalogue,
 as Q1 did for NTN cylindrical roller loads.
+
+---
+
+## Q16: `SKF-24013-2RS5W`, sealing "Open" on a sealed designation  (`scripts/data-fixes/16-skf-24013-2rs5w-sealing.json`)
+
+`SKF-24013-2RS5W`, spherical roller, 65 × 100 × 35 mm, had `sealing`
+"Open". `2RS5` is SKF's suffix for a spherical roller bearing sealed both
+sides (`MYCELA.SUFFIX_CODES` in `js/constants.js`); the trailing `W` is a
+lubrication feature code, not a seal code. Set to "Sealed". The open
+`SKF-24013_CC_W33` row of the same size is unchanged. Found because the
+fallback's one card per bearing groups seal variants by designation suffix,
+and this was the only Open row the suffix patterns matched.
+
+**Scan of all 3,672 raw rows**, using the seal/shield patterns of
+`baseDesignation()` in `js/search/fallback.js` (a separate token `2RS`,
+`RS`, `2RS5`, `2RSR`, `2HRS`, `2RZ`, `2Z`, `Z`, `ZZ`, `LLx`, or `ZZ`/`LLU`/
+`LLB`/`LLH` glued to an NTN designation):
+
+- Seal/shield suffix but `sealing` Open: **1**, this row. Fixed.
+- `sealing` Sealed or Shielded with no suffix: **0**.
+- Suffix kind against `sealing` (a `Z`/`2Z`/`ZZ` shield marked Sealed, or a
+  seal marked Shielded): **0**.
+
+A broader scan of Open rows for any seal-like letters (RS, Z, LL, DD, VV,
+DU, SH, RZ) found one other pattern: `NTN-30315DU` to `NTN-30319DU` (5
+tapered roller rows). In NTN tapered designations `D` is the steep contact
+angle series and `U` an NTN design code; neither is a seal code, and none
+of the catalogue's tapered rollers is sealed. Reviewed, not changed, and no
+Q17 was needed.
+

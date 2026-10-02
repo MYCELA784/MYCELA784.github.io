@@ -54,7 +54,10 @@
   //    collapse to one row, the query's sealing if it asked for one, else
   //    Open, else the first in DB order. (fast() still lists every variant.)
   // 2. Rank by keys(row), compared in order (bore distance, then OD, then
-  //    width); a closer row is never traded for variety.
+  //    width, then type, then sealing); a closer row is never traded for
+  //    variety. Type and sealing put the query's own first when it named
+  //    one (stages 1 to 3 do not filter by type), else Deep Groove Ball and
+  //    Open first.
   // 3. Rows tied on every key form a tier, and inside a tier brands take
   //    turns in alphabetical order, each brand keeping its DB order. Without
   //    this the DB's brand order (NTN first) filled every slot with one brand.
@@ -117,7 +120,9 @@
     const hasODR  = odMin != null || odMax != null;
     const hasSeal = !!sealing;
     const hasType = !!type;
-    const keys    = b => [hasBore ? boreDist(b) : 0, rangeDist(b.od, p.od), rangeDist(b.w, p.width)];
+    const keys    = b => [hasBore ? boreDist(b) : 0, rangeDist(b.od, p.od), rangeDist(b.w, p.width),
+                          b.type === (hasType ? type : 'Deep Groove Ball') ? 0 : 1,
+                          b.sealing === (hasSeal ? sealing : 'Open') ? 0 : 1];
 
     // Stage 1 — relax OD range, keep bore ± stage1BoreTol and sealing
     if (hasBore && hasODR) {

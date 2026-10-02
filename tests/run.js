@@ -163,6 +163,18 @@ function runCase(c, index) {
       }
     }
   }
+  if (c.fallbackTop) {
+    const f0 = SE.fallback(c.query).results[0];
+    Object.keys(c.fallbackTop).forEach(k => {
+      if (!f0 || f0[k] !== c.fallbackTop[k]) errs.push(`fallbackTop.${k}: expected ${c.fallbackTop[k]} got ${f0 ? f0[k] : '(none)'}`);
+    });
+  }
+  if (c.row) {
+    const r = global.window.MYCELA.DB_MAP[c.row.id];
+    Object.keys(c.row).filter(k => k !== 'id').forEach(k => {
+      if (!r || r[k] !== c.row[k]) errs.push(`row ${c.row.id}.${k}: expected ${c.row[k]} got ${r ? r[k] : '(no row)'}`);
+    });
+  }
   if (c.baseDesignation) {
     Object.keys(c.baseDesignation).forEach(pn => {
       const got = SE.baseDesignation(pn);

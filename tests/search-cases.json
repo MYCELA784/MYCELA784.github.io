@@ -186,5 +186,13 @@
   { "query": "skf bore 12 od 90", "fallbackBrandsOnly": "SKF", "fallbackTopOd": 37, "fallbackRankedFrom": { "bore": 12, "od": 90 },
     "note": "a named brand still holds, ordered by OD closeness" },
   { "query": "6201", "inTop": ["FAG-6201-C", "FAG-6201-C-2HRS", "FAG-6201-C-2Z"], "inTopN": 10,
-    "note": "fast() is not collapsed: exact search still lists every seal variant" }
+    "note": "fast() is not collapsed: exact search still lists every seal variant" },
+  { "query": "bore 12 od 90", "fallbackTop": { "type": "Deep Groove Ball", "sealing": "Open", "od": 37 },
+    "note": "fallback tie-breaks: with no type or sealing asked, Deep Groove Ball and Open come first among equally close rows" },
+  { "query": "bore 12 od 90 sealed", "fallbackTop": { "sealing": "Sealed" },
+    "note": "a sealing the query asked for is not overridden by the Open tie-break" },
+  { "query": "angular contact bore 12 od 90", "fallbackTop": { "type": "Angular Contact Ball", "od": 37 },
+    "note": "a type the query named comes first among equally close rows, not Deep Groove Ball" },
+  { "query": "24013", "row": { "id": "SKF-24013-2RS5W", "sealing": "Sealed" },
+    "note": "data Q16: SKF 24013-2RS5W is sealed (was Open)" }
 ]
