@@ -34,6 +34,7 @@ not corrected.
 | Q14 | `FAG-80750` | `c0r` 0.005 kN with no `cr`; **logged, not changed** |
 | Q15 | `NTN-32217U` | `cr` 36 kN against SKF 32217's 263; **logged, not changed** |
 | Q16 | `SKF-24013-2RS5W` | `sealing` Open → Sealed (**corrected**: the designation's `2RS5` is SKF's sealed suffix) |
+| Q17 | 60 SKF rows | `type` **corrected**: 53 self-aligning ball rows typed Angular Contact Ball, 7 `511/…` thrust ball rows typed Self-Aligning Ball; 20 `22xx EC`/`23xx EC` rows typed Spherical Roller Thrust **logged, not changed** |
 
 Record count: 3715 extracted → **3706** after Q3 → **3684** after Q6 →
 **3672** after Q13. After `js/db.js`'s load-time sanity filter drops 18
@@ -847,4 +848,56 @@ tapered roller rows). In NTN tapered designations `D` is the steep contact
 angle series and `U` an NTN design code; neither is a seal code, and none
 of the catalogue's tapered rollers is sealed. Reviewed, not changed, and no
 Q17 was needed.
+
+---
+
+## Q17: wrong `type` on SKF self-aligning ball and thrust ball rows  (`scripts/data-fixes/17-skf-self-aligning-type.json`)
+
+Found in live testing: `SKF-1201_E` and `SKF-1301_E` ranked among the
+angular contact results for "angular contact bore 12 od 32". The 12xx, 13xx,
+22xx and 23xx four-digit series are self-aligning ball bearings (the 72xx
+and 73xx series are angular contact; five-digit 222xx and 223xx are
+spherical roller).
+
+**Scan of all 3,672 raw rows** for a four-digit designation starting 12, 13,
+22 or 23 with no letter prefix (so `NU 2205` and the five-digit 222xx/223xx
+are not matched): 187 rows. 114 already typed Self-Aligning Ball (SKF, NTN
+and FAG). The other 73 are all SKF:
+
+**Corrected, Angular Contact Ball → Self-Aligning Ball (53).** Dimensions and
+loads match SKF's self-aligning ball tables (1205 E: 25 × 52 × 15, `cr` 14.3;
+2205 E: 25 × 52 × 18, `cr` 16.8), and the rows already carry the same `apps`
+list as SKF's correctly typed self-aligning rows (e.g. `SKF-1215`).
+
+| series | ids |
+|---|---|
+| 12xx | `SKF-1200_E` to `SKF-1214_E` (15), `SKF-1224_M`, `SKF-1226_M` |
+| 13xx | `SKF-1301_E` to `SKF-1313_E` (13), `SKF-1322_M` |
+| 22xx | `SKF-2200_E` to `SKF-2213_E` (14), `SKF-2215_E`, `SKF-2216_E` |
+| 23xx | `SKF-2305_E`, `SKF-2307_E`, `SKF-2308_E`, `SKF-2309_E`, `SKF-2317_M`, `SKF-2319_M` |
+
+**Logged, not changed: 20 rows typed Spherical Roller Thrust.**
+`SKF-2228_EC`, `2230_EC`, `2232_EC`, `2234_EC`, `2236_EC`, `2238_EC`,
+`2240_EC`, `2244_EC`, `2256_EC`, `2264_EC`, `2276_EC`, and `SKF-2304_EC` to
+`SKF-2312_EC` (9). They match the four-digit pattern but are not
+self-aligning ball bearings: the loads are far too high (`2228 EC`
+140 × 250 × 68, `cr` 655; a self-aligning ball bearing of that size would be
+well under 200). Size and load fit SKF spherical roller bearings 22228 and
+so on, as if the designation lost a digit, and "Spherical Roller Thrust" is
+then wrong too (a radial bearing). Both `pn` and `type` look wrong, so they
+need checking against SKF's catalogue before any edit. Their `apps` list is
+the thrust one ("vertical shaft applications", "heavy axial loads").
+
+**Reverse scan: rows typed Self-Aligning Ball outside the pattern (7),
+corrected to Thrust Ball.** `SKF-511___500_F`, `511___530_F`, `511___560_F`,
+`511___600_F`, `511___630_F`, `511___670_F`, `511___670_M`. 511 is SKF's
+single direction thrust ball series; the other 72 `511xx` rows are already
+typed Thrust Ball, and the sections and loads fit (511/500 F: 500 × 600 × 80,
+`c0r` 3600 kN). Their `apps` list is still the self-aligning one
+(agricultural machinery, fans, conveyors...) and was not changed: this
+changeset only sets `type`.
+
+No NTN or FAG row was affected. No row gained or lost the DGBB calculator:
+none of the 60 was or became Deep Groove Ball (`tests/dgbb.js` still reports
+692 calculable).
 

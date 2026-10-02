@@ -47,8 +47,14 @@
     // removed, not merely demoted (audit B5). Designation/pn matches never
     // reach this: Scorers.sealing() demotes them with sealingPenalty instead.
     const EXCL = excludedPenalty();
+    // A dimension the query gave is a hard limit too: the numeric scorers
+    // return a negative score only outside the asked range plus tolerance.
+    // Without this, a type or sealing word's bonus outweighed the OD miss
+    // and "bore 12 od 90 sealed" listed 12 x 21 parts that "bore 12 od 90"
+    // correctly did not.
+    const dimMiss = breakdown.bore < 0 || breakdown.od < 0 || breakdown.width < 0;
     const hardExcluded = breakdown.brand <= EXCL || breakdown.type <= EXCL ||
-                         breakdown.seal <= EXCL || breakdown.clr <= EXCL;
+                         breakdown.seal <= EXCL || breakdown.clr <= EXCL || dimMiss;
 
     let matchType = null;
     if (breakdown.pn >= MYCELA.CONFIG.scoring.pnPrefix)                matchType = 'PN';
