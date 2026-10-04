@@ -1,1 +1,10 @@
 .claude/
+
+# Search API (api/): local Wrangler state, secrets, dependencies, build output
+.wrangler/
+.dev.vars
+api/node_modules/
+api/.build/
+
+# OEM / supplier source files. Never committed, see docs/architecture.md
+data/private/

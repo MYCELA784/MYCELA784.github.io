@@ -116,6 +116,21 @@ Three pages (`home`, `search`, `suppliers`) as `<div id="page-*">` elements. `MY
 
 All styles in `css/styles.css`. CSS variables on `:root` (warm off-white palette: `--bg`, `--bg2`–`--bg4`, `--rule`, `--gold`, `--border`, `--border2`, `--faint`, `--muted`, `--white`). Written compact/minified. Fonts: Syncopate (headings), Jost (body), JetBrains Mono (part numbers/data).
 
+## Search API (`api/`, Phase 1, local only)
+
+A Cloudflare Worker that answers `GET /search?q=` and `GET /health` from a
+published catalogue in Workers KV (binding `CATALOG`, key `published/v1`),
+held in memory. It imports the site's own `js/search/*`, `js/config.js`,
+`js/constants.js` and `schemas/` through `api/src/search.js`; never copy
+search logic into `api/`. Returned record fields are exactly those in
+`api/published-fields.json` (`scripts/build-published.js` builds the
+catalogue with the same list). Not deployed; the site does not call it yet.
+`npm install` in `api/` once, then `node tests/api.js` (parity with the
+browser engine on every `tests/search-cases.json` query, validation, CORS,
+allowlist, 40 cap) and `node tests/api-speed.js` (1,000 queries, p95 under
+10 ms). OEM source files go in `data/private/` (git-ignored) and never into
+the repository. See `api/README.md` and `docs/architecture.md`.
+
 ## Deployment
 
 Push to `main` → GitHub Pages deploys automatically to `www.mycela.in`. No CI, no preview environments.

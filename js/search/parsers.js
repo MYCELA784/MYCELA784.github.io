@@ -98,21 +98,56 @@
   // ── Designation extraction ───────────────────────────────────────────────
   // Parse ONE identifier (a query, or a catalog pn) into its designation:
   //   { family, core, suffix, normalized }  |  null
-  ns.SearchEngine.designationOf = function (str) {
-    if (str == null) return null;
-    var d = (schema() && schema().designation) || {};
-    var corePat = new RegExp(d.core_pattern || '^([a-z]{0,5})([0-9]{3,5})([a-z0-9/-]*)$', 'i');
-    var trimStarts = d.trim_5_digit_core_when_suffix_starts || ['rs', 'z', 'rz'];
+  //
+  // Pure for a given schema, and called for every catalog pn on every
+  // search, so the schema-derived setup and each answer are cached per
+  // schema. Callers get a copy, so a cached answer cannot be changed.
+  var desigCtx = null;
+  var DESIG_CACHE_MAX = 20000;   // catalog pns plus recent queries
+  function designationCtx() {
+    var s = schema();
+    if (desigCtx && desigCtx.schema === s) return desigCtx;
+    var d = (s && s.designation) || {};
     var families = {};
     (d.family_codes || []).forEach(function (f) { families[String(f).toLowerCase()] = 1; });
     var brands = brandAliasSet();
+    desigCtx = {
+      schema: s,
+      corePat: new RegExp(d.core_pattern || '^([a-z]{0,5})([0-9]{3,5})([a-z0-9/-]*)$', 'i'),
+      trimStarts: d.trim_5_digit_core_when_suffix_starts || ['rs', 'z', 'rz'],
+      families: families,
+      brands: brands,
+      brandKeys: Object.keys(brands),
+      cache: new Map(),
+    };
+    return desigCtx;
+  }
 
-    var toks = String(str).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().split(/\s+/).filter(Boolean);
+  ns.SearchEngine.designationOf = function (str) {
+    if (str == null) return null;
+    var ctx = designationCtx();
+    var key = String(str);
+    var hit = ctx.cache.get(key);
+    if (hit === undefined) {
+      hit = designationUncached(key, ctx);
+      if (ctx.cache.size >= DESIG_CACHE_MAX) ctx.cache.clear();
+      ctx.cache.set(key, hit);
+    }
+    return hit && { family: hit.family, core: hit.core, suffix: hit.suffix, normalized: hit.normalized };
+  };
+
+  function designationUncached(str, ctx) {
+    var corePat = ctx.corePat;
+    var trimStarts = ctx.trimStarts;
+    var families = ctx.families;
+    var brands = ctx.brands;
+
+    var toks = str.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().split(/\s+/).filter(Boolean);
     for (var i = 0; i < toks.length; i++) {
       var t = toks[i];
       if (brands[t]) continue;
       var stripped = t;
-      Object.keys(brands).forEach(function (bp) {
+      ctx.brandKeys.forEach(function (bp) {
         if (stripped.length > bp.length && stripped.slice(0, bp.length) === bp &&
             /[0-9]/.test(stripped.charAt(bp.length))) {
           stripped = stripped.slice(bp.length);
@@ -139,7 +174,7 @@
       return { family: family, core: core, suffix: suffix, normalized: family + core };
     }
     return null;
-  };
+  }
 
   // ── Units (words from the schema) ────────────────────────────────────────
   function unitAlternation() {

@@ -1,0 +1,14 @@
+{
+  "name": "mycela-search-api",
+  "private": true,
+  "type": "module",
+  "description": "MYCELA search API: a Cloudflare Worker that answers /search from the published catalogue in Workers KV.",
+  "scripts": {
+    "build": "node ../scripts/build-published.js",
+    "dev": "node ../scripts/build-published.js && wrangler dev",
+    "test": "node ../tests/api.js && node ../tests/api-speed.js"
+  },
+  "devDependencies": {
+    "wrangler": "^4"
+  }
+}

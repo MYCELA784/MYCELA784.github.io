@@ -1,0 +1,15 @@
+# MYCELA search API. Local development only for now (Phase 1): nothing in
+# this file has been deployed. See api/README.md.
+name = "mycela-search-api"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+# No anonymous usage telemetry from wrangler to Cloudflare.
+send_metrics = false
+
+# The published catalogue. For `wrangler dev` this is a local, on-disk store
+# in api/.wrangler/ (seeded by scripts/build-published.js); the id below is
+# only a placeholder and must be replaced with the real namespace id when
+# the Worker is first deployed.
+[[kv_namespaces]]
+binding = "CATALOG"
+id = "local-placeholder-replace-before-deploy"

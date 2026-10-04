@@ -1,0 +1,17 @@
+{
+  "_about": "The only record fields the published catalogue and the search API may carry. Read by scripts/build-published.js (what goes into KV) and api/src/search.js (what a response may contain). Adding a field here publishes it: check docs/architecture.md first.",
+  "record": [
+    "id", "brand", "pn", "type",
+    "bore", "od", "w",
+    "cr", "c0r", "rpm", "speed_ref", "f0",
+    "mass", "sealing", "alt", "source"
+  ],
+  "result": ["_designationOnly", "_queriedSealing"],
+  "excluded": {
+    "apps": "applications list: hidden in the modal and not scored, pending re-sourcing (docs/apps-type-audit.md)",
+    "pu": "fatigue load limit on FAG rows: not read anywhere on the site",
+    "_score": "search ranking internals: only logged under ?debug=1",
+    "_matchType": "search ranking internals: only logged under ?debug=1",
+    "_breakdown": "search ranking internals: only logged under ?debug=1"
+  }
+}
