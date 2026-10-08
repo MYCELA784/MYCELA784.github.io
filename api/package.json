@@ -6,7 +6,7 @@
   "scripts": {
     "build": "node ../scripts/build-published.js",
     "dev": "node ../scripts/build-published.js && wrangler dev",
-    "test": "node ../tests/api.js && node ../tests/api-speed.js"
+    "test": "node ../tests/api.js && node ../tests/api-ratelimit.js && node ../tests/api-speed.js"
   },
   "devDependencies": {
     "wrangler": "^4"

@@ -13,3 +13,13 @@ send_metrics = false
 [[kv_namespaces]]
 binding = "CATALOG"
 id = "local-placeholder-replace-before-deploy"
+
+# Per-visitor rate limit on /search: 60 requests per minute per IP
+# (CF-Connecting-IP). /health is not limited. Cloudflare counts per data
+# centre and the count is approximate, so a visitor may get a few more
+# before the 429s start. namespace_id is any number unique to this limiter
+# within the account. wrangler dev and the tests simulate it locally.
+[[ratelimits]]
+name = "SEARCH_LIMITER"
+namespace_id = "1001"
+simple = { limit = 60, period = 60 }

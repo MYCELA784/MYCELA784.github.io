@@ -12,7 +12,11 @@
  *   404, POST 405, /health { ok: true }, empty KV 503.
  * - Allowlist: no response carries a field outside api/published-fields.json.
  * - Cap: no response has more than 40 results.
- * - CORS: only mycela.in, www.mycela.in and http://localhost are allowed.
+ * - CORS: only https://mycela.in, https://www.mycela.in and http://localhost
+ *   are allowed (http://www.mycela.in and look-alikes are refused).
+ * - Rate limit, in the local runtime's own simulation of the binding: 70
+ *   quick searches from one IP, the later ones 429; /health not limited.
+ *   (tests/api-ratelimit.js covers the details with a mocked binding.)
  * Exits non-zero on any failure.
  */
 const fs = require('fs');
@@ -106,11 +110,27 @@ const EXCLUDED = Object.keys(FIELDS.excluded);
   ok(await acao('https://mycela.in') === 'https://mycela.in', 'CORS allows https://mycela.in');
   ok(await acao('http://localhost:8080') === 'http://localhost:8080', 'CORS allows http://localhost:8080');
   ok(await acao('http://localhost') === 'http://localhost', 'CORS allows http://localhost');
-  for (const o of ['https://evil.example', 'http://mycela.in', 'https://mycela.in.evil.example',
+  for (const o of ['https://evil.example', 'http://mycela.in', 'http://www.mycela.in', 'https://mycela.in.evil.example',
+                   'https://api.mycela.in', 'https://www.mycela.in.evil.example', 'https://www.mycela.in:8443',
                    'http://localhost.evil.example', 'https://localhost:8080', 'null']) {
     ok(await acao(o) === null, `CORS refuses ${o}`);
   }
   ok((await api.get('/search?q=6205')).headers.get('vary') === 'Origin', 'responses carry Vary: Origin');
+
+  // 3b. rate limit, as the local runtime simulates the binding
+  const ip = { 'CF-Connecting-IP': '203.0.113.7' };
+  const codes = [];
+  for (let i = 0; i < 70; i++) codes.push((await api.get('/search?q=6205', { headers: ip })).status);
+  const first429 = codes.indexOf(429);
+  ok(codes.slice(0, 60).every(c => c === 200), '60 searches in a minute from one IP all succeed');
+  ok(first429 >= 60 && codes.slice(first429).every(c => c === 429), `70 quick searches from one IP: from #${first429 + 1} on, 429`);
+  const limited = await api.get('/search?q=6205', { headers: ip });
+  const limitedBody = await limited.json();
+  ok(limited.status === 429 && typeof limitedBody.error === 'string' && Object.keys(limitedBody).length === 1,
+     'a 429 body is a short JSON error  ' + JSON.stringify(limitedBody));
+  ok((await api.get('/health', { headers: ip })).status === 200, '/health is not rate limited');
+  ok((await api.get('/search?q=6205', { headers: { 'CF-Connecting-IP': '203.0.113.8' } })).status === 200,
+     'another IP is not affected');
 
   // 4. allowlist and cap, over every 200 response above plus a wide sweep
   for (const q of ['skf', 'bearing', 'deep groove', 'sealed', '6', 'fag 62', 'bore 50', 'zz', 'ntn 7', 'spherical roller',

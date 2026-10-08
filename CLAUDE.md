@@ -127,8 +127,9 @@ search logic into `api/`. Returned record fields are exactly those in
 catalogue with the same list). Not deployed; the site does not call it yet.
 `npm install` in `api/` once, then `node tests/api.js` (parity with the
 browser engine on every `tests/search-cases.json` query, validation, CORS,
-allowlist, 40 cap) and `node tests/api-speed.js` (1,000 queries, p95 under
-10 ms). OEM source files go in `data/private/` (git-ignored) and never into
+allowlist, 40 cap, rate limit), `node tests/api-ratelimit.js` (60 a minute
+per IP on /search via the `SEARCH_LIMITER` binding, mocked) and
+`node tests/api-speed.js` (1,000 queries, p95 under 10 ms). OEM source files go in `data/private/` (git-ignored) and never into
 the repository. See `api/README.md` and `docs/architecture.md`.
 
 ## Deployment

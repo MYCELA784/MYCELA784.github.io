@@ -39,10 +39,23 @@ Errors:
 | `q` missing, empty, or longer than 200 characters (after trimming spaces) | 400 | `{ "error": "..." }` |
 | any other address | 404 | `{ "error": "not found" }` |
 | anything but `GET` (for example `POST`) | 405 | `{ "error": "method not allowed" }` |
+| more than 60 searches in a minute from one visitor (IP address) | 429 | `{ "error": "too many requests, try again in a minute" }` |
 | the catalogue has not been loaded into storage | 503 | `{ "error": "catalogue not available" }` |
 
 Only these websites may call it from a browser: `https://mycela.in`,
 `https://www.mycela.in`, and `http://localhost` (any port) for development.
+Plain `http://` versions of the site and look-alike addresses are refused.
+
+### Rate limit
+
+Each visitor (counted by IP address) may make 60 searches per minute. After
+that, searches get a 429 answer with a `Retry-After: 60` header until the
+minute is up. `/health` is never limited. It uses Cloudflare's Rate Limiting
+binding (`SEARCH_LIMITER` in `wrangler.toml`). Cloudflare counts separately
+in each of its data centres and the count is approximate, so a visitor may
+get a few more than 60 before the limit starts. If the limiter itself ever
+fails, searches carry on rather than the API going down with it.
+`wrangler dev` and the tests simulate the limiter on your computer.
 
 ### Same search as the website
 
@@ -107,11 +120,12 @@ are not committed.
 From the repo root, after `npm install` in `api/`:
 
 ```sh
-node tests/api.js         # answers, errors, allowed fields, CORS, 40-result cap
-node tests/api-speed.js   # 1,000 searches: speed, catalogue size, memory
+node tests/api.js            # answers, errors, allowed fields, CORS, rate limit, 40-result cap
+node tests/api-ratelimit.js  # the rate limit in detail, with a stand-in limiter
+node tests/api-speed.js      # 1,000 searches: speed, catalogue size, memory
 ```
 
-or `npm test` inside `api/` for both.
+or `npm test` inside `api/` for all three.
 
 - `tests/api.js` bundles the Worker exactly as a deploy would (without
   uploading), runs it in Cloudflare's local runtime, and checks every query
@@ -128,15 +142,15 @@ unchanged and still apply.
 
 | File | What it is |
 |---|---|
-| `wrangler.toml` | Worker settings: name, entry file, the `CATALOG` storage binding. The storage id is a placeholder until the first deploy. |
+| `wrangler.toml` | Worker settings: name, entry file, the `CATALOG` storage binding (its id is a placeholder until the first deploy), the `SEARCH_LIMITER` rate limit. |
 | `published-fields.json` | The field allowlist. |
-| `src/index.js` | Addresses, input checks, CORS, loading the catalogue. |
+| `src/index.js` | Addresses, input checks, CORS, rate limit, loading the catalogue. |
 | `src/search.js` | The adapter that runs the website's search code. |
 | `src/globals.js` | Gives the website's scripts the `window.MYCELA` they expect. |
 | `../scripts/build-published.js` | Builds the published catalogue and seeds local storage. |
 
 ## Not in Phase 1
 
-Deploying, the private master database (D1), the admin API behind
-Cloudflare Access, and rate limits come later. See
+Deploying, the private master database (D1) and the admin API behind
+Cloudflare Access come later. See
 [`docs/architecture.md`](../docs/architecture.md).

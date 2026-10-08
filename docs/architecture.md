@@ -26,8 +26,9 @@ and runs it locally; the steps marked *later* are planned, not built.
 ## The parts
 
 **Edge.** `mycela.in` DNS is on Cloudflare and proxied. Every request passes
-through Cloudflare first, which is where rate limits (*later*) and access
-rules will sit.
+through Cloudflare first, which is where edge rate limits and access rules
+(*later*) will sit. The search API already limits each visitor to 60
+searches a minute itself (Cloudflare's Rate Limiting binding).
 
 **Website.** Still the static site in this repository, served by GitHub
 Pages from the `main` branch. Today it loads the whole catalogue

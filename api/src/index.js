@@ -4,6 +4,8 @@
  *   GET /search?q=...  → { results, note, stage, count }
  *   GET /health        → { ok: true }
  *   other paths 404, other methods 405.
+ *   /search is rate limited per visitor IP (binding SEARCH_LIMITER,
+ *   wrangler.toml): over the limit → 429.
  *
  * The published catalogue is read from Workers KV (binding CATALOG, key
  * published/v1) once per Worker instance and kept in memory, so a search
@@ -25,6 +27,19 @@ function json(body, status, origin, extra) {
   const headers = { 'Content-Type': 'application/json; charset=utf-8', 'Vary': 'Origin' };
   if (origin) headers['Access-Control-Allow-Origin'] = origin;
   return new Response(JSON.stringify(body), { status, headers: Object.assign(headers, extra) });
+}
+
+// One counter per visitor IP. Fails open: if the limiter is missing or
+// errors, the search still runs rather than the API going down with it.
+async function overLimit(request, env) {
+  if (!env.SEARCH_LIMITER) return false;
+  const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+  try {
+    const { success } = await env.SEARCH_LIMITER.limit({ key: ip });
+    return !success;
+  } catch (e) {
+    return false;
+  }
 }
 
 let loading = null;
@@ -50,6 +65,10 @@ export default {
       return json({ error: 'method not allowed' }, 405, origin, { 'Allow': 'GET' });
     }
     if (url.pathname === '/health') return json({ ok: true }, 200, origin);
+
+    if (await overLimit(request, env)) {
+      return json({ error: 'too many requests, try again in a minute' }, 429, origin, { 'Retry-After': '60' });
+    }
 
     const raw = url.searchParams.get('q');
     if (raw == null) return json({ error: 'q is required' }, 400, origin);

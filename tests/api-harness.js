@@ -46,7 +46,20 @@ async function start(opts) {
     const env = await server.getWorker().getEnv();
     await env.CATALOG.put(KEY, JSON.stringify(catalog));
   }
-  const get = (pathAndQuery, init) => server.fetch(pathAndQuery, init);
+  // The Worker rate limits /search per CF-Connecting-IP (60 a minute).
+  // Unless a test sets that header itself, each request gets its own
+  // address, so long test runs are not throttled.
+  let n = 0;
+  const get = (pathAndQuery, init) => {
+    init = Object.assign({}, init);
+    const headers = new Headers(init.headers);
+    if (!headers.has('CF-Connecting-IP')) {
+      n++;
+      headers.set('CF-Connecting-IP', `10.${(n >> 16) & 255}.${(n >> 8) & 255}.${n & 255}`);
+    }
+    init.headers = headers;
+    return server.fetch(pathAndQuery, init);
+  };
   const search = async (q, init) => {
     const res = await get('/search?q=' + encodeURIComponent(q), init);
     return { status: res.status, headers: res.headers, body: await res.json() };
