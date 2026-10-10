@@ -11,7 +11,7 @@
  * COMBINED LOADING IS FAG-ONLY, WITH FAG'S OWN TABLE. The database holds an
  * f0 only for FAG single row deep groove rows (taken from FAG's catalogue),
  * so Fa > 0 is offered for those alone, computed with FAG's Table 10
- * (data/fag_tables.js), never with SKF's Table 9 (data/dgbb_tables.js): the
+ * (js/tables/fag_tables.js), never with SKF's Table 9 (js/tables/dgbb_tables.js): the
  * two are different numbers and a mix was measured at -9.6% / +5.1% on life
  * (docs/bearing-calculations.md 9a-4). evaluate() takes no caller-supplied
  * f0; calcP (SKF table) is left as ported and is not reachable with a FAG
@@ -28,7 +28,7 @@
  *
  * DGBB (deep groove ball bearing) load-based selection calculations.
  * Pure functions only -- no DOM, no I/O, no site dependency. Table data
- * lives in data/dgbb_tables.js, not inline here.
+ * lives in js/tables/dgbb_tables.js, not inline here.
  *
  * Formulas and page citations: docs/bearing-calculations.md in the
  * bearing_calc project (not carried into this repo); the references to
@@ -54,7 +54,7 @@
 
 (function (root, factory) {
   if (typeof module !== 'undefined' && module.exports) {
-    const calc = factory(require('../data/dgbb_tables.js'), require('../data/fag_tables.js'));
+    const calc = factory(require('./tables/dgbb_tables.js'), require('./tables/fag_tables.js'));
     module.exports = calc;
     // The node test harnesses load these files in index.html's order against
     // a window shim, so attach there too — MYCELA.DGBBCalc then resolves the
@@ -426,7 +426,7 @@
 
   /**
    * Equivalent dynamic bearing load P from FAG's OWN factor table
-   * (data/fag_tables.js), for a single row FAG deep groove bearing at normal
+   * (js/tables/fag_tables.js), for a single row FAG deep groove bearing at normal
    * operating clearance, using FAG's own f0. There is deliberately no
    * clearance or arrangement parameter: FAG prints neither.
    *

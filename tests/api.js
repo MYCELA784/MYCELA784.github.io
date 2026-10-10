@@ -14,8 +14,8 @@
  *   404, POST 405, /health { ok: true }, empty KV 503.
  * - Allowlist: no response carries a field outside api/published-fields.json.
  * - Cap: no response has more than 40 results.
- * - CORS: only https://mycela.in, https://www.mycela.in and http://localhost
- *   are allowed (http://www.mycela.in and look-alikes are refused).
+ * - CORS: only https://mycela.in, https://www.mycela.in, http://localhost and
+ *   http://127.0.0.1 are allowed (http://www.mycela.in and look-alikes are refused).
  * - Rate limit, in the local runtime's own simulation of the binding: 70
  *   quick searches from one IP, the later ones 429; /health not limited.
  *   (tests/api-ratelimit.js covers the details with a mocked binding.)
@@ -164,9 +164,11 @@ const EXCLUDED = Object.keys(FIELDS.excluded);
   ok(await acao('https://mycela.in') === 'https://mycela.in', 'CORS allows https://mycela.in');
   ok(await acao('http://localhost:8080') === 'http://localhost:8080', 'CORS allows http://localhost:8080');
   ok(await acao('http://localhost') === 'http://localhost', 'CORS allows http://localhost');
+  ok(await acao('http://127.0.0.1:8080') === 'http://127.0.0.1:8080', 'CORS allows http://127.0.0.1:8080');
   for (const o of ['https://evil.example', 'http://mycela.in', 'http://www.mycela.in', 'https://mycela.in.evil.example',
                    'https://api.mycela.in', 'https://www.mycela.in.evil.example', 'https://www.mycela.in:8443',
-                   'http://localhost.evil.example', 'https://localhost:8080', 'null']) {
+                   'http://localhost.evil.example', 'https://localhost:8080', 'http://127.0.0.1.evil.example',
+                   'http://127.0.0.2:8080', 'https://127.0.0.1:8080', 'null']) {
     ok(await acao(o) === null, `CORS refuses ${o}`);
   }
   ok((await api.get('/search?q=6205')).headers.get('vary') === 'Origin', 'responses carry Vary: Origin');

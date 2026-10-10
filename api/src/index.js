@@ -24,7 +24,8 @@ const MAX_IDS = 50;
 const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_.\/-]{0,63}$/;
 const PATHS = ['/search', '/parts', '/stats', '/health'];
 const ORIGINS = ['https://mycela.in', 'https://www.mycela.in'];
-const LOCALHOST = /^http:\/\/localhost(:\d{1,5})?$/;
+// A page served from this computer (docs/local-preview.md), under either name.
+const LOCALHOST = /^http:\/\/(localhost|127\.0\.0\.1)(:\d{1,5})?$/;
 
 function allowedOrigin(origin) {
   if (!origin) return null;

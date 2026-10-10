@@ -2,7 +2,7 @@
  * FAG (Schaeffler) factor table for deep groove ball bearings.
  * THIS TABLE IS FAG'S, AND IS ONLY EVER USED WITH FAG'S OWN f0.
  *
- * It is deliberately a separate file from data/dgbb_tables.js (which is
+ * It is deliberately a separate file from js/tables/dgbb_tables.js (which is
  * transcribed from the SKF catalogue) and is never merged into it. The two
  * tables trace back to the same ISO 281 curve but they are not the same
  * numbers: FAG prints six rows on a different key grid, and only for

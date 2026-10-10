@@ -46,7 +46,8 @@ Errors:
 | the catalogue has not been loaded into storage | 503 | `{ "error": "catalogue not available" }` |
 
 Only these websites may call it from a browser: `https://mycela.in`,
-`https://www.mycela.in`, and `http://localhost` (any port) for development.
+`https://www.mycela.in`, and `http://localhost` or `http://127.0.0.1` (any
+port) for development.
 Plain `http://` versions of the site and look-alike addresses are refused.
 
 ### Rate limit

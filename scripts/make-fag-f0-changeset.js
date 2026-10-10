@@ -34,7 +34,7 @@ const die = m => { console.error('ABORT: ' + m + ' - no file written.'); process
 global.window = global.window || {};
 global.window.MYCELA = global.window.MYCELA || {};
 global.MYCELA = global.window.MYCELA;
-['bearings_db.js', 'js/config.js', 'js/constants.js', 'js/db.js', 'data/dgbb_tables.js', 'data/fag_tables.js', 'js/dgbb_calc.js']
+['bearings_db.js', 'js/config.js', 'js/constants.js', 'js/db.js', 'js/tables/dgbb_tables.js', 'js/tables/fag_tables.js', 'js/dgbb_calc.js']
   .forEach(f => require(path.join(ROOT, f)));
 const M = global.window.MYCELA;
 const C = M.DGBBCalc;

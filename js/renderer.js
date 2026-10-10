@@ -1,5 +1,6 @@
 /* PUBLIC API
  *   MYCELA.Renderer.cards(results, state) — render result grid
+ *   MYCELA.Renderer.notice(title, text, retry) — a message in place of the grid
  *   MYCELA.Renderer.modal(id)             — open detail modal
  *   MYCELA.Renderer.closeModal()          — close modal (and compare view)
  *   MYCELA.Renderer.toggleCompare(id, on) — add/remove a bearing from compare
@@ -8,26 +9,44 @@
  * The modal's load calculator is built here too (calcSectionHTML /
  * wireCalc), but it is display only — every number comes from
  * MYCELA.DGBBCalc, see js/dgbb_calc.js.
+ *
+ * Parts come from the search API: the results handed to cards(), and
+ * MYCELA.Api.known(id) for anything looked up by id. Nothing here reads a
+ * catalogue held in the browser.
+ *
+ * ESCAPING: every value that comes from a part, from the visitor or from an
+ * error goes through esc() (MYCELA.esc, js/escape.js) before it is put into
+ * innerHTML, or is set with textContent. ids go into data- attributes and
+ * are acted on by listeners in js/app.js, never into inline handlers.
+ * tests/escape.js fails if markup in a part's fields reaches the page.
  */
 (function (ns) {
   ns.Renderer = ns.Renderer || {};
 
+  const esc = v => ns.esc(v);
+  const known = id => ns.Api.known(id);
+  const own = (map, key) => (map && Object.prototype.hasOwnProperty.call(map, key)) ? map[key] : undefined;
+  // Colours come from this site's own table, never from the data.
+  const brandColor = brand => own(ns.BRAND_COLORS, brand) || '#17150F';
+  const num = v => Number(v).toLocaleString();
+
   function brandBadge(brand) {
-    const c = (ns.BRAND_COLORS && ns.BRAND_COLORS[brand]) || '#17150F';
-    return `<span class="card-brand-badge" style="background:${c};color:#fff">${brand}</span>`;
+    return `<span class="card-brand-badge" style="background:${brandColor(brand)};color:#fff">${esc(brand)}</span>`;
   }
 
   // ── Grid card (article.item) ────────────────────────────────────────────────
   function specChip(label, value, unit) {
     if (value == null || value === '') return '';
-    const val = unit ? `<b class="num">${value}</b><span class="u">${unit}</span>` : `<b>${value}</b>`;
+    const val = unit ? `<b class="num">${esc(value)}</b><span class="u">${unit}</span>` : `<b>${esc(value)}</b>`;
     return `<span class="spec">${label} ${val}</span>`;
   }
 
   // "Same fit" uses the catalog's precomputed alt[] equivalents, not a fresh
-  // dimension scan — findXrefs() below (used by the modal) does that instead.
+  // dimension scan (loadXrefs() below, used by the modal, does that instead).
+  // Only the equivalents this page has been sent: js/app.js fetches the
+  // missing ones after a search and renders the cards again.
   function altXrefs(b) {
-    return (b.alt || []).map(id => ns.DB_MAP[id]).filter(Boolean);
+    return (Array.isArray(b.alt) ? b.alt : []).map(known).filter(Boolean);
   }
 
   // A result that only matched via the base-designation fallback (see
@@ -37,7 +56,7 @@
   function sealingMismatchNote(b) {
     if (!b._designationOnly || !b._queriedSealing || !b.sealing) return '';
     if (b.sealing === b._queriedSealing) return '';
-    return `<div class="xr">Closest match: ${b.sealing.toLowerCase()}, you searched ${b._queriedSealing.toLowerCase()}</div>`;
+    return `<div class="xr">Closest match: ${esc(String(b.sealing).toLowerCase())}, you searched ${esc(String(b._queriedSealing).toLowerCase())}</div>`;
   }
 
   function cardHTML(b) {
@@ -51,16 +70,16 @@
     ].join('');
     return `<article class="item">
       <div class="item-top">
-        <div><div class="pn">${b.pn}</div><div class="brandline">${brandBadge(b.brand)} ${b.type || ''}</div></div>
+        <div><div class="pn">${esc(b.pn)}</div><div class="brandline">${brandBadge(b.brand)} ${esc(b.type || '')}</div></div>
         <span class="catlab">Bearing</span>
-        <input type="checkbox" class="cmp-chk" data-cmp="${b.id}" ${ns._cmp && ns._cmp.has(b.id) ? 'checked' : ''} title="Add to compare">
+        <input type="checkbox" class="cmp-chk" data-cmp="${esc(b.id)}" ${ns._cmp && ns._cmp.has(b.id) ? 'checked' : ''} title="Add to compare">
       </div>
       <div class="specs">${specs}</div>
       ${sealingMismatchNote(b)}
-      ${xs.length ? `<div class="xr">Same fit from ${xs.map(x => `<button data-x="${x.pn}">${x.brand} <span class="p">${x.pn}</span></button>`).join(', ')}</div>` : ''}
+      ${xs.length ? `<div class="xr">Same fit from ${xs.map(x => `<button data-x="${esc(x.pn)}">${esc(x.brand)} <span class="p">${esc(x.pn)}</span></button>`).join(', ')}</div>` : ''}
       <div class="item-act">
-        <button class="btn btn-sm${ns.Basket && ns.Basket.has(b.id) ? ' added' : ''}" data-add="${b.id}">${ns.Basket && ns.Basket.has(b.id) ? 'Added to list' : 'Add to list'}</button>
-        <button class="ghost" data-info="${b.id}">Details</button>
+        <button class="btn btn-sm${ns.Basket && ns.Basket.has(b.id) ? ' added' : ''}" data-add="${esc(b.id)}">${ns.Basket && ns.Basket.has(b.id) ? 'Added to list' : 'Add to list'}</button>
+        <button class="ghost" data-info="${esc(b.id)}">Details</button>
       </div>
     </article>`;
   }
@@ -89,7 +108,7 @@
 
     // ── Filter rail (built from the full, unfiltered result set) ─────────────
     if (fbody) {
-      const brands = {}, seals = {};
+      const brands = Object.create(null), seals = Object.create(null);
       baseList.forEach(b => {
         brands[b.brand] = (brands[b.brand] || 0) + 1;
         if (b.sealing) seals[b.sealing] = (seals[b.sealing] || 0) + 1;
@@ -99,13 +118,13 @@
       let html = '';
       if (bKeys.length > 1) {
         html += `<div class="fgroup"><h4>Brand</h4>` + bKeys.map(k =>
-          `<label class="frow"><input type="checkbox" data-fb="${k}" ${fBrand && fBrand.has(k) ? 'checked' : ''}>
-           ${k}<span class="n">${brands[k]}</span></label>`).join('') + `</div>`;
+          `<label class="frow"><input type="checkbox" data-fb="${esc(k)}" ${fBrand && fBrand.has(k) ? 'checked' : ''}>
+           ${esc(k)}<span class="n">${brands[k]}</span></label>`).join('') + `</div>`;
       }
       if (sKeys.length > 1) {
         html += `<div class="fgroup"><h4>Sealing</h4>` + sKeys.map(k =>
-          `<label class="frow"><input type="checkbox" data-fs="${k}" ${fSeal && fSeal.has(k) ? 'checked' : ''}>
-           ${k}<span class="n">${seals[k]}</span></label>`).join('') + `</div>`;
+          `<label class="frow"><input type="checkbox" data-fs="${esc(k)}" ${fSeal && fSeal.has(k) ? 'checked' : ''}>
+           ${esc(k)}<span class="n">${seals[k]}</span></label>`).join('') + `</div>`;
       }
       const hasFilters = !!html;
       if ((fBrand && fBrand.size) || (fSeal && fSeal.size)) html += `<button class="fclear" id="fclear">Clear filters</button>`;
@@ -134,15 +153,36 @@
     grid.innerHTML = filtered.map(cardHTML).join('');
   };
 
+  // A message where the results would be: the search is slow, the API
+  // cannot be reached, or the visitor has been rate limited. title and text
+  // are this site's own wording (MYCELA.Api.message); retry adds a button
+  // that js/app.js wires to run the search again.
+  ns.Renderer.notice = function (title, text, retry) {
+    const grid    = document.getElementById('grid');
+    const resWrap = document.getElementById('results');
+    const rTitle  = document.getElementById('rTitle');
+    const rSub    = document.getElementById('rSub');
+    const fbody   = document.getElementById('fbody');
+    if (!grid || !resWrap) return;
+    resWrap.classList.add('on');
+    resWrap.classList.add('norail');
+    if (fbody) fbody.innerHTML = '';
+    if (rTitle) rTitle.textContent = title;
+    if (rSub) rSub.textContent = '';
+    grid.classList.remove('few');
+    grid.innerHTML = `<div class="blank" style="grid-column:1/-1"><h3>${esc(title)}</h3>${text ? `<p>${esc(text)}</p>` : ''}
+      ${retry ? '<button class="btn btn-line" id="retryBtn">Try again</button>' : ''}</div>`;
+  };
+
   // ── Modal ──────────────────────────────────────────────────────────────────
   function decodeSuffixes(pn) {
     if (!ns.SUFFIX_CODES) return [];
-    const tokens = pn.toUpperCase().split(/[-\/\s]+/).slice(1);
+    const tokens = String(pn).toUpperCase().split(/[-\/\s]+/).slice(1);
     const seen = new Set();
     const out = [];
     tokens.forEach(t => {
       const clean = t.trim();
-      if (ns.SUFFIX_CODES[clean] && !seen.has(clean)) {
+      if (own(ns.SUFFIX_CODES, clean) && !seen.has(clean)) {
         seen.add(clean);
         out.push({ code: clean, desc: ns.SUFFIX_CODES[clean] });
       }
@@ -150,13 +190,21 @@
     return out;
   }
 
-  function findXrefs(b) {
-    return ns.DB.filter(x =>
+  // Other parts of the same size, for the modal. The catalogue is not in the
+  // browser, so this asks the search API for the size ("25x52x15") and keeps
+  // the answers within 0.5 mm on all three dimensions, at most 5. A failed
+  // request simply shows no cross-references.
+  function sameSize(b, list) {
+    return list.filter(x =>
       x.id !== b.id &&
       x.bore != null && b.bore != null && Math.abs(x.bore - b.bore) < 0.5 &&
       x.od   != null && b.od   != null && Math.abs(x.od   - b.od)   < 0.5 &&
       x.w    != null && b.w    != null && Math.abs(x.w    - b.w)    < 0.5
     ).slice(0, 5);
+  }
+  function loadXrefs(b) {
+    if (![b.bore, b.od, b.w].every(v => typeof v === 'number' && isFinite(v))) return Promise.resolve([]);
+    return ns.Api.search(`${b.bore}x${b.od}x${b.w}`).then(a => sameSize(b, a.results), () => []);
   }
 
   function ensureSection(id, anchorId, position) {
@@ -196,7 +244,7 @@
   function calcCheck(pass, headline, detail) {
     return `<div class="calc-check${pass ? '' : ' calc-flag'}">
         <span class="calc-mark">${pass ? '✓' : '✕'}</span>
-        <div><b>${headline}</b><span class="calc-sub">${detail}</span></div>
+        <div><b>${esc(headline)}</b><span class="calc-sub">${esc(detail)}</span></div>
       </div>`;
   }
 
@@ -250,7 +298,7 @@
       ['Reliability a1 · life factor a_SKF', `${fmtN(r.life.a1, 0)} · ${fmtN(r.life.a_SKF, 0)}`],
       ['dm = 0.5 · (d + D)', `${fmtN(bg.dm, 1)} mm`],
       ['Frm = 0.01 · Cr', `${fmtN(r.minLoad.Frm, 3)} kN`],
-      ['Ratings used', `Cr ${bg.Cr} kN, C0r ${bg.C0} kN`],
+      ['Ratings used', `Cr ${Number(bg.Cr)} kN, C0r ${Number(bg.C0)} kN`],
     ];
 
     return `<div class="calc-headline">
@@ -262,7 +310,7 @@
       ${calcCheck(r.speed.pass, speedHead, speedDetail)}
       <div class="calc-work-lbl">Working</div>
       <div class="calc-work">${working.map(([k, v]) =>
-        `<div class="calc-work-row"><span>${k}</span><span class="calc-work-val">${v}</span></div>`).join('')}</div>`;
+        `<div class="calc-work-row"><span>${esc(k)}</span><span class="calc-work-val">${esc(v)}</span></div>`).join('')}</div>`;
   }
 
   // Why combined loading is or is not offered on this row. Plain and neutral:
@@ -344,7 +392,7 @@
       try {
         outEl.innerHTML = calcResultHTML(ns.DGBBCalc.evaluate({ bearing: b, Fr, n, Fa }));
       } catch (e) {
-        outEl.innerHTML = `<div class="calc-msg">${e.message}</div>`;
+        outEl.innerHTML = `<div class="calc-msg">${esc(e.message)}</div>`;
       }
     }
     runEl.addEventListener('click', run);
@@ -352,8 +400,15 @@
   }
 
   ns.Renderer.modal = function (id) {
-    const b = ns.DB_MAP[id];
-    if (!b) return;
+    const b = known(id);
+    if (!b) {
+      // Not a part this page has been sent yet: ask the API, then open it.
+      if (!ns.Api.missing(id)) {
+        ns.Api.parts([id]).then(() => { if (known(id)) ns.Renderer.modal(id); }, () => {});
+      }
+      return;
+    }
+    ns._modalId = b.id;
 
     // Always land on the detail view, even if compare was showing last.
     const cmpEl    = document.getElementById('modal-compare');
@@ -366,10 +421,9 @@
 
     const metaEl = document.getElementById('modal-meta');
     if (metaEl) {
-      const c = (ns.BRAND_COLORS && ns.BRAND_COLORS[b.brand]) || '#17150F';
       metaEl.innerHTML =
-        `<span class="card-brand-badge" style="background:${c};color:#fff">${b.brand}</span>
-         &nbsp;·&nbsp; ${(ns.TI && ns.TI[b.type]) || ''} ${b.type}`;
+        `${brandBadge(b.brand)}
+         &nbsp;·&nbsp; ${own(ns.TI, b.type) || ''} ${esc(b.type)}`;
     }
 
     // Suffix decoder (above specs)
@@ -378,7 +432,7 @@
     if (sfx.length) {
       sfxBox.className = 'modal-suffix';
       sfxBox.innerHTML = `<div class="modal-suffix-lbl">SUFFIX DECODED</div>` +
-        sfx.map(s => `<div><b>${s.code}</b> ${s.desc}</div>`).join('');
+        sfx.map(s => `<div><b>${esc(s.code)}</b> ${esc(s.desc)}</div>`).join('');
       sfxBox.style.display = '';
     } else {
       sfxBox.style.display = 'none';
@@ -396,16 +450,16 @@
       ['Sealing',            b.sealing || null],
       ['Dynamic Load Cr',    b.cr   != null ? `${b.cr} kN`   : 'not verified'],
       ['Static Load C0r',    b.c0r  != null ? `${b.c0r} kN`  : 'not verified'],
-      ['Reference Speed',    b.speed_ref != null ? `${Number(b.speed_ref).toLocaleString()} rpm` : null],
-      ['Limiting Speed',     b.rpm  != null ? `${Number(b.rpm).toLocaleString()} rpm` : null],
+      ['Reference Speed',    b.speed_ref != null ? `${num(b.speed_ref)} rpm` : null],
+      ['Limiting Speed',     b.rpm  != null ? `${num(b.rpm)} rpm` : null],
       ['Mass',               (b.mass != null && b.mass > 0)
-                               ? (b.mass >= 1 ? `${b.mass.toFixed(2)} kg` : `${Math.round(b.mass * 1000)} g`)
+                               ? (b.mass >= 1 ? `${Number(b.mass).toFixed(2)} kg` : `${Math.round(b.mass * 1000)} g`)
                                : null],
     ];
     const specsEl = document.getElementById('modal-specs');
     if (specsEl) specsEl.innerHTML = specs
       .filter(([k, v]) => v != null)
-      .map(([k, v]) => `<div class="spec-cell"><div class="spec-lbl">${k}</div><div class="spec-val">${v}</div></div>`)
+      .map(([k, v]) => `<div class="spec-cell"><div class="spec-lbl">${k}</div><div class="spec-val">${esc(v)}</div></div>`)
       .join('');
 
     // Load calculator (under the specs, above the rest)
@@ -426,35 +480,33 @@
     const appsWrap = document.getElementById('modal-apps-wrap');
     if (appsWrap) appsWrap.style.display = 'none';
 
-// Cross-reference — reuse existing index.html section
-    const xrefs = findXrefs(b);
+    // Cross-reference: reuses the existing index.html section. Hidden until
+    // the API has answered; dropped if another part was opened meanwhile.
+    // A chip carries its part's id in data-open; js/app.js opens it.
     const xrefWrap = document.getElementById('modal-xref-wrap');
     const xrefEl   = document.getElementById('modal-xref');
     if (xrefWrap && xrefEl) {
-      if (xrefs.length) {
+      xrefWrap.style.display = 'none';
+      xrefEl.innerHTML = '';
+      ns.Renderer._xrefs = loadXrefs(b).then(xrefs => {
+        if (ns._modalId !== b.id || !xrefs.length) return;
         xrefWrap.style.display = '';
         xrefWrap.querySelector('.m-sec-lbl').textContent =
           `Cross-Reference · Same Size ${b.bore}×${b.od}×${b.w}`;
-        xrefEl.innerHTML = xrefs.map(x => {
-          const c = (ns.BRAND_COLORS && ns.BRAND_COLORS[x.brand]) || '#17150F';
-          const safe = x.id.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-          return `<button class="xref-chip" onclick="openModal('${safe}')">
-            <span class="xref-chip-brand" style="background:${c}">${x.brand}</span>
-            ${x.pn} · ${x.cr != null ? x.cr + ' kN' : 'not verified'}</button>`;
-        }).join('');
-      } else {
-        xrefWrap.style.display = 'none';
-      }
+        xrefEl.innerHTML = xrefs.map(x =>
+          `<button class="xref-chip" data-open="${esc(x.id)}">
+            <span class="xref-chip-brand" style="background:${brandColor(x.brand)}">${esc(x.brand)}</span>
+            ${esc(x.pn)} · ${x.cr != null ? esc(x.cr) + ' kN' : 'not verified'}</button>`).join('');
+      });
     }
 
     // Actions + source (after xref)
     const actBox = ensureSection('modal-actions-box', 'modal-xref-wrap', 'afterend');
-    ns._modalId = b.id;
     actBox.innerHTML =
       `<div class="modal-actions">
          ${ns.Basket ? ns.Basket.modalBtnHTML(b) : ''}
        </div>
-       <div class="modal-source">Source: ${b.source || 'Official manufacturer catalog'}</div>`;
+       <div class="modal-source">Source: ${esc(b.source || 'Official manufacturer catalog')}</div>`;
        // Copy PN button in header, next to Close
     let copyBtn = document.getElementById('modal-copy-hdr');
     if (!copyBtn) {
@@ -499,7 +551,7 @@
   };
 
   ns.Renderer.openCompare = function () {
-    const bs = Array.from(ns._cmp).map(i => ns.DB_MAP[i]).filter(Boolean).slice(0, 4);
+    const bs = Array.from(ns._cmp).map(known).filter(Boolean).slice(0, 4);
     if (bs.length < 2) return;
     const rows = [
       ['Brand',    b => b.brand],
@@ -509,7 +561,7 @@
       ['Width',    b => b.w + ' mm'],
       ['Cr',       b => b.cr  != null ? b.cr  + ' kN' : 'not verified'],
       ['C0r',      b => b.c0r != null ? b.c0r + ' kN' : 'not verified'],
-      ['Limiting speed', b => b.rpm ? Number(b.rpm).toLocaleString() + ' rpm' : 'not verified'],
+      ['Limiting speed', b => b.rpm ? num(b.rpm) + ' rpm' : 'not verified'],
       ['Sealing',  b => b.sealing || 'not verified'],
       ['Source',   b => b.source || 'not verified'],
     ];
@@ -520,9 +572,9 @@
       `<div class="modal-top"><div class="modal-pn">Compare (${bs.length})</div>
        <button class="modal-close" onclick="closeModalDirect()">Close</button></div>
        <div style="overflow-x:auto"><table class="cmp-table"><tr><th></th>` +
-      bs.map(b => `<th>${b.pn}</th>`).join('') + '</tr>' +
+      bs.map(b => `<th>${esc(b.pn)}</th>`).join('') + '</tr>' +
       rows.map(([lbl, fn]) =>
-        `<tr><td class="cmp-lbl">${lbl}</td>` + bs.map(b => `<td>${fn(b)}</td>`).join('') + '</tr>'
+        `<tr><td class="cmp-lbl">${lbl}</td>` + bs.map(b => `<td>${esc(fn(b))}</td>`).join('') + '</tr>'
       ).join('') +
       '</table></div>';
     if (detailEl) detailEl.style.display = 'none';

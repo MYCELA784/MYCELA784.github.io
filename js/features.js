@@ -1,5 +1,9 @@
-/* MYCELA Features: inquiry basket, autocomplete, dimension finder, query routing
- * PUBLIC API: MYCELA.Basket, MYCELA.QueryPrep | window.toggleInquiry, showInquiry, dimFind
+/* MYCELA Features: the inquiry list ("basket")
+ * PUBLIC API: MYCELA.Basket | window.toggleInquiry
+ *
+ * The list is kept in localStorage as { id: { qty } }. The parts themselves
+ * come from the search API: MYCELA.Api.known(id) for anything this page has
+ * already been sent, and Basket.sync() to fetch the rest (GET /parts).
  */
 (function (ns) {
   var KEY = 'mycela_inquiry';
@@ -7,257 +11,81 @@
   function load() {
     var raw;
     try { raw = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { raw = {}; }
-    return prune(raw);
+    return (raw && typeof raw === 'object' && !Array.isArray(raw)) ? raw : {};
   }
   function save(b) {
     try { localStorage.setItem(KEY, JSON.stringify(b)); } catch (e) {}
   }
 
-  // Drop basket entries whose id no longer resolves to a bearing, so a
-  // persisted basket can't carry phantom lines across a DB change (e.g.
-  // an id that was renamed or removed between sessions). Guard: if DB_MAP
-  // isn't populated (unexpected load order, or the DB failed to load)
-  // leave the basket alone rather than wipe it.
-  function prune(b) {
-    var map = ns.DB_MAP;
-    if (!map || !Object.keys(map).length) return b;
-    var out = {}, dropped = false;
-    Object.keys(b).forEach(function (id) {
-      if (map[id]) out[id] = b[id]; else dropped = true;
+  var basket = load();
+  // 'loading' until the first sync() answers, then 'ready', or 'error' if
+  // the API could not be reached.
+  var state = Object.keys(basket).length ? 'loading' : 'ready';
+
+  function known(id) { return ns.Api && ns.Api.known(id); }
+
+  // Fetch the parts in the list that this page has not seen yet, then drop
+  // entries the API says do not exist, so a stored list cannot carry phantom
+  // lines across a catalogue change (an id renamed or removed between
+  // visits). Only an answer from the API prunes: if it cannot be reached the
+  // list is left alone rather than wiped.
+  function sync() {
+    var ids = Object.keys(basket);
+    if (!ids.length) { state = 'ready'; return Promise.resolve(state); }
+    return ns.Api.parts(ids).then(function () {
+      var dropped = false;
+      Object.keys(basket).forEach(function (id) {
+        if (!known(id) && ns.Api.missing(id)) { delete basket[id]; dropped = true; }
+      });
+      if (dropped) save(basket);
+      state = 'ready';
+      return state;
+    }, function () {
+      state = 'error';
+      return state;
     });
-    if (dropped) save(out);
-    return out;
   }
 
-  var basket = load();
-
-  // Basket entries whose id still resolves to a bearing, in insertion
-  // order, each with { id, qty, bearing }. Single source of truth for
-  // what the basket "contains": the renderers, the nav badge and the
-  // inquiry payload all read this, so none can disagree with another.
+  // List entries whose part this page has, in insertion order, each with
+  // { id, qty, bearing }. Single source of truth for what the list
+  // "contains": the sheet, the header badge and the inquiry payload all
+  // read this, so none can disagree with another.
   function resolvedItems() {
-    var map = ns.DB_MAP || {};
     return Object.keys(basket)
-      .filter(function (id) { return map[id]; })
-      .map(function (id) { return { id: id, qty: basket[id].qty, bearing: map[id] }; });
+      .filter(function (id) { return known(id); })
+      .map(function (id) { return { id: id, qty: basket[id].qty, bearing: known(id) }; });
   }
 
   function count() { return resolvedItems().length; }
-  function has(id) { return !!basket[id]; }
-  function add(id) { basket[id] = basket[id] || { qty: 10 }; save(basket); }
+  function has(id) { return Object.prototype.hasOwnProperty.call(basket, id); }
+  function add(id) { if (!has(id)) basket[id] = { qty: 10 }; save(basket); }
   function remove(id) { delete basket[id]; save(basket); }
-  function setQty(id, q) { if (basket[id]) { basket[id].qty = Math.max(1, Math.round(q)); save(basket); } }
+  function setQty(id, q) { if (has(id)) { basket[id].qty = Math.max(1, Math.round(q)); save(basket); } }
 
-  function updateNav() {
-    var el = document.getElementById('inq-count');
-    if (el) el.textContent = count();
-  }
-
-  function safeId(id) { return id.replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
-
-  function btnHTML(b) {
-    if (has(b.id)) {
-      return '<button class="inq-btn inq-in" onclick="event.stopPropagation();toggleInquiry(\'' + safeId(b.id) + '\')">✓ In inquiry list</button>';
-    }
-    return '<button class="inq-btn" onclick="event.stopPropagation();toggleInquiry(\'' + safeId(b.id) + '\')">+ Add to inquiry</button>';
-  }
-
+  // The modal's own add/remove button. No inline handler: js/app.js listens
+  // for clicks on [data-inq].
   function modalBtnHTML(b) {
+    var id = ns.esc(b.id);
     if (has(b.id)) {
-      return '<button id="m-inq-btn" class="inq-btn inq-remove" onclick="toggleInquiry(\'' + safeId(b.id) + '\')">✕ Remove from inquiry</button>';
+      return '<button id="m-inq-btn" class="inq-btn inq-remove" data-inq="' + id + '">✕ Remove from inquiry</button>';
     }
-    return '<button id="m-inq-btn" class="inq-btn" onclick="toggleInquiry(\'' + safeId(b.id) + '\')">+ Add to inquiry</button>';
+    return '<button id="m-inq-btn" class="inq-btn" data-inq="' + id + '">+ Add to inquiry</button>';
   }
 
   ns.Basket = { count: count, has: has, add: add, remove: remove, setQty: setQty,
-                btnHTML: btnHTML, modalBtnHTML: modalBtnHTML, updateNav: updateNav,
+                modalBtnHTML: modalBtnHTML, sync: sync,
+                state: function () { return state; },
+                // Stored entries whose part is not on the page (yet).
+                unresolved: function () { return Object.keys(basket).length - count(); },
                 items: function () { return basket; },
                 resolvedItems: resolvedItems };
 
   window.toggleInquiry = function (id) {
     if (has(id)) remove(id); else add(id);
-    updateNav();
-    var cb = document.getElementById('cardbtn-' + id);
-    if (cb) { var b = ns.DB_MAP[id]; if (b) cb.innerHTML = btnHTML(b); }
     var mb = document.getElementById('m-inq-btn');
     if (mb && ns._modalId === id) {
-      var bb = ns.DB_MAP[id];
-      if (bb) mb.outerHTML = modalBtnHTML(bb);
+      var b = known(id);
+      if (b) mb.outerHTML = modalBtnHTML(b);
     }
-    if (document.getElementById('inquiry-page')) window.showInquiry();
   };
-
-  window.showInquiry = function () {
-    showPage('search');
-    var el = document.getElementById('results-area');
-    var countEl = document.getElementById('results-count');
-    if (countEl) countEl.style.display = 'none';
-    var fb = document.getElementById('filter-bar');
-    if (fb) fb.style.display = 'none';
-    if (!el) return;
-
-    var items = ns.Basket.resolvedItems();
-    if (!items.length) {
-      el.innerHTML = '<div id="inquiry-page" class="empty-state">' +
-        '<div class="empty-title">Your inquiry list is empty</div>' +
-        '<div class="empty-sub">Add bearings from search results or the spec view, set quantities, and send one inquiry.</div>' +
-        '<button class="inq-back" onclick="doSearch()">← Back to search</button></div>';
-      return;
-    }
-
-    var rows = items.map(function (it) {
-      var b = it.bearing, s = safeId(it.id);
-      var c = (ns.BRAND_COLORS && ns.BRAND_COLORS[b.brand]) || '#17150F';
-      return '<div class="inq-row">' +
-        '<span class="xref-chip-brand" style="background:' + c + '">' + b.brand + '</span>' +
-        '<span class="inq-pn" onclick="openModal(\'' + s + '\')" title="View specs">' + b.pn + '</span>' +
-        '<span class="inq-dims">' + b.bore + '×' + b.od + '×' + b.w + ' mm</span>' +
-        '<span style="flex:1"></span>' +
-        '<label class="inq-qty-lbl">Qty</label>' +
-        '<input type="number" class="inq-qty" value="' + it.qty + '" min="1" step="1" onchange="MYCELA.Basket.setQty(\'' + s + '\', this.value)"/>' +
-        '<button class="inq-remove-btn" onclick="toggleInquiry(\'' + s + '\')">Remove</button>' +
-        '</div>';
-    }).join('');
-
-    el.innerHTML = '<div id="inquiry-page" class="inq-card">' +
-      '<div class="inq-head"><span class="m-sec-lbl" style="margin:0">INQUIRY LIST · ' + items.length + ' ITEMS</span>' +
-      '<button class="inq-back" onclick="doSearch()">← Keep searching</button></div>' +
-      '<div class="inq-tip">Tip: click a part number to reopen its full specs.</div>' +
-      rows +
-      '<button class="inq-send inq-soon" disabled title="Coming soon">Send Inquiry (coming soon)</button>' +
-      '<div class="inq-note">Inquiry submission launches soon. Meanwhile, use Copy PN to share part numbers with your supplier.</div>' +
-      '</div>';
-  };
-
-  // ── Autocomplete (search page + hero) ─────────────────────────────────────
-  function attachAutocomplete(inputId, boxId, onPick) {
-    var input = document.getElementById(inputId);
-    if (!input || document.getElementById(boxId)) return;
-
-    var wrap = document.createElement('div');
-    wrap.className = 'ac-wrap';
-    input.parentNode.insertBefore(wrap, input);
-    wrap.appendChild(input);
-
-    var box = document.createElement('div');
-    box.id = boxId;
-    box.style.display = 'none';
-    wrap.appendChild(box);
-
-    input.addEventListener('input', function () {
-      var v = input.value.trim().toUpperCase().replace(/\s+/g, '');
-      if (v.length < 2) { box.style.display = 'none'; return; }
-      var hits = [];
-      for (var i = 0; i < ns.DB.length && hits.length < 5; i++) {
-        var b = ns.DB[i];
-        if ((b.pn || '').toUpperCase().replace(/\s+/g, '').indexOf(v) === 0) hits.push(b);
-      }
-      if (!hits.length) { box.style.display = 'none'; return; }
-      box.innerHTML = '';
-      hits.forEach(function (b) {
-        var c = (ns.BRAND_COLORS && ns.BRAND_COLORS[b.brand]) || '#17150F';
-        var item = document.createElement('div');
-        item.className = 'ac-item';
-        item.innerHTML = '<span class="ac-pn">' + b.pn + '</span>' +
-          '<span class="xref-chip-brand" style="background:' + c + '">' + b.brand + '</span>' +
-          '<span class="ac-dims">' + b.bore + '×' + b.od + '×' + b.w + '</span>';
-        item.addEventListener('click', function () {
-          input.value = b.pn;
-          box.style.display = 'none';
-          onPick();
-        });
-        box.appendChild(item);
-      });
-      box.style.display = 'block';
-    });
-
-    document.addEventListener('click', function (e) {
-      if (!box.contains(e.target) && e.target !== input) box.style.display = 'none';
-    });
-  }
-
-  function initAutocomplete() {
-    attachAutocomplete('search-input', 'ac-box', function () { window.doSearch(); });
-    attachAutocomplete('hero-input', 'ac-box-hero', function () { window.heroSearch(); });
-  }
-
-  // ── Dimension finder ───────────────────────────────────────────────────────
-  window.dimFind = function () {
-    var b = parseFloat(document.getElementById('dim-bore').value); if (isNaN(b)) b = null;
-    var d = parseFloat(document.getElementById('dim-od').value);   if (isNaN(d)) d = null;
-    var w = parseFloat(document.getElementById('dim-w').value);    if (isNaN(w)) w = null;
-    var t = parseFloat(document.getElementById('dim-tol').value) || 0;
-    if (b === null && d === null && w === null) {
-      alert('Enter at least one dimension.');
-      return;
-    }
-    var hits = ns.DB.filter(function (x) {
-      if (b !== null && Math.abs((x.bore || 0) - b) > t) return false;
-      if (d !== null && Math.abs((x.od || 0) - d) > t) return false;
-      if (w !== null && Math.abs((x.w || 0) - w) > t) return false;
-      return true;
-    });
-    hits.forEach(function (x) { x._score = x.cr || 0; x._matchType = 'DIMS'; });
-    ns.State = ns.State || {};
-    ns.State.results = hits;
-    var fb = document.getElementById('filter-bar');
-    if (fb) fb.style.display = '';
-    var countEl = document.getElementById('results-count');
-    if (countEl) countEl.style.display = '';
-    ns.Renderer.cards(hits, { tf: 'All', bf: 'All' });
-  };
-
-  // ── Query normalization + dimension-intent routing ─────────────────────────
-  // Field aliases come from the schema, not a hardcoded list here.
-  function fieldAliases(name) {
-    var S = ns.Schemas;
-    var f = S && S.get && S.get('bearing');
-    f = f && f.fields && f.fields[name];
-    return (f && f.aliases) || [];
-  }
-  function normalizeQuery(q) {
-    var out = q;
-    [['bore', 'bore'], ['od', 'od'], ['width', 'width']].forEach(function (pair) {
-      fieldAliases(pair[0]).forEach(function (a) {
-        if (a === pair[1] || a.length < 2) return;
-        var body = a.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
-        var re = new RegExp('(^|[^a-z0-9])' + body + '(?![a-z0-9])', 'gi');
-        out = out.replace(re, '$1' + pair[1]);
-      });
-    });
-    return out;
-  }
-
-  function extractDims(q) {
-    function grab(label) {
-      var m = q.match(new RegExp('(\\d+(?:\\.\\d+)?)\\s*(?:mm)?\\s*' + label + '\\b', 'i')) ||
-              q.match(new RegExp('\\b' + label + '\\s*[:=]?\\s*(\\d+(?:\\.\\d+)?)', 'i'));
-      return m ? parseFloat(m[1]) : null;
-    }
-    return { bore: grab('bore'), od: grab('od'), w: grab('width') };
-  }
-
-  function tryDimRoute(q) {
-    var d = extractDims(q);
-    if (d.bore === null || d.od === null) return false;
-    var bi = document.getElementById('dim-bore');
-    var di = document.getElementById('dim-od');
-    var wi = document.getElementById('dim-w');
-    if (bi) bi.value = d.bore;
-    if (di) di.value = d.od;
-    if (wi) wi.value = d.w !== null ? d.w : '';
-    showPage('search');
-    window.dimFind();
-    return true;
-  }
-
-  ns.QueryPrep = { normalize: normalizeQuery, dimRoute: tryDimRoute };
-
-  // ── Init ───────────────────────────────────────────────────────────────────
-  function init() { updateNav(); initAutocomplete(); }
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
-  }
 })(window.MYCELA = window.MYCELA || {});

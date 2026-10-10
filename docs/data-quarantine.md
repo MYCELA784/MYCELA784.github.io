@@ -700,7 +700,7 @@ directly; nothing is scraped. NTN: see Q12. The assembler
 `pu` and refuses it on a non-FAG row; its output is still not what ships.
 
 **How it is used, and the limits.** `js/dgbb_calc.js` computes combined loading
-for these rows with FAG's own Table 10 (`data/fag_tables.js`, HR 1 printed
+for these rows with FAG's own Table 10 (`js/tables/fag_tables.js`, HR 1 printed
 p.231), never with SKF's table. The two tables come from the same ISO curve
 but are different numbers: using SKF's with FAG's `f0` moves life by −9.6% to
 +5.1% (`bearing_calc` `docs/bearing-calculations.md` §9a-4), which is why they

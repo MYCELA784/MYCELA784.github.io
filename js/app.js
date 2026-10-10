@@ -1,17 +1,24 @@
 /* PUBLIC API
- *   MYCELA.App.doSearch(queryOverride?, display?)
- *     — read #q (or queryOverride), run the real search pipeline, render into #grid
+ *   MYCELA.App.doSearch(queryOverride?, display?, opts?)
+ *     — read #q (or queryOverride), ask the search API, render into #grid.
+ *       Returns a promise that settles when that search has been shown or
+ *       has been overtaken by a newer one. opts.typed: wait for a typing
+ *       pause first, and fill the autocomplete from the answer.
+ *
+ * The catalogue is not in the browser. Searches go to MYCELA.Api (js/api.js)
+ * and every part on the page is one the API has sent.
  *
  * Glue for the redesigned index.html. Owns pill/category chrome,
  * hero examples, the results filter rail state, modal/compare wiring, sheet
  * open/close, the basket sheet, autocomplete, and the dimension finder.
  *
- * ?debug=1 — logs to console: parsed intent and per-result score breakdowns
- *            for every search. No visible UI change.
+ * ?debug=1 — logs to console the API's answer for every search. No visible
+ *            UI change. (Scores and the parsed query stay on the API side.)
  */
 (function (ns) {
   const $ = id => document.getElementById(id);
   const DEBUG = new URLSearchParams(location.search).get('debug') === '1';
+  const esc = v => ns.esc(v);
 
   // Same Apps Script endpoint as the root site's contact.js.
   const ENDPOINT = 'https://script.google.com/macros/s/AKfycbxy_9LHxs0IbQRi7AD4g0bgD40vjV4FnLcCRoG_f8mDU6nEoMomjqZ219CEKeq-cOLb/exec';
@@ -55,13 +62,20 @@
   const EXAMPLES = ['6205', '6305', '6200', '4T-30203'];
   const PLACEHOLDER = 'Search any part number… e.g. 6205, 6305, 4T-30203';
 
+  // The catalogue size shown before the API answers: the literal in the
+  // page's own markup (.trust), which GET /stats then replaces.
+  function countPlaceholder() {
+    const b = document.querySelector('.trust b');
+    return (b && b.textContent) || '';
+  }
+
   function renderCats() {
     const el = $('cats');
     if (!el) return;
     el.innerHTML = CATS.map(c => `<button class="cat ${c.live ? '' : 'off'}" data-gocat="${c.live ? c.id : ''}">
       <div class="cat-ic"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round">${c.ic}</svg></div>
       <h3>${c.name}</h3><p>${c.desc}</p>
-      <div class="meta"><span class="tag ${c.live ? 'live' : 'soon'}">${c.live ? 'Live' : 'Soon'}</span>${c.live ? ns.DB.length.toLocaleString() + ' parts' : 'coming soon'}</div></button>`).join('');
+      <div class="meta"><span class="tag ${c.live ? 'live' : 'soon'}">${c.live ? 'Live' : 'Soon'}</span>${c.live ? `<span class="js-count">${esc(countPlaceholder())}</span> parts` : 'coming soon'}</div></button>`).join('');
     el.addEventListener('click', e => {
       const b = e.target.closest('[data-gocat]');
       if (!b || !b.dataset.gocat) return;
@@ -74,7 +88,7 @@
   function renderExamples() {
     const el = $('egs');
     if (!el) return;
-    el.innerHTML = EXAMPLES.map(e => `<button class="eg">${e}</button>`).join('');
+    el.innerHTML = EXAMPLES.map(e => `<button class="eg">${esc(e)}</button>`).join('');
     el.addEventListener('click', e => {
       const b = e.target.closest('.eg');
       if (!b) return;
@@ -83,10 +97,17 @@
     });
   }
 
+  // "parts listed" comes from the API. If it cannot be reached the literals
+  // in the markup stay. "brands live" is that literal: the API's /stats
+  // gives the count only.
   function initTrust() {
-    const nums = document.querySelectorAll('.trust b');
-    if (nums[0]) nums[0].textContent = ns.DB.length.toLocaleString();
-    if (nums[1]) nums[1].textContent = new Set(ns.DB.map(b => b.brand)).size;
+    ns.Api.stats().then(st => {
+      if (!(st.count > 0)) return;
+      const text = st.count.toLocaleString();
+      const first = document.querySelector('.trust b');
+      if (first) first.textContent = text;
+      document.querySelectorAll('.js-count').forEach(el => { el.textContent = text; });
+    }, () => {});
   }
 
   // ── Pills (cosmetic — every pill searches the same bearings catalog;
@@ -135,78 +156,163 @@
   }
 
   // ── Zero-result telemetry debounce ─────────────────────────────────────────
-  // Local search renders on every keystroke; the telemetry endpoint only hears
-  // about a zero-result query when the user presses Enter, or once typing has
-  // paused for CONFIG.search.zeroReportIdleMs, whichever comes first. A newer
-  // query restarts the wait, so a pause mid-word ("bore 12 od 9" on the way to
-  // "od 90") is never logged. The query and stage are read when the report is
-  // sent, from the latest search, not from when the wait started.
+  // The telemetry endpoint only hears about a zero-result query when the
+  // user presses Enter, or once typing has paused for
+  // CONFIG.search.zeroReportIdleMs, whichever comes first. A newer query
+  // restarts the wait, so a pause mid-word ("bore 12 od 9" on the way to
+  // "od 90") is never logged. The answer comes from the API a moment after
+  // the keystroke, so a report that falls due before the answer is in waits
+  // for it. The query and stage are those of the latest search.
   let zeroTimer = null;
-  let current = { q: '', zeroHits: false, fallbackStage: null };
+  let current = { q: '', answered: false, zeroHits: false, fallbackStage: null, due: false };
 
   function cancelTelemetry() {
     clearTimeout(zeroTimer);
     zeroTimer = null;
   }
 
-  function flushTelemetry() {
-    cancelTelemetry();
-    if (current.q && current.zeroHits) reportZeroResult(current.q, current.fallbackStage);
+  function sendIfDue() {
+    if (current.due && current.answered && current.q && current.zeroHits) reportZeroResult(current.q, current.fallbackStage);
   }
 
-  function scheduleTelemetry(q, zeroHits, fallbackStage) {
+  function flushTelemetry() {
     cancelTelemetry();
-    current = { q, zeroHits, fallbackStage };
-    if (!zeroHits) return;
+    current.due = true;
+    sendIfDue();
+  }
+
+  // A new query: forget the old one's report and start the wait again.
+  function startTelemetry(q) {
+    cancelTelemetry();
+    current = { q, answered: false, zeroHits: false, fallbackStage: null, due: false };
     zeroTimer = setTimeout(flushTelemetry, MYCELA.CONFIG.search.zeroReportIdleMs);
   }
 
-  async function doSearch(queryOverride, display) {
-    const q = (queryOverride != null ? queryOverride : $('q').value).trim();
-    if (!q) { cancelTelemetry(); current.q = ''; $('results').classList.remove('on'); return; }
+  function answerTelemetry(q, zeroHits, fallbackStage) {
+    if (current.q !== q) return;
+    current.answered = true;
+    current.zeroHits = zeroHits;
+    current.fallbackStage = fallbackStage;
+    if (!zeroHits) cancelTelemetry();
+    sendIfDue();
+  }
 
+  // ── Search requests ────────────────────────────────────────────────────────
+  // One search is "the latest" at any time (seq). Starting another cancels
+  // the request in flight and makes its answer, if it still arrives, be
+  // ignored: an older answer is never shown over a newer one.
+  let seq = 0;
+  let inFlight = null;       // AbortController of the request in flight
+  let typeTimer = null;      // the typing pause
+  let slowTimer = null;      // "Searching..." after CONFIG.api.slowMs
+  let lastSearch = null;     // { q, display } of the latest search, for "Try again"
+
+  function stopPending() {
+    clearTimeout(typeTimer);
+    clearTimeout(slowTimer);
+    if (inFlight) { inFlight.abort(); inFlight = null; }
+  }
+
+  function clearSearch() {
+    seq++;
+    stopPending();
+    cancelTelemetry();
+    current.q = '';
+    $('results').classList.remove('on');
+  }
+
+  // "Same fit" names parts by id (alt). Fetch the ones this page has not
+  // been sent, then draw the cards again so the links appear.
+  function loadSameFit(mySeq) {
+    const ids = [];
+    results.forEach(b => (Array.isArray(b.alt) ? b.alt : []).forEach(id => {
+      if (!ns.Api.known(id) && !ns.Api.missing(id)) ids.push(id);
+    }));
+    if (!ids.length) return Promise.resolve();
+    return ns.Api.parts(ids).then(() => { if (mySeq === seq) renderResults(); }, () => {});
+  }
+
+  function showAnswer(q, display, answer, mySeq, typed) {
     fBrands = new Set();
     fSeals  = new Set();
-
-    let hits = MYCELA.SearchEngine.fast(q);
-    let note = null;
-    let fbStage = null;
-    const zeroHits = hits.length === 0;
-    if (zeroHits) {
-      const fb = MYCELA.SearchEngine.fallback(q);
-      hits = fb.results;
-      note = fb.note;
-      fbStage = fb.stage;
-    }
+    const hits = answer.results;
+    // stage "exact": the normal search answered. Anything else is the
+    // fallback's stage, and counts as a zero-result query for the gap log.
+    const zeroHits = answer.stage !== 'exact';
 
     results = hits;
     title   = (display && display.title) || `${hits.length} result${hits.length === 1 ? '' : 's'}`;
-    sub     = (display && display.sub)   || note || `for "${q}"`;
+    sub     = (display && display.sub)   || answer.note || `for "${q}"`;
     renderResults();
+    if (typed) renderAc(q, hits);
 
     if (DEBUG) {
-      const intent = MYCELA.SearchEngine.parse(q);
-      console.group(`MYCELA ?debug=1 — "${q}"`);
-      console.log('Parsed intent:', intent);
-      console.log('Results with scores:', hits.map(b => ({
-        pn: b.pn, brand: b.brand, score: b._score, matchType: b._matchType, breakdown: b._breakdown,
-      })));
+      console.group(`MYCELA ?debug=1: "${q}"`);
+      console.log('API answer:', answer);
       console.groupEnd();
     }
 
-    scheduleTelemetry(q, zeroHits, fbStage);
+    answerTelemetry(q, zeroHits, zeroHits ? answer.stage : null);
+    return loadSameFit(mySeq);
+  }
+
+  function request(q, display, mySeq, typed) {
+    const ctrl = new AbortController();
+    inFlight = ctrl;
+    slowTimer = setTimeout(() => {
+      if (mySeq === seq) MYCELA.Renderer.notice('Searching...', '', false);
+    }, MYCELA.CONFIG.api.slowMs);
+    return ns.Api.search(q, { signal: ctrl.signal }).then(answer => {
+      if (mySeq !== seq) return;
+      clearTimeout(slowTimer);
+      inFlight = null;
+      return showAnswer(q, display, answer, mySeq, typed);
+    }, err => {
+      if (mySeq !== seq) return;          // cancelled by a newer search, or stale
+      clearTimeout(slowTimer);
+      inFlight = null;
+      cancelTelemetry();
+      current.q = '';
+      closeAc();
+      const m = ns.Api.message(err);
+      MYCELA.Renderer.notice(m.title, m.text, err.kind !== 'rate');
+    });
+  }
+
+  function doSearch(queryOverride, display, opts) {
+    const q = (queryOverride != null ? queryOverride : $('q').value).trim();
+    const typed = !!(opts && opts.typed);
+    if (!q) { clearSearch(); return Promise.resolve(); }
+
+    const mySeq = ++seq;
+    stopPending();
+    lastSearch = { q, display };
+    if (current.q !== q || !zeroTimer) startTelemetry(q);
+
+    // An answer this page already has is shown at once.
+    const have = ns.Api.cached(q);
+    if (have) return Promise.resolve(showAnswer(q, display, have, mySeq, typed));
+    if (!typed) return request(q, display, mySeq, false);
+    return new Promise(resolve => {
+      typeTimer = setTimeout(() => resolve(mySeq === seq ? request(q, display, mySeq, true) : undefined),
+                             MYCELA.CONFIG.api.debounceMs);
+    });
   }
 
   // ── Autocomplete ─────────────────────────────────────────────────────────
   let acIdx = -1;
   function closeAc() { $('ac').hidden = true; acIdx = -1; }
-  function renderAc(raw) {
+  // Suggestions are the search's own answer: the first 6 results whose part
+  // number contains what was typed. (The catalogue is not in the browser to
+  // scan.) Only while the box still holds that text.
+  function renderAc(raw, list) {
     const v = raw.trim().toUpperCase().replace(/\s+/g, '');
-    if (!v) { closeAc(); return; }
-    const hits = ns.DB.filter(b => b.pn.toUpperCase().replace(/\s+/g, '').includes(v)).slice(0, 6);
+    if (!v || $('q').value.trim() !== raw.trim()) { closeAc(); return; }
+    const hits = list.filter(b => String(b.pn || '').toUpperCase().replace(/\s+/g, '').includes(v)).slice(0, 6);
     $('ac').innerHTML = hits.map(b =>
-      `<div class="aci" data-ac="${b.pn}"><span class="p">${b.pn}</span>
-       <span class="c">${b.type || ''}</span><span class="d">${b.brand}</span></div>`).join('');
+      `<div class="aci" data-ac="${esc(b.pn)}"><span class="p">${esc(b.pn)}</span>
+       <span class="c">${esc(b.type || '')}</span><span class="d">${esc(b.brand)}</span></div>`).join('');
+    acIdx = -1;
     $('ac').hidden = !hits.length;
   }
   function initAutocomplete() {
@@ -237,13 +343,11 @@
   }
 
   function initSearchBox() {
-    $('q').addEventListener('input', () => { renderAc($('q').value); doSearch(); });
-    $('q').addEventListener('keydown', e => { if (e.key === 'Enter' && acIdx < 0) { doSearch(); flushTelemetry(); } });
+    $('q').addEventListener('input', () => { closeAc(); doSearch(null, null, { typed: true }); });
+    $('q').addEventListener('keydown', e => { if (e.key === 'Enter' && acIdx < 0) { closeAc(); doSearch(); flushTelemetry(); } });
     $('clearSearch').addEventListener('click', () => {
       $('q').value = '';
-      cancelTelemetry();
-      current.q = '';
-      $('results').classList.remove('on');
+      clearSearch();
       closeAc();
       scrollTo({ top: 0, behavior: 'smooth' });
     });
@@ -278,6 +382,7 @@
       const add = e.target.closest('[data-add]');
       if (add) { window.toggleInquiry(add.dataset.add); return; }
       if (e.target.id === 'askBtn') { openInquiryForm(`Looking for: "${$('q').value.trim()}"`); return; }
+      if (e.target.id === 'retryBtn' && lastSearch) { doSearch(lastSearch.q, lastSearch.display); return; }
     });
     $('grid').addEventListener('change', e => {
       const c = e.target.closest('[data-cmp]');
@@ -286,9 +391,10 @@
   }
 
   // ── Basket ───────────────────────────────────────────────────────────────
-  // Reads ns.Basket only (features.js — mycela_inquiry localStorage key).
-  // ns.Basket.count() / .resolvedItems() already exclude ids that don't
-  // resolve in DB_MAP, so the badge and the rendered list can't disagree.
+  // Reads ns.Basket only (features.js, mycela_inquiry localStorage key).
+  // ns.Basket.count() / .resolvedItems() only include entries whose part
+  // this page has, so the badge and the rendered list can't disagree. A
+  // stored list is fetched from the API once at load (Basket.sync()).
   function updateBCount() {
     const n = ns.Basket.count();
     $('bCount').textContent = n;
@@ -298,6 +404,15 @@
     $('sendBtn').closest('.sh-foot').style.display = '';
     updateBCount();
     const items = ns.Basket.resolvedItems();
+    const waiting = ns.Basket.unresolved();
+    if (!items.length && waiting) {
+      // A stored list whose parts have not arrived: still loading, or the
+      // API could not be reached. Never shown as "empty".
+      $('bBody').innerHTML = `<div class="sh-empty"><p style="margin:0">${ns.Basket.state() === 'error'
+        ? `Your list has ${waiting} part${waiting === 1 ? '' : 's'}, but we could not load ${waiting === 1 ? 'it' : 'them'} right now.<br>Please try again in a moment.`
+        : 'Loading your list...'}</p>${ns.Basket.state() === 'error' ? '<button class="btn btn-line" id="basketRetry" style="margin-top:14px">Try again</button>' : ''}</div>`;
+      return;
+    }
     if (!items.length) {
       $('bBody').innerHTML = `<div class="sh-empty"><svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4 7h16l-1.3 11.2a2 2 0 0 1-2 1.8H7.3a2 2 0 0 1-2-1.8L4 7Z"/><path d="M9 7V5a3 3 0 0 1 6 0v2"/></svg>
         <p style="margin:0">Your list is empty.<br>Search for a part and add it here.</p></div>`;
@@ -305,9 +420,9 @@
     }
     $('bBody').innerHTML = items.map(it => {
       const b = it.bearing;
-      return `<div class="brow"><div class="n"><b>${b.pn}</b><span>${b.brand} · ${b.type || ''}</span></div>
-        <input class="qty" type="number" min="1" value="${it.qty}" data-q="${it.id}">
-        <button class="rm" data-rm="${it.id}" aria-label="Remove">×</button></div>`;
+      return `<div class="brow"><div class="n"><b>${esc(b.pn)}</b><span>${esc(b.brand)} · ${esc(b.type || '')}</span></div>
+        <input class="qty" type="number" min="1" value="${esc(it.qty)}" data-q="${esc(it.id)}">
+        <button class="rm" data-rm="${esc(it.id)}" aria-label="Remove">×</button></div>`;
     }).join('') + `<p style="margin-top:20px;font-size:14px;color:var(--body)">Add as many parts as you need. You'll get one consolidated quote back.</p>`;
   }
   // Called after any basket mutation, from whichever entry point triggered it
@@ -315,15 +430,23 @@
   // "Add to list" buttons / the open basket sheet all stay in sync.
   function syncBasketUI(id) {
     updateBCount();
-    document.querySelectorAll(`[data-add="${id}"]`).forEach(btn => {
+    document.querySelectorAll('[data-add]').forEach(btn => {
+      if (btn.dataset.add !== id) return;
       const has = ns.Basket.has(id);
       btn.classList.toggle('added', has);
       btn.textContent = has ? 'Added to list' : 'Add to list';
     });
     if ($('basket').classList.contains('on')) renderBasketSheet();
   }
+  function syncBasket() {
+    return ns.Basket.sync().then(() => {
+      updateBCount();
+      if ($('basket').classList.contains('on') && !$('inquiryForm')) renderBasketSheet();
+    });
+  }
   function initBasket() {
     updateBCount();
+    syncBasket();
     // features.js's toggleInquiry already updates the modal's own inq button;
     // wrap it so the grid + basket sheet stay in sync from every entry point.
     const originalToggleInquiry = window.toggleInquiry;
@@ -333,6 +456,7 @@
     };
     $('bBody').addEventListener('click', e => {
       if (e.target.id === 'inqBack') { renderBasketSheet(); return; }
+      if (e.target.id === 'basketRetry') { e.target.disabled = true; syncBasket(); return; }
       const r = e.target.closest('[data-rm]');
       if (!r) return;
       ns.Basket.remove(r.dataset.rm);
@@ -348,7 +472,7 @@
   // #sendBtn swaps the basket sheet's item list for a small inquiry form;
   // "Ask us to source it" (zero-results state) opens the same form directly.
   function basketItemsPayload() {
-    // Only resolvable entries — never send a dealer a line with a blank
+    // Only resolvable entries: never send a dealer a line with a blank
     // brand and an internal id in place of a part number. Same source as
     // the renderers and the nav badge.
     return ns.Basket.resolvedItems().map(it => ({
@@ -427,7 +551,7 @@
             updateBCount();
             $('bBody').innerHTML = `<div class="sh-empty"><p style="margin:0">✓ Inquiry sent. We'll reply within a working day.</p></div>`;
           } else {
-            say((res && res.error) || 'Something went wrong. Please try again.', true);
+            say((res && res.error) || 'Something went wrong. Please try again.', true);   // say() sets textContent
           }
         }).catch(() => {
           say('Network error. Please try again, or email shaonak@mycela.in directly.', true);
@@ -499,6 +623,13 @@
   // ── Modal + compare ─────────────────────────────────────────────────────
   function initModal() {
     $('compareBtn').addEventListener('click', () => MYCELA.Renderer.openCompare());
+    // Buttons the renderer builds carry a part id in a data- attribute.
+    $('modal-overlay').addEventListener('click', e => {
+      const open = e.target.closest('[data-open]');
+      if (open) { MYCELA.Renderer.modal(open.dataset.open); return; }
+      const inq = e.target.closest('[data-inq]');
+      if (inq) window.toggleInquiry(inq.dataset.inq);
+    });
     window.openModal        = MYCELA.Renderer.modal;
     window.closeModal       = e => { if (e.target.id === 'modal-overlay') MYCELA.Renderer.closeModal(); };
     window.closeModalDirect = MYCELA.Renderer.closeModal;

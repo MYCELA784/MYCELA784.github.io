@@ -42,7 +42,13 @@ global.document = {
   createElement: () => new El('created'),
   querySelector: () => null,
 };
-['bearings_db.js', 'js/config.js', 'js/constants.js', 'js/db.js', 'data/dgbb_tables.js', 'data/fag_tables.js', 'js/dgbb_calc.js', 'js/renderer.js']
+// The modal reads parts from MYCELA.Api (what the search API has sent the
+// page). bearings_db.js and js/db.js are loaded here only as the source of
+// test rows; the website itself no longer loads them. The modal asks the API
+// for same-size parts: no network in this test, so that request fails and
+// the cross-reference section stays hidden.
+global.fetch = () => Promise.reject(new Error('no network in tests'));
+['bearings_db.js', 'js/config.js', 'js/escape.js', 'js/constants.js', 'js/db.js', 'js/api.js', 'js/tables/dgbb_tables.js', 'js/tables/fag_tables.js', 'js/dgbb_calc.js', 'js/renderer.js']
   .forEach(f => require(path.join(ROOT, f)));
 const M = global.window.MYCELA;
 const C = M.DGBBCalc;
@@ -52,8 +58,8 @@ function ok(cond, msg) { console.log((cond ? 'PASS  ' : 'FAIL  ') + msg); if (!c
 const text = h => h.replace(/<[^>]+>/g, ' ').replace(/&middot;/g, '.').replace(/\s+/g, ' ');
 
 function open(rec) {
-  // modal() reads DB_MAP; register synthetic records under their own id
-  if (!M.DB_MAP[rec.id]) M.DB_MAP[rec.id] = rec;
+  // modal() reads MYCELA.Api.known(); hand it the record as the API would
+  M.Api.remember([rec]);
   ['calc-fr', 'calc-fa', 'calc-n', 'calc-out', 'calc-run'].forEach(k => delete reg[k]);
   M.Renderer.modal(rec.id);
   return reg['modal-calc-wrap'];

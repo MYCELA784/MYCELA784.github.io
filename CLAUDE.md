@@ -34,8 +34,8 @@ js/search/rules.js      → MYCELA.SearchEngine.EnvironmentRules / ApplicationRu
 js/search/scoring.js    → MYCELA.SearchEngine.Scorers
 js/search/fallback.js   → MYCELA.SearchEngine.fallback()
 js/search/engine.js     → MYCELA.SearchEngine.fast()
-data/dgbb_tables.js     → MYCELA.DGBB_TABLES (SKF catalogue tables, pure data)
-data/fag_tables.js      → MYCELA.FAG_TABLES (FAG's own factor table, pure data)
+js/tables/dgbb_tables.js     → MYCELA.DGBB_TABLES (SKF catalogue tables, pure data)
+js/tables/fag_tables.js      → MYCELA.FAG_TABLES (FAG's own factor table, pure data)
 js/dgbb_calc.js         → MYCELA.DGBBCalc.* (modal load calculator)
 js/renderer.js          → MYCELA.Renderer.*
 js/router.js            → MYCELA.Router.showPage()
@@ -64,7 +64,7 @@ To add a new environment/application pattern, edit the rule tables in `js/search
 ### Modal load calculator
 
 `js/dgbb_calc.js` (ported from the separate `bearing_calc` project, with its
-catalogue tables in `data/dgbb_tables.js`) computes basic rating life L10h,
+catalogue tables in `js/tables/dgbb_tables.js`) computes basic rating life L10h,
 the minimum-load check and the speed check for **deep groove ball bearings**,
 under a radial load for every eligible row and under a combined (radial + axial)
 load for FAG single row rows only (below). `js/renderer.js` renders it as a collapsed
@@ -84,7 +84,7 @@ drives the modal UI; `node tests/apply-data-fixes.js` tests the changeset tool.
 factor f0, which the database holds only for 297 FAG single row deep groove rows
 (data-fix Q11, taken from FAG's catalogue). Those rows, and only those
 (`DGBBCalc.supportsCombined`), get an axial-load input, computed by `calcPFag`
-with FAG's Table 10 (`data/fag_tables.js`), for normal operating clearance, with
+with FAG's Table 10 (`js/tables/fag_tables.js`), for normal operating clearance, with
 **no clearance selector**. Never use SKF's `TABLE_9` with a FAG f0 (the two are
 different numbers; the mix measured −9.6% to +5.1% on life, `bearing_calc` docs
 §9a-4): `evaluate()` takes no f0 argument, the factor comes from the record, and
