@@ -105,6 +105,14 @@ browser used to run:
 
 The answer's `stage` is `"exact"` when step 1 answered, otherwise the fallback's stage.
 
+A dimension label after a designation is a dimension, never part of the
+designation: "6205 bore 25" is designation 6205 with bore 25 (the suffix stops
+at any word of a bore / od / width alias, and the label takes the number on
+its right when the number on its left is the designation). When the two
+contradict each other ("6205 bore 30": every 6205 is 25 mm), step 1 returns
+nothing (`SearchEngine.designationDimConflict`), so the answer is never
+"exact", and the fallback's note starts "6205 is bore 25 mm, not bore 30 mm."
+
 Zero-result queries (`stage` not `"exact"`, whatever the fallback then supplied) are also POSTed to the telemetry endpoint as the catalogue-gap signal, but only when the user presses Enter or once typing pauses for `CONFIG.search.zeroReportIdleMs` (2 s), whichever comes first; a newer query or clearing the box cancels the pending report, a report that falls due before the API has answered waits for the answer, and each query is sent at most once per session. A failed search is never reported. The payload carries `fallbackStage`, taken from the API's `stage`: 1–4 when the fallback relaxed a real size or type into results ("no such size"), 0 when the query had a size or type but nothing was within tolerance, `null` when there was nothing parsable to relax from. Reports sent before 2026-09-27 have no such field. `node tests/search-debounce.js` pins the request and telemetry behaviour; `node tests/site-search.js` checks, against the real Worker, that the page shows the engine's parts, order, note and stage for every `tests/search-cases.json` query.
 
 **AI refiner removed 2026-09-27.** Search used to have a third step, `MYCELA.AIRefiner.refine(q)` (`js/ai-refiner.js`), which POSTed the query to `https://mycela-backend.onrender.com/search`. It was turned off and the file deleted because it had not been working: the backend only ever saw 50 bearings, its own index had 1,719 rows against the live catalogue's 3,666 at the time (the catalogue itself was never 1,719), that index predates the June rebuild, and free-tier cold starts exceed the 12-second client timeout. `CONFIG.search.backendUrl` and `aiTimeoutMs` are kept in `js/config.js`, commented as unused.

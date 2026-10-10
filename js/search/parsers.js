@@ -111,6 +111,16 @@
     var families = {};
     (d.family_codes || []).forEach(function (f) { families[String(f).toLowerCase()] = 1; });
     var brands = brandAliasSet();
+    // Words that label a dimension ("bore", "od", "id", "width", "inner dia"
+    // ...), from the schema's field aliases. A designation's suffix never
+    // runs into one: in "6205 bore 30" the designation is 6205 and "bore 30"
+    // is a dimension, not the suffix "bore30".
+    var dimLabels = {};
+    ['bore', 'od', 'width'].forEach(function (fn) {
+      ((fieldOf(fn) || {}).aliases || []).forEach(function (a) {
+        String(a).toLowerCase().split(/[^a-z0-9]+/).forEach(function (w) { if (w.length >= 2) dimLabels[w] = 1; });
+      });
+    });
     desigCtx = {
       schema: s,
       corePat: new RegExp(d.core_pattern || '^([a-z]{0,5})([0-9]{3,5})([a-z0-9/-]*)$', 'i'),
@@ -118,6 +128,7 @@
       families: families,
       brands: brands,
       brandKeys: Object.keys(brands),
+      dimLabels: dimLabels,
       cache: new Map(),
     };
     return desigCtx;
@@ -162,10 +173,19 @@
         var prev = i > 0 ? toks[i - 1] : '';
         if (prev && /^[a-z]{1,5}$/.test(prev) && families[prev] && !brands[prev]) family = prev;
       }
+      // Following short tokens are suffix parts ("6205 2rs c3"), up to the
+      // first dimension label. A bare number just before a label belongs to
+      // the label ("6205 25 bore"), so it is taken back out of the suffix.
+      var glued = [];
       for (var j = i + 1; j < toks.length; j++) {
-        if (/^[a-z0-9]{1,5}$/.test(toks[j]) && !/^[0-9]{3,}$/.test(toks[j])) suffix += toks[j];
+        if (ctx.dimLabels[toks[j]]) {
+          if (glued.length && /^[0-9]+$/.test(glued[glued.length - 1])) glued.pop();
+          break;
+        }
+        if (/^[a-z0-9]{1,5}$/.test(toks[j]) && !/^[0-9]{3,}$/.test(toks[j])) glued.push(toks[j]);
         else break;
       }
+      suffix += glued.join('');
       if (core.length === 5) {
         for (var k = 0; k < trimStarts.length; k++) {
           if (suffix.indexOf(trimStarts[k]) === 0) { core = core.slice(0, 4); break; }
@@ -320,6 +340,25 @@
     var nRe = /[0-9]*\.?[0-9]+/g, nm;
     while ((nm = nRe.exec(work))) nums.push({ i: nm.index, len: nm[0].length, v: parseFloat(nm[0]), used: false });
 
+    // The designation's own digits ("6205" in "6205 bore 30") are a number
+    // too, and sit to the left of the label. They are not the dimension
+    // when the label has its own number on the right: see the pairing below.
+    var desig = ns.SearchEngine.designationOf(q);
+    if (desig) {
+      for (var di = 0; di < nums.length; di++) {
+        var dtxt = work.slice(nums[di].i, nums[di].i + nums[di].len);
+        if (dtxt === desig.core || (dtxt.length === 5 && dtxt.slice(0, 4) === desig.core)) { nums[di].desig = true; break; }
+      }
+    }
+    function inRange(fn, v) {
+      var f = fieldOf(fn) || {};
+      return v >= (f.min != null ? f.min : -Infinity) && v <= (f.max != null ? f.max : Infinity);
+    }
+    // Is this number followed directly by a label, which would take it?
+    function takenByNextLabel(n) {
+      return labels.some(function (l) { return l.i >= n.i + n.len && unitRe.test(work.slice(n.i + n.len, l.i)); });
+    }
+
     var labels = [];
     fields.forEach(function (fn) {
       var re = new RegExp(aliasAlt[fn], 'ig'), lm;
@@ -328,23 +367,29 @@
     labels.sort(function (a, b) { return a.i - b.i; });
 
     labels.forEach(function (lab) {
-      var chosen = null, side = null;
+      var chosen = null, side = null, left = null, right = null;
       // nearest unused number to the LEFT
       for (var a = nums.length - 1; a >= 0; a--) {
         var n = nums[a];
         if (n.used || n.i + n.len > lab.i) continue;
-        if (unitRe.test(work.slice(n.i + n.len, lab.i))) { chosen = n; side = 'L'; break; }
+        if (unitRe.test(work.slice(n.i + n.len, lab.i))) left = n;
         break;
       }
-      // else nearest unused number to the RIGHT
-      if (!chosen) {
-        for (var b = 0; b < nums.length; b++) {
-          var m2 = nums[b];
-          if (m2.used || m2.i < lab.i + lab.len) continue;
-          if (gapRightRe.test(work.slice(lab.i + lab.len, m2.i))) { chosen = m2; side = 'R'; }
-          break;
-        }
+      // nearest unused number to the RIGHT
+      for (var b = 0; b < nums.length; b++) {
+        var m2 = nums[b];
+        if (m2.used || m2.i < lab.i + lab.len) continue;
+        if (gapRightRe.test(work.slice(lab.i + lab.len, m2.i))) right = m2;
+        break;
       }
+      // The left number wins ("25 bore"), unless it is the designation and
+      // the label has a number of its own on the right: "6205 bore 30" is
+      // bore 30, not bore 6205. That holds when the designation could not be
+      // this dimension at all (6205 mm), or when nothing else is waiting for
+      // the right number ("608 bore 8"; but "100 bore 150 od" stays 100 / 150).
+      if (left && left.desig && right && (!inRange(lab.fn, left.v) || !takenByNextLabel(right))) left = null;
+      if (left) { chosen = left; side = 'L'; }
+      else if (right) { chosen = right; side = 'R'; }
       if (!chosen) return;
       chosen.used = true;
       claimed.push(chosen.v);

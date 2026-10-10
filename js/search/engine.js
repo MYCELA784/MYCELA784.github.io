@@ -61,7 +61,21 @@
     else if (intent.bore || intent.od || intent.width)                matchType = 'DIMS';
     else if (intent.apps && intent.apps.length > 0)                   matchType = 'APP';
 
-    return { score, matchType, breakdown, hardExcluded };
+    return { score, matchType, breakdown, hardExcluded, dimMiss };
+  };
+
+  // The query names a designation that is in the catalogue, and a dimension
+  // that no part of that designation has: "6205 bore 30" (6205 is 25 mm).
+  // Not when the "designation" is only a dimension's own number, as the 100
+  // in "100 bore 150 od".
+  ns.SearchEngine.designationDimConflict = function (intent, rows) {
+    const d = intent.designation;
+    if (!(d && d.normalized && d.core && d.core.length >= 3)) return false;
+    const n = Number(d.core);
+    const isDim = [intent.bore, intent.od, intent.width].some(f => f && (f.prefer === n || f.min === n || f.max === n));
+    if (isDim || !(intent.bore || intent.od || intent.width)) return false;
+    const family = rows.filter(x => ns.SearchEngine.isPartNumberMatch(x.b, intent));
+    return family.length > 0 && family.every(x => x.dimMiss);
   };
 
   function excludedPenalty() {
@@ -75,9 +89,16 @@
     const intent = ns.SearchEngine.parse(q);
 
     const scored = MYCELA.DB.map(b => {
-      const { score, matchType, breakdown, hardExcluded } = ns.SearchEngine.scoreBearing(b, intent);
-      return { b, score, matchType, breakdown, hardExcluded };
+      const { score, matchType, breakdown, hardExcluded, dimMiss } = ns.SearchEngine.scoreBearing(b, intent);
+      return { b, score, matchType, breakdown, hardExcluded, dimMiss };
     });
+
+    // A designation and a dimension that contradict each other have no exact
+    // match. Without this the designation's own parts dropped out on the
+    // dimension and the answer became every other part of that dimension,
+    // listed as if it were what was asked for. The fallback says what is
+    // wrong and shows what is near.
+    if (ns.SearchEngine.designationDimConflict(intent, scored)) return [];
 
     const alive = scored.filter(x => x.score > 0 && !x.hardExcluded);
 

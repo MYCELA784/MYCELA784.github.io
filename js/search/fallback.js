@@ -102,7 +102,31 @@
     return lo != null ? `${label} from ${n(lo)} mm` : null;
   }
 
+  // "6205 bore 30": the designation is in the catalogue with another bore.
+  // Says so ahead of the stage's own note, e.g. "6205 is bore 25 mm, not
+  // bore 30 mm. ". Empty unless every part of the designation agrees on the
+  // dimension and it is outside what the query asked.
+  function conflictNote(p) {
+    const d = p.designation;
+    if (!d || !d.core || d.core.length < 3) return '';
+    const family = MYCELA.DB.filter(b => ns.SearchEngine.isPartNumberMatch(b, p));
+    if (!family.length) return '';
+    const said = [];
+    [['bore', 'bore', 'bore'], ['od', 'od', 'OD'], ['width', 'w', 'width']].forEach(([key, col, label]) => {
+      const f = p[key];
+      const vals = [...new Set(family.map(b => b[col]))];
+      if (f && vals.length === 1 && vals[0] != null && rangeDist(vals[0], f) >= 0.5) said.push(`${label} ${vals[0]} mm, not ${dimText(label, f)}`);
+    });
+    return said.length ? `${(d.family + d.core).toUpperCase()} is ${said.join(' and ')}. ` : '';
+  }
+
   ns.SearchEngine.fallback = function (q) {
+    const out = relax(q);
+    if (out.results.length && out.note) out.note = conflictNote(ns.SearchEngine.parse(q)) + out.note;
+    return out;
+  };
+
+  function relax(q) {
     const p       = ns.SearchEngine.parse(q);
     const CFG     = MYCELA.CONFIG.fallback;
     // A brand the query named (or excluded) holds in every stage.
@@ -176,5 +200,5 @@
     // this in with the first deep groove rows in the DB, which served none of
     // these queries; removed 2026-09-27.
     return { results: [], note: null, stage: (hasBore || hasType) ? 0 : null };
-  };
+  }
 })(window.MYCELA = window.MYCELA || {});
