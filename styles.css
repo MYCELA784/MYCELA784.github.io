@@ -65,7 +65,7 @@ a{color:inherit}
 .btn-sm{height:38px;padding:0 18px;font-size:14px}
 
 /* ---------- hero ---------- */
-.hero{padding:74px 0 56px;text-align:center}
+.hero{padding:74px 24px 56px;text-align:center}   /* side padding restated: this rule overrides .wrap's */
 .lede{max-width:620px;margin:0 auto 34px;font-size:18.5px;color:var(--body);line-height:1.55}
 .pills{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-bottom:16px}
 .pill{height:38px;padding:0 17px;background:var(--card);border:1px solid var(--hair);border-radius:var(--r-pill);
@@ -78,7 +78,7 @@ a{color:inherit}
   border:1.5px solid var(--hair);border-radius:var(--r-pill);box-shadow:var(--sh-2);transition:border-color .18s,box-shadow .18s}
 .sfield:focus-within{border-color:var(--accent);box-shadow:var(--sh-3)}
 .sfield svg{flex-shrink:0;color:var(--body)}
-.sfield input{flex:1;min-width:0;height:100%;border:0;background:none;outline:none;font-size:17px;font-family:var(--data)}
+.sfield input{flex:1;min-width:0;height:100%;border:0;background:none;outline:none;font-size:17px;font-family:var(--data);text-overflow:ellipsis}
 .sfield input::placeholder{font-family:var(--ui);color:var(--faint)}
 .helper{margin:14px 0 0;font-size:14.5px;color:var(--body)}
 .helper button{background:none;border:0;padding:0;color:var(--ink);font-weight:600;cursor:pointer;
@@ -149,7 +149,7 @@ h2{font-weight:800;letter-spacing:var(--ls);font-size:clamp(27px,3.4vw,38px);mar
 .rbar{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:22px}
 .rbar h2{margin:0;font-size:25px}
 .rbar .sub{color:var(--body);font-size:15.5px}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;justify-content:start}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(320px,100%),1fr));gap:16px;justify-content:start}
 .grid.few{max-width:760px}   /* one or two results shouldn't span the whole field */
 .item{background:var(--card);border:1px solid var(--hair);border-radius:var(--r-lg);padding:20px 20px 16px;
   box-shadow:var(--sh-1);transition:box-shadow .2s}
@@ -180,9 +180,11 @@ h2{font-weight:800;letter-spacing:var(--ls);font-size:clamp(27px,3.4vw,38px);mar
 .scrim{position:fixed;inset:0;background:rgba(4,8,14,.45);z-index:80;opacity:0;pointer-events:none;transition:opacity .22s}
 .scrim.on{opacity:1;pointer-events:auto}
 .sheet{position:fixed;top:0;right:0;bottom:0;width:400px;max-width:92vw;z-index:90;background:var(--card);
-  box-shadow:-20px 0 60px rgba(0,0,0,.25);transform:translateX(102%);
+  transform:translateX(102%);
   transition:transform .26s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column}
-.sheet.on{transform:none}
+/* shadow only while open: a closed sheet sits just off screen and its shadow
+   would fall across the right edge of the page */
+.sheet.on{transform:none;box-shadow:-20px 0 60px rgba(0,0,0,.25)}
 .sh-top{display:flex;align-items:center;justify-content:space-between;padding:22px 24px 16px;border-bottom:1px solid var(--hair)}
 .sh-top h3{font-size:20px;font-weight:700;margin:0;letter-spacing:var(--ls)}
 .x{background:none;border:0;font-size:26px;line-height:1;color:var(--body);cursor:pointer;padding:0 4px}
@@ -232,9 +234,14 @@ footer a:hover{color:#fff}
   .frail.shut{padding-bottom:0;border-bottom:0}
 }
 @media (max-width:860px){
-  .nav{display:none}.hero{padding:48px 0 40px}.trust{gap:22px}
+  .nav{display:none}.hero{padding:48px 24px 40px}.trust{gap:22px}
   .f-in{grid-template-columns:1fr;gap:26px}section{padding:48px 0}
   .hdr-in{gap:14px}.icon-btn span.lbl{display:none}
+}
+@media (max-width:480px){
+  .trust{display:grid;grid-template-columns:1fr 1fr;gap:20px 12px}   /* two by two, not three and one */
+  .hdr-in{gap:10px}.hdr-act{gap:7px}
+  .rbar{gap:10px}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto}}
 

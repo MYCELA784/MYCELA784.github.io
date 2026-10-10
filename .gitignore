@@ -12,3 +12,6 @@ admin/node_modules/
 
 # The built public website (scripts/build-site.js). Never committed.
 dist/
+
+# Screenshots taken by tests/phone-layout.js. Never committed.
+screenshots/

@@ -61,6 +61,9 @@
   ];
   const EXAMPLES = ['6205', '6305', '6200', '4T-30203'];
   const PLACEHOLDER = 'Search any part number… e.g. 6205, 6305, 4T-30203';
+  // On a phone the box has no room for the examples (they are the buttons
+  // under it), and a placeholder that does not fit is simply cut off.
+  const PLACEHOLDER_SHORT = 'Search any part number…';
 
   // The catalogue size shown before the API answers: the literal in the
   // page's own markup (.trust), which GET /stats then replaces.
@@ -119,7 +122,10 @@
     if ($('q').value.trim()) doSearch();
   }
   function initPills() {
-    $('q').placeholder = PLACEHOLDER;
+    const narrow = window.matchMedia ? window.matchMedia('(max-width:600px)') : null;
+    const setPlaceholder = () => { $('q').placeholder = narrow && narrow.matches ? PLACEHOLDER_SHORT : PLACEHOLDER; };
+    setPlaceholder();
+    if (narrow && narrow.addEventListener) narrow.addEventListener('change', setPlaceholder);
     $('pills').addEventListener('click', e => {
       const p = e.target.closest('.pill');
       if (!p || p.disabled) return;

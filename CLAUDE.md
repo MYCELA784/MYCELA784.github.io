@@ -159,6 +159,19 @@ copies cannot drift.
 
 Append `?debug=1` to the URL. `app.js` logs the API's answer for each search to the console. No visible UI change. The parsed intent and score breakdowns stay on the API side; use `node tests/run.js "6205 skf"` to see them.
 
+### Phone layout
+
+`node tests/phone-layout.js` opens the built site in headless Chrome or Edge
+(whichever is installed, or `CHROME_PATH`) at 360 px and 390 px and fails if
+any view scrolls sideways, has anything past the screen edge, or cuts text
+off: home, results, details modal, list, about, dealers, contact, and the
+empty state, calculator, compare, find by size and enquiry form. Screenshots
+go to `screenshots/phone/` (git-ignored). Two things to keep: `.hero` sets
+its own side padding because its `padding` overrides `.wrap`'s, and a
+`.sheet` has its shadow only while `.on`, since a closed one sits just off
+the right edge. The search placeholder is the short one below 600 px
+(`js/app.js`).
+
 ### Page routing
 
 Three pages (`home`, `search`, `suppliers`) as `<div id="page-*">` elements. `MYCELA.Router.showPage(name)` toggles `.active` CSS class. No URL changes, no history API.
