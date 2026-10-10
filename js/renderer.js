@@ -194,13 +194,32 @@
   // browser, so this asks the search API for the size ("25x52x15") and keeps
   // the answers within 0.5 mm on all three dimensions, at most 5. A failed
   // request simply shows no cross-references.
+  //
+  // Same size is not the same bearing: a cylindrical roller fits the same
+  // seat as a deep groove ball and is not a replacement for it. So parts of
+  // the viewed part's own type come first, in the API's order, and the other
+  // types follow; the limit of 5 is applied after that, so another type can
+  // never push a like-for-like part off the list.
   function sameSize(b, list) {
-    return list.filter(x =>
+    const fits = list.filter(x =>
       x.id !== b.id &&
       x.bore != null && b.bore != null && Math.abs(x.bore - b.bore) < 0.5 &&
       x.od   != null && b.od   != null && Math.abs(x.od   - b.od)   < 0.5 &&
-      x.w    != null && b.w    != null && Math.abs(x.w    - b.w)    < 0.5
-    ).slice(0, 5);
+      x.w    != null && b.w    != null && Math.abs(x.w    - b.w)    < 0.5);
+    return fits.filter(x => x.type === b.type).concat(fits.filter(x => x.type !== b.type)).slice(0, 5);
+  }
+  // The modal's same-size chips. Other types sit under their own small
+  // label and each names its type, e.g. "NU205E · Cylindrical Roller · 29.3 kN".
+  function xrefChip(x, withType) {
+    return `<button class="xref-chip" data-open="${esc(x.id)}">
+            <span class="xref-chip-brand" style="background:${brandColor(x.brand)}">${esc(x.brand)}</span>
+            ${esc(x.pn)}${withType ? ` · ${esc(x.type || 'type not verified')}` : ''} · ${x.cr != null ? esc(x.cr) + ' kN' : 'not verified'}</button>`;
+  }
+  function xrefHTML(b, xrefs) {
+    const same  = xrefs.filter(x => x.type === b.type);
+    const other = xrefs.filter(x => x.type !== b.type);
+    return same.map(x => xrefChip(x, false)).join('') +
+      (other.length ? `<div class="xref-sub">Same size, different type</div>` + other.map(x => xrefChip(x, true)).join('') : '');
   }
   function loadXrefs(b) {
     if (![b.bore, b.od, b.w].every(v => typeof v === 'number' && isFinite(v))) return Promise.resolve([]);
@@ -493,10 +512,7 @@
         xrefWrap.style.display = '';
         xrefWrap.querySelector('.m-sec-lbl').textContent =
           `Cross-Reference · Same Size ${b.bore}×${b.od}×${b.w}`;
-        xrefEl.innerHTML = xrefs.map(x =>
-          `<button class="xref-chip" data-open="${esc(x.id)}">
-            <span class="xref-chip-brand" style="background:${brandColor(x.brand)}">${esc(x.brand)}</span>
-            ${esc(x.pn)} · ${x.cr != null ? esc(x.cr) + ' kN' : 'not verified'}</button>`).join('');
+        xrefEl.innerHTML = xrefHTML(b, xrefs);
       });
     }
 

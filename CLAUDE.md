@@ -68,7 +68,10 @@ There is no `MYCELA.DB` or `MYCELA.DB_MAP` on the page. `MYCELA.Api`
   part exists on the page only if the API has sent it.
 
 Things that used to scan the whole catalogue now ask the API: the modal's
-same-size list searches for `"25x52x15"` and keeps results within 0.5 mm;
+same-size list searches for `"25x52x15"` and keeps results within 0.5 mm
+(parts of the viewed part's own type first, then other types under a "Same
+size, different type" label, each naming its type, 5 in all;
+`node tests/same-size.js`);
 autocomplete is the first 6 results of the search itself whose part number
 contains the typed text. Do not reintroduce a catalogue download to restore
 a feature; add to the API instead.
