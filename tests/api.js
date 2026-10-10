@@ -173,20 +173,47 @@ const EXCLUDED = Object.keys(FIELDS.excluded);
   }
   ok((await api.get('/search?q=6205')).headers.get('vary') === 'Origin', 'responses carry Vary: Origin');
 
-  // 3b. rate limit, as the local runtime simulates the binding
-  const ip = { 'CF-Connecting-IP': '203.0.113.7' };
-  const codes = [];
-  for (let i = 0; i < 70; i++) codes.push((await api.get('/search?q=6205', { headers: ip })).status);
-  const first429 = codes.indexOf(429);
-  ok(codes.slice(0, 60).every(c => c === 200), '60 searches in a minute from one IP all succeed');
-  ok(first429 >= 60 && codes.slice(first429).every(c => c === 429), `70 quick searches from one IP: from #${first429 + 1} on, 429`);
-  const limited = await api.get('/search?q=6205', { headers: ip });
-  const limitedBody = await limited.json();
-  ok(limited.status === 429 && typeof limitedBody.error === 'string' && Object.keys(limitedBody).length === 1,
-     'a 429 body is a short JSON error  ' + JSON.stringify(limitedBody));
-  ok((await api.get('/health', { headers: ip })).status === 200, '/health is not rate limited');
-  ok((await api.get('/parts?ids=SKF-6205', { headers: ip })).status === 429 && (await api.get('/stats', { headers: ip })).status === 429,
-     '/parts and /stats count against the same limit');
+  // 3b. rate limit, as the local runtime simulates the binding.
+  // The local limiter counts per clock minute (its bucket is
+  // floor(now / 60 s)), so the count starts again at every :00. A burst that
+  // starts at :59 and ends at :01 is two short bursts, neither over the
+  // limit, and this section used to fail about one run in fifteen for that
+  // reason alone. So: start only with room left in the minute, note the
+  // minute before and after, and if the clock still turned over mid-burst
+  // (a slow machine) do it again from a fresh address.
+  const MINUTE = 60 * 1000;
+  const ROOM_MS = 10 * 1000;
+  const minuteOf = t => Math.floor(t / MINUTE);
+  let burst = null;
+  for (let attempt = 0; attempt < 3 && !burst; attempt++) {
+    const left = MINUTE - (Date.now() % MINUTE);
+    if (left < ROOM_MS) {
+      console.log(`      (${Math.ceil(left / 1000)} s left in this clock minute: waiting for the next one before the rate limit burst)`);
+      await new Promise(r => setTimeout(r, left + 50));
+    }
+    const ip = { 'CF-Connecting-IP': `203.0.113.${7 + attempt * 10}` };
+    const started = Date.now();
+    const codes = [];
+    for (let i = 0; i < 70; i++) codes.push((await api.get('/search?q=6205', { headers: ip })).status);
+    const limited = await api.get('/search?q=6205', { headers: ip });
+    const limitedBody = await limited.json();
+    const health = (await api.get('/health', { headers: ip })).status;
+    const parts = (await api.get('/parts?ids=SKF-6205', { headers: ip })).status;
+    const stats = (await api.get('/stats', { headers: ip })).status;
+    if (minuteOf(started) === minuteOf(Date.now())) burst = { codes, limited, limitedBody, health, parts, stats, ms: Date.now() - started };
+    else console.log('      (the clock minute turned over during the burst: repeating it from another address)');
+  }
+  ok(!!burst, 'the rate limit burst ran inside one clock minute');
+  if (burst) {
+    const { codes, limited, limitedBody } = burst;
+    const first429 = codes.indexOf(429);
+    ok(codes.slice(0, 60).every(c => c === 200), '60 searches in a minute from one IP all succeed');
+    ok(first429 >= 60 && codes.slice(first429).every(c => c === 429), `70 quick searches from one IP: from #${first429 + 1} on, 429  (burst took ${burst.ms} ms)`);
+    ok(limited.status === 429 && typeof limitedBody.error === 'string' && Object.keys(limitedBody).length === 1,
+       'a 429 body is a short JSON error  ' + JSON.stringify(limitedBody));
+    ok(burst.health === 200, '/health is not rate limited');
+    ok(burst.parts === 429 && burst.stats === 429, '/parts and /stats count against the same limit');
+  }
   ok((await api.get('/search?q=6205', { headers: { 'CF-Connecting-IP': '203.0.113.8' } })).status === 200,
      'another IP is not affected');
 
