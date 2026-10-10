@@ -35,6 +35,7 @@ not corrected.
 | Q15 | `NTN-32217U` | `cr` 36 kN against SKF 32217's 263; **logged, not changed** |
 | Q16 | `SKF-24013-2RS5W` | `sealing` Open → Sealed (**corrected**: the designation's `2RS5` is SKF's sealed suffix) |
 | Q17 | 60 SKF rows | `type` **corrected**: 53 self-aligning ball rows typed Angular Contact Ball, 7 `511/…` thrust ball rows typed Self-Aligning Ball; 20 `22xx EC`/`23xx EC` rows typed Spherical Roller Thrust **logged, not changed** |
+| Q18 | 162 SKF rows typed Spherical Roller Thrust that are not | **logged, not changed**: cylindrical roller rows with a lost `NU` prefix (`2228 EC`, `206 EC` ...). Checked for duplicates of spherical roller rows: none, so none deleted. Rename and retype wait for the owner's OK |
 
 Record count: 3715 extracted → **3706** after Q3 → **3684** after Q6 →
 **3672** after Q13. After `js/db.js`'s load-time sanity filter drops 18
@@ -901,3 +902,235 @@ No NTN or FAG row was affected. No row gained or lost the DGBB calculator:
 none of the 60 was or became Deep Groove Ball (`tests/dgbb.js` still reports
 692 calculable).
 
+---
+
+## Q18: SKF cylindrical roller rows with a lost prefix, typed Spherical Roller Thrust  (no changeset: nothing deleted, nothing renamed)
+
+Follow-up to the 20 rows Q17 logged and did not change (`2228 EC` to
+`2276 EC`, `2304 EC` to `2312 EC`), plus `SKF-206_EC` (30 × 62 × 16) and
+every other row of the same pattern. The question was whether each is a copy
+of a correctly numbered spherical roller row (`2228 EC` a copy of `22228 E`,
+with a digit lost), in which case the broken row would be deleted.
+
+**Result: none is a duplicate, so none was deleted.** 162 SKF rows
+are typed Spherical Roller Thrust without being one (the other 63 SKF rows of
+that type are real `29xxx` / `294/xxx` spherical roller thrust bearings and
+are fine). For 47 of the 162 a spherical roller row with exactly
+the same bore, OD and width does exist, because the two series share ISO
+dimension series 22 and 23. But in every such pair the load ratings differ
+(`2228 EC`: `cr` 655, `c0r` 830; `22228 CC/W33`: 743 and 900), and no SKF row
+anywhere in the catalogue has both the same size and the same ratings as any
+of the 162. They are different bearings, not copies.
+
+**What they are.** Single row cylindrical roller bearings whose `NU` prefix
+was lost in extraction. `EC` is SKF's cylindrical roller design suffix, not
+a spherical roller one (Q5 reached the same conclusion for `205 EC`), and
+size, ratings and speeds are those of the NU series: `206 EC` 30 × 62 × 16,
+44 / 36.5; `2228 EC` 140 × 250 × 68, 655 / 830, reference speed 2800,
+limiting speed 4800. The "lost a digit" reading in Q17 was wrong.
+
+**Not renamed.** The most likely designation is given per row below, but it
+is a best reading, not a checked one: NU, NJ and NUP bearings of one size
+carry the same dimensions and ratings, so the data cannot say which prefix
+was lost, and the cage suffix after `EC` (P, J, M, ML) is missing too. To
+do with the owner's OK, against SKF's catalogue: set `pn` (and `id`), set
+`type` to Cylindrical Roller as Q5 did, and replace the thrust `apps` list.
+Until then these rows stay searchable under the broken designation and the
+wrong type.
+
+**The rows named in the request (21).**
+
+| row | bore × OD × width | `cr` / `c0r` | spherical roller row of the same size (`cr` / `c0r`) | exact duplicate | most likely real designation | action |
+|---|---|---|---|---|---|---|
+| `SKF-206_EC` | 30 × 62 × 16 | 44 / 36.5 | none | no | `NU 206 EC` | kept, logged |
+| `SKF-2228_EC` | 140 × 250 × 68 | 655 / 830 | `SKF-22228_CC_W33` (743 / 900), `SKF-22228-2CS5` (744 / 900) | no | `NU 2228 EC` | kept, logged |
+| `SKF-2230_EC` | 150 × 270 × 73 | 735 / 930 | `NTN-1080` (null / null), `SKF-22230_CC_W33` (898 / 1080), `SKF-22230-2CS5` (899 / 1080) | no | `NU 2230 EC` | kept, logged |
+| `SKF-2232_EC` | 160 × 290 × 80 | 930 / 1200 | `SKF-22232_CC_W33` (1043 / 1290), `SKF-22232-2CS5` (1044 / 1290) | no | `NU 2232 EC` | kept, logged |
+| `SKF-2234_EC` | 170 × 310 × 86 | 1059.999 / 1340 | `SKF-22234_CC_W33` (1183 / 1460), `SKF-22234-2CS5` (1185 / 1460) | no | `NU 2234 EC` | kept, logged |
+| `SKF-2236_EC` | 180 × 320 × 86 | 1099.999 / 1430 | `SKF-22236_CC_W33` (1237 / 1560), `SKF-22236-2CS5` (1239 / 1560) | no | `NU 2236 EC` | kept, logged |
+| `SKF-2238_EC` | 190 × 340 × 92 | 1219.999 / 1600 | `SKF-22238_CC_W33` (1342 / 1700), `SKF-22238-2CS5` (1345 / 1700) | no | `NU 2238 EC` | kept, logged |
+| `SKF-2240_EC` | 200 × 360 × 98 | 1369.999 / 1800 | `SKF-22240_CC_W33` (1526 / 1930), `SKF-22240-2CS5` (1529 / 1930) | no | `NU 2240 EC` | kept, logged |
+| `SKF-2244_EC` | 220 × 400 × 108 | 1570 / 2280 | `SKF-22244_CC_W33` (1835 / 2360), `SKF-22244-2CS5` (1839 / 2360) | no | `NU 2244 EC` | kept, logged |
+| `SKF-2256_EC` | 280 × 500 × 130 | 2200 / 3450 | `NTN-22256BK` (310 / 3), `SKF-22256_CC_W33` (2795 / 3750) | no | `NU 2256 EC` | kept, logged |
+| `SKF-2264_EC` | 320 × 580 × 150 | 3190 / 5000 | `NTN-22264BK` (100 / 5), `SKF-22264_CC_W33` (3708 / 49000001101.1) | no | `NU 2264 EC` | kept, logged |
+| `SKF-2276_EC` | 380 × 680 × 175 | 3960 / 6400 | none | no | `NU 2276 EC` | kept, logged |
+| `SKF-2304_EC` | 20 × 52 × 21 | 47.5 / 38 | none | no | `NU 2304 EC` | kept, logged |
+| `SKF-2305_EC` | 25 × 62 × 24 | 64 / 55 | none | no | `NU 2305 EC` | kept, logged |
+| `SKF-2306_EC` | 30 × 72 × 27 | 83 / 75 | none | no | `NU 2306 EC` | kept, logged |
+| `SKF-2307_EC` | 35 × 80 × 31 | 106 / 98 | none | no | `NU 2307 EC` | kept, logged |
+| `SKF-2308_EC` | 40 × 90 × 33 | 129 / 120 | `SKF-22308_E` (155 / 137) | no | `NU 2308 EC` | kept, logged |
+| `SKF-2309_EC` | 45 × 100 × 36 | 160 / 153 | `SKF-22309_E` (190 / 176) | no | `NU 2309 EC` | kept, logged |
+| `SKF-2310_EC` | 50 × 110 × 40 | 186 / 186 | `SKF-22310_E` (228 / 216) | no | `NU 2310 EC` | kept, logged |
+| `SKF-2311_EC` | 55 × 120 × 43 | 232 / 232 | `SKF-22311_E` (280 / 280) | no | `NU 2311 EC` | kept, logged |
+| `SKF-2312_EC` | 60 × 130 × 46 | 260 / 265 | `SKF-22312_E` (325 / 335) | no | `NU 2312 EC` | kept, logged |
+
+**Other three and four digit `EC` rows, same pattern (82).**
+
+| row | bore × OD × width | `cr` / `c0r` | spherical roller row of the same size (`cr` / `c0r`) | exact duplicate | most likely real designation | action |
+|---|---|---|---|---|---|---|
+| `SKF-1007_EC` | 35 × 62 × 14 | 35.8 / 38 | none | no | `NU 1007 EC` | kept, logged |
+| `SKF-1009_EC` | 45 × 75 × 16 | 44.6 / 52 | none | no | `NU 1009 EC` | kept, logged |
+| `SKF-1010_EC` | 50 × 80 × 16 | 46.8 / 56 | none | no | `NU 1010 EC` | kept, logged |
+| `SKF-1011_EC` | 55 × 90 × 18 | 57.2 / 69.5 | none | no | `NU 1011 EC` | kept, logged |
+| `SKF-1013_EC` | 65 × 100 × 18 | 62.7 / 81.5 | none | no | `NU 1013 EC` | kept, logged |
+| `SKF-1014_EC` | 70 × 110 × 20 | 76.5 / 93 | none | no | `NU 1014 EC` | kept, logged |
+| `SKF-1016_EC` | 80 × 125 × 22 | 99 / 127 | none | no | `NU 1016 EC` | kept, logged |
+| `SKF-202_EC` | 15 × 35 × 11 | 12.5 / 10.2 | none | no | `NU 202 EC` | kept, logged |
+| `SKF-204_EC` | 20 × 47 × 14 | 28.5 / 22 | none | no | `NU 204 EC` | kept, logged |
+| `SKF-207_EC` | 35 × 72 × 17 | 56 / 48 | none | no | `NU 207 EC` | kept, logged |
+| `SKF-208_EC` | 40 × 80 × 18 | 62 / 53 | none | no | `NU 208 EC` | kept, logged |
+| `SKF-209_EC` | 45 × 85 × 19 | 69.5 / 64 | none | no | `NU 209 EC` | kept, logged |
+| `SKF-210_EC` | 50 × 90 × 20 | 73.5 / 69.5 | none | no | `NU 210 EC` | kept, logged |
+| `SKF-211_EC` | 55 × 100 × 21 | 96.5 / 95 | none | no | `NU 211 EC` | kept, logged |
+| `SKF-212_EC` | 60 × 110 × 22 | 108 / 102 | none | no | `NU 212 EC` | kept, logged |
+| `SKF-213_EC` | 65 × 120 × 23 | 122 / 118 | none | no | `NU 213 EC` | kept, logged |
+| `SKF-214_EC` | 70 × 125 × 24 | 137 / 137 | none | no | `NU 214 EC` | kept, logged |
+| `SKF-215_EC` | 75 × 130 × 25 | 150 / 156 | none | no | `NU 215 EC` | kept, logged |
+| `SKF-216_EC` | 80 × 140 × 26 | 160 / 166 | none | no | `NU 216 EC` | kept, logged |
+| `SKF-217_EC` | 85 × 150 × 28 | 190 / 200 | none | no | `NU 217 EC` | kept, logged |
+| `SKF-218_EC` | 90 × 160 × 30 | 208 / 220 | none | no | `NU 218 EC` | kept, logged |
+| `SKF-219_EC` | 95 × 170 × 32 | 255 / 265 | none | no | `NU 219 EC` | kept, logged |
+| `SKF-220_EC` | 100 × 180 × 34 | 285 / 305 | none | no | `NU 220 EC` | kept, logged |
+| `SKF-221_EC` | 105 × 190 × 36 | 300 / 315 | none | no | `NU 221 EC` | kept, logged |
+| `SKF-222_EC` | 110 × 200 × 38 | 335 / 365 | none | no | `NU 222 EC` | kept, logged |
+| `SKF-224_EC` | 120 × 215 × 40 | 390 / 430 | none | no | `NU 224 EC` | kept, logged |
+| `SKF-226_EC` | 130 × 230 × 40 | 415 / 455 | none | no | `NU 226 EC` | kept, logged |
+| `SKF-228_EC` | 140 × 250 × 42 | 450 / 510 | none | no | `NU 228 EC` | kept, logged |
+| `SKF-230_EC` | 150 × 270 × 45 | 510 / 600 | none | no | `NU 230 EC` | kept, logged |
+| `SKF-232_EC` | 160 × 290 × 48 | 585 / 680 | none | no | `NU 232 EC` | kept, logged |
+| `SKF-234_EC` | 170 × 310 × 52 | 695 / 815 | none | no | `NU 234 EC` | kept, logged |
+| `SKF-236_EC` | 180 × 320 × 52 | 720 / 850 | none | no | `NU 236 EC` | kept, logged |
+| `SKF-238_EC` | 190 × 340 × 55 | 800 / 965 | none | no | `NU 238 EC` | kept, logged |
+| `SKF-240_EC` | 200 × 360 × 58 | 880 / 1060 | none | no | `NU 240 EC` | kept, logged |
+| `SKF-244_EC` | 220 × 400 × 65 | 1059.999 / 1290 | none | no | `NU 244 EC` | kept, logged |
+| `SKF-203_EC` | 17 × 40 × 12 | 20 / 14.3 | none | no | `NU 203 EC` | kept, logged |
+| `SKF-303_EC` | 17 × 47 × 14 | 28.5 / 20.4 | none | no | `NU 303 EC` | kept, logged |
+| `SKF-305_EC` | 25 × 62 × 17 | 46.5 / 36.5 | none | no | `NU 305 EC` | kept, logged |
+| `SKF-306_EC` | 30 × 72 × 19 | 58.5 / 48 | none | no | `NU 306 EC` | kept, logged |
+| `SKF-307_EC` | 35 × 80 × 21 | 75 / 63 | none | no | `NU 307 EC` | kept, logged |
+| `SKF-308_EC` | 40 × 90 × 23 | 93 / 78 | `NTN-21308CK` (88 / 90) | no | `NU 308 EC` | kept, logged |
+| `SKF-309_EC` | 45 × 100 × 25 | 112 / 100 | `NTN-21309CK` (1 / 1.04) | no | `NU 309 EC` | kept, logged |
+| `SKF-310_EC` | 50 × 110 × 27 | 127 / 112 | none | no | `NU 310 EC` | kept, logged |
+| `SKF-311_EC` | 55 × 120 × 29 | 156 / 143 | none | no | `NU 311 EC` | kept, logged |
+| `SKF-312_EC` | 60 × 130 × 31 | 173 / 160 | none | no | `NU 312 EC` | kept, logged |
+| `SKF-313_EC` | 65 × 140 × 33 | 212 / 196 | none | no | `NU 313 EC` | kept, logged |
+| `SKF-314_EC` | 70 × 150 × 35 | 236 / 228 | none | no | `NU 314 EC` | kept, logged |
+| `SKF-315_EC` | 75 × 160 × 37 | 280 / 265 | none | no | `NU 315 EC` | kept, logged |
+| `SKF-316_EC` | 80 × 170 × 39 | 300 / 290 | none | no | `NU 316 EC` | kept, logged |
+| `SKF-317_EC` | 85 × 180 × 41 | 340 / 335 | none | no | `NU 317 EC` | kept, logged |
+| `SKF-318_EC` | 90 × 190 × 43 | 365 / 360 | none | no | `NU 318 EC` | kept, logged |
+| `SKF-319_EC` | 95 × 200 × 45 | 390 / 390 | none | no | `NU 319 EC` | kept, logged |
+| `SKF-320_EC` | 100 × 215 × 47 | 450 / 440 | none | no | `NU 320 EC` | kept, logged |
+| `SKF-321_EC` | 105 × 225 × 49 | 500 / 500 | none | no | `NU 321 EC` | kept, logged |
+| `SKF-322_EC` | 110 × 240 × 50 | 530 / 540 | none | no | `NU 322 EC` | kept, logged |
+| `SKF-324_EC` | 120 × 260 × 55 | 610 / 620 | none | no | `NU 324 EC` | kept, logged |
+| `SKF-326_EC` | 130 × 280 × 58 | 720 / 750 | none | no | `NU 326 EC` | kept, logged |
+| `SKF-328_EC` | 140 × 300 × 62 | 780 / 830 | none | no | `NU 328 EC` | kept, logged |
+| `SKF-330_EC` | 150 × 320 × 65 | 900 / 965 | none | no | `NU 330 EC` | kept, logged |
+| `SKF-332_EC` | 160 × 340 × 68 | 1000 / 1080 | none | no | `NU 332 EC` | kept, logged |
+| `SKF-334_EC` | 170 × 360 × 72 | 952 / 1180 | none | no | `NU 334 EC` | kept, logged |
+| `SKF-336_EC` | 180 × 380 × 75 | 1020 / 1290 | none | no | `NU 336 EC` | kept, logged |
+| `SKF-338_EC` | 190 × 400 × 78 | 1140 / 1500 | none | no | `NU 338 EC` | kept, logged |
+| `SKF-340_EC` | 200 × 420 × 80 | 1230 / 1630 | none | no | `NU 340 EC` | kept, logged |
+| `SKF-352_EC` | 260 × 540 × 102 | 1940 / 2700 | none | no | `NU 352 EC` | kept, logged |
+| `SKF-360_EC` | 300 × 620 × 109 | 2330 / 3350 | none | no | `NU 360 EC` | kept, logged |
+| `SKF-304_EC` | 20 × 52 × 15 | 35.5 / 26 | none | no | `NU 304 EC` | kept, logged |
+| `SKF-1964_EC` | 320 × 440 × 56 | 693 / 1200 | none | no | `NU 1964 EC` | kept, logged |
+| `SKF-1972_EC` | 360 × 480 × 56 | 781 / 1460 | none | no | `NU 1972 EC` | kept, logged |
+| `SKF-2060_EC` | 300 × 460 × 95 | 1510 / 2600 | none | no | `NU 2060 EC` | kept, logged |
+| `SKF-2088_EC` | 440 × 650 × 122 | 2550 / 4900 | none | no | `NU 2088 EC` | kept, logged |
+| `SKF-2096_EC` | 480 × 700 × 128 | 2860 / 5600 | none | no | `NU 2096 EC` | kept, logged |
+| `SKF-3076_EC` | 380 × 560 × 135 | 2380 / 4750 | none | no | `NU 3076 EC` | kept, logged |
+| `SKF-3168_EC` | 340 × 580 × 190 | 3470 / 5850 | `NTN-23168BK` (600 / 6), `SKF-23168-2CS5` (4452 / 6800) | no | `NU 3168 EC` | kept, logged |
+| `SKF-3172_EC` | 360 × 600 × 192 | 3410 / 6100 | `NTN-23172BK` (750 / 7), `SKF-23172-2CS5` (4521 / 6950) | no | `NU 3172 EC` | kept, logged |
+| `SKF-3184_EC` | 420 × 700 × 224 | 4950 / 9000 | `NTN-23184BK` (200 / 9), `SKF-23184_CJ_W33` (5919 / 9300), `SKF-23184-2CS5` (5919 / 9300) | no | `NU 3184 EC` | kept, logged |
+| `SKF-3188_EC` | 440 × 720 × 226 | 5120 / 10000 | `NTN-23188BK` (200 / 10), `SKF-23188_CA_W33` (6215 / 10000), `SKF-23188-2CS5` (6220 / 10000) | no | `NU 3188 EC` | kept, logged |
+| `SKF-3192_EC` | 460 × 760 × 240 | 5280 / 9650 | `SKF-23192_CA_W33` (6760 / 10800), `SKF-23192-2CS5` (6765 / 10800) | no | `NU 3192 EC` | kept, logged |
+| `SKF-3196_EC` | 480 × 790 × 248 | 5940 / 10800 | `SKF-23196_CA_W33` (7362 / 12000), `SKF-23196-2CS5` (7367 / 12000) | no | `NU 3196 EC` | kept, logged |
+| `SKF-3984_EC` | 420 × 560 × 106 | 1680 / 3650 | `NTN-23984K` (630 / 3), `SKF-23984_CC_W33` (2083 / 4150) | no | `NU 3984 EC` | kept, logged |
+| `SKF-3992_EC` | 460 × 620 × 118 | 2050 / 4550 | `NTN-23992K` (100 / 4), `SKF-23992_CA_W33` (2558 / 5000) | no | `NU 3992 EC` | kept, logged |
+| `SKF-1968_EC` | 340 × 460 × 56 | 682 / 1200 | none | no | `NU 1968 EC` | kept, logged |
+
+**Large sizes written `NN / NNN EC` (12).**
+
+| row | bore × OD × width | `cr` / `c0r` | spherical roller row of the same size (`cr` / `c0r`) | exact duplicate | most likely real designation | action |
+|---|---|---|---|---|---|---|
+| `SKF-22___560_EC` | 560 × 1030 × 272 | 9900 / 16600 | none | no | `NU 22/560 EC` | kept, logged |
+| `SKF-20___500_EC` | 500 × 720 × 128 | 2920 / 5850 | none | no | `NU 20/500 EC` | kept, logged |
+| `SKF-20___530_EC` | 530 × 780 × 145 | 3740 / 7350 | none | no | `NU 20/530 EC` | kept, logged |
+| `SKF-20___560_EC` | 560 × 820 × 150 | 3800 / 7650 | none | no | `NU 20/560 EC` | kept, logged |
+| `SKF-20___600_EC` | 600 × 870 × 155 | 4180 / 8000 | none | no | `NU 20/600 EC` | kept, logged |
+| `SKF-20___630_EC` | 630 × 920 × 170 | 4730 / 9500 | none | no | `NU 20/630 EC` | kept, logged |
+| `SKF-20___670_EC` | 670 × 980 × 180 | 5390 / 11000 | none | no | `NU 20/670 EC` | kept, logged |
+| `SKF-20___710_EC` | 710 × 1030 × 185 | 5940 / 12000 | none | no | `NU 20/710 EC` | kept, logged |
+| `SKF-20___750_EC` | 750 × 1090 × 195 | 7040 / 14600 | none | no | `NU 20/750 EC` | kept, logged |
+| `SKF-20___800_EC` | 800 × 1150 × 200 | 7040 / 14600 | none | no | `NU 20/800 EC` | kept, logged |
+| `SKF-20___850_EC` | 850 × 1220 × 212 | 8420 / 18600 | none | no | `NU 20/850 EC` | kept, logged |
+| `SKF-30___500_EC` | 500 × 720 × 167 | 3800 / 7350 | none | no | `NU 30/500 EC` | kept, logged |
+
+**Bare numbers, no prefix and no suffix (22).**
+
+| row | bore × OD × width | `cr` / `c0r` | spherical roller row of the same size (`cr` / `c0r`) | exact duplicate | most likely real designation | action |
+|---|---|---|---|---|---|---|
+| `SKF-1005` | 25 × 47 × 12 | 14.2 / 13.2 | none | no | `NU 1005` | kept, logged |
+| `SKF-1008` | 40 × 68 × 15 | 25.1 / 26 | none | no | `NU 1008` | kept, logged |
+| `SKF-1012` | 60 × 95 × 18 | 37.4 / 44 | none | no | `NU 1012` | kept, logged |
+| `SKF-1013` | 65 × 100 × 18 | 38 / 46.5 | none | no | `NU 1013` | kept, logged |
+| `SKF-1014` | 70 × 110 × 20 | 56.1 / 67 | none | no | `NU 1014` | kept, logged |
+| `SKF-1015` | 75 × 115 × 20 | 58.3 / 71 | none | no | `NU 1015` | kept, logged |
+| `SKF-1016` | 80 × 125 × 22 | 64.4 / 78 | none | no | `NU 1016` | kept, logged |
+| `SKF-1017` | 85 × 130 × 22 | 68.2 / 86.5 | none | no | `NU 1017` | kept, logged |
+| `SKF-1018` | 90 × 140 × 24 | 80.9 / 104 | none | no | `NU 1018` | kept, logged |
+| `SKF-1019` | 95 × 145 × 24 | 84.2 / 110 | none | no | `NU 1019` | kept, logged |
+| `SKF-1020` | 100 × 150 × 24 | 85.8 / 114 | none | no | `NU 1020` | kept, logged |
+| `SKF-1021` | 105 × 160 × 26 | 101 / 137 | none | no | `NU 1021` | kept, logged |
+| `SKF-1022` | 110 × 170 × 28 | 128 / 166 | none | no | `NU 1022` | kept, logged |
+| `SKF-1024` | 120 × 180 × 28 | 134 / 183 | none | no | `NU 1024` | kept, logged |
+| `SKF-1026` | 130 × 200 × 33 | 165 / 224 | none | no | `NU 1026` | kept, logged |
+| `SKF-1036` | 180 × 280 × 46 | 336 / 475 | none | no | `NU 1036` | kept, logged |
+| `SKF-1040` | 200 × 310 × 51 | 380 / 570 | none | no | `NU 1040` | kept, logged |
+| `SKF-344` | 220 × 460 × 88 | 1210 / 1630 | none | no | `NU 344` | kept, logged |
+| `SKF-348` | 240 × 500 × 95 | 1450 / 2000 | none | no | `NU 348` | kept, logged |
+| `SKF-1988` | 440 × 600 × 74 | 1060 / 2000 | none | no | `NU 1988` | kept, logged |
+| `SKF-1996` | 480 × 650 × 78 | 1170 / 2240 | none | no | `NU 1996` | kept, logged |
+| `SKF-3068` | 340 × 520 × 133 | 2200 / 4150 | `NTN-23068BK` (310 / 4) | no | `NU 3068` | kept, logged |
+
+**`NJG ... VH` full complement cylindrical roller rows (25).**
+
+| row | bore × OD × width | `cr` / `c0r` | spherical roller row of the same size (`cr` / `c0r`) | exact duplicate | most likely real designation | action |
+|---|---|---|---|---|---|---|
+| `SKF-NJG_2306_VH` | 30 × 72 × 27 | 84.2 / 86.5 | none | no | `NJG 2306 VH` (designation is right, only `type` is wrong) | kept, logged |
+| `SKF-NJG_2307_VH` | 35 × 80 × 31 | 108 / 114 | none | no | `NJG 2307 VH` (designation is right, only `type` is wrong) | kept, logged |
+| `SKF-NJG_2308_VH` | 40 × 90 × 33 | 145 / 156 | `SKF-22308_E` (155 / 137) | no | `NJG 2308 VH` (designation is right, only `type` is wrong) | kept, logged |
+| `SKF-NJG_2309_VH` | 45 × 100 × 36 | 172 / 196 | `SKF-22309_E` (190 / 176) | no | `NJG 2309 VH` (designation is right, only `type` is wrong) | kept, logged |
+| `SKF-NJG_2311_VH` | 55 × 120 × 43 | 233 / 260 | `SKF-22311_E` (280 / 280) | no | `NJG 2311 VH` (designation is right, only `type` is wrong) | kept, logged |
+| `SKF-NJG_2313_VH` | 65 × 140 × 48 | 303 / 360 | `SKF-22313_E` (357 / 360) | no | `NJG 2313 VH` (designation is right, only `type` is wrong) | kept, logged |
+| `SKF-NJG_2314_VH` | 70 × 150 × 51 | 336 / 400 | `SKF-22314_E` (413 / 430) | no | `NJG 2314 VH` (designation is right, only `type` is wrong) | kept, logged |
+| `SKF-NJG_2315_VH` | 75 × 160 × 55 | 396 / 480 | `SKF-22315_E` (462 / 475) | no | `NJG 2315 VH` (designation is right, only `type` is wrong) | kept, logged |
+| `SKF-NJG_2316_VH` | 80 × 170 × 58 | 457 / 570 | `SKF-22316_E` (516 / 530) | no | `NJG 2316 VH` (designation is right, only `type` is wrong) | kept, logged |
+| `SKF-NJG_2317_VH` | 85 × 180 × 60 | 484 / 620 | `SKF-22317_E` (577 / 620) | no | `NJG 2317 VH` (designation is right, only `type` is wrong) | kept, logged |
+| `SKF-NJG_2318_VH` | 90 × 190 × 64 | 550 / 680 | `SKF-22318_E` (637 / 695) | no | `NJG 2318 VH` (designation is right, only `type` is wrong) | kept, logged |
+| `SKF-NJG_2320_VH` | 100 × 215 × 73 | 704 / 900 | `SKF-22320_E` (847 / 950) | no | `NJG 2320 VH` (designation is right, only `type` is wrong) | kept, logged |
+| `SKF-NJG_2322_VH` | 110 × 240 × 80 | 858 / 1060 | `SKF-22322_E` (989 / 1120) | no | `NJG 2322 VH` (designation is right, only `type` is wrong) | kept, logged |
+| `SKF-NJG_2324_VH` | 120 × 260 × 86 | 952 / 1250 | `SKF-22324_CC_W33` (1019 / 1120), `SKF-22324-2CS5` (1022 / 1120) | no | `NJG 2324 VH` (designation is right, only `type` is wrong) | kept, logged |
+| `SKF-NJG_2326_VH` | 130 × 280 × 93 | 1080 / 1430 | `SKF-22326_CC_W33` (1176 / 1320), `SKF-22326-2CS5` (1178 / 1320) | no | `NJG 2326 VH` (designation is right, only `type` is wrong) | kept, logged |
+| `SKF-NJG_2328_VH` | 140 × 300 × 102 | 1230 / 1660 | `SKF-22328_CC_W33` (1357 / 1560), `SKF-22328-2CS5` (1359 / 1560) | no | `NJG 2328 VH` (designation is right, only `type` is wrong) | kept, logged |
+| `SKF-NJG_2330_VH` | 150 × 320 × 108 | 1450 / 1930 | `SKF-22330_CC_W33` (1539 / 1760), `SKF-22330-2CS5` (1541 / 1760) | no | `NJG 2330 VH` (designation is right, only `type` is wrong) | kept, logged |
+| `SKF-NJG_2334_VH` | 170 × 360 × 120 | 1760 / 2450 | `SKF-22334_CC_W33` (1863 / 2160) | no | `NJG 2334 VH` (designation is right, only `type` is wrong) | kept, logged |
+| `SKF-NJG_2336_VH` | 180 × 380 × 126 | 1870 / 2650 | none | no | `NJG 2336 VH` (designation is right, only `type` is wrong) | kept, logged |
+| `SKF-NJG_2338_VH` | 190 × 400 × 132 | 2160 / 3000 | `SKF-22338_CC_W33` (2232 / 2650), `SKF-22338-2CS5` (2236 / 2650) | no | `NJG 2338 VH` (designation is right, only `type` is wrong) | kept, logged |
+| `SKF-NJG_2340_VH` | 200 × 420 × 138 | 2290 / 3200 | `SKF-22340_CC_W33` (2439 / 2900) | no | `NJG 2340 VH` (designation is right, only `type` is wrong) | kept, logged |
+| `SKF-NJG_2344_VH` | 220 × 460 × 145 | 2700 / 3750 | `SKF-22344_CC_W33` (2839 / 3450), `SKF-22344-2CS5` (2844 / 3450) | no | `NJG 2344 VH` (designation is right, only `type` is wrong) | kept, logged |
+| `SKF-NJG_2348_VH` | 240 × 500 × 155 | 3140 / 4400 | `SKF-22348_CC_W33` (3229 / 4000) | no | `NJG 2348 VH` (designation is right, only `type` is wrong) | kept, logged |
+| `SKF-NJG_2352_VH` | 260 × 540 × 165 | 3580 / 5000 | `NTN-22352BK` (100 / 4), `SKF-22352_CC_W33` (3680 / 4550) | no | `NJG 2352 VH` (designation is right, only `type` is wrong) | kept, logged |
+| `SKF-NJG_2305_VH` | 25 × 62 × 24 | 68.2 / 68 | none | no | `NJG 2305 VH` (designation is right, only `type` is wrong) | kept, logged |
+
+**Seen while checking, not changed.**
+
+- `SKF-22264_CC_W33` has `c0r` 49000001101.1 (should be near 4900).
+- `NTN-22256BK` (`cr` 310, `c0r` 3), `NTN-22264BK` (`cr` 100, `c0r` 5) and
+  `NTN-1080` (150 × 270 × 73, typed Spherical Roller, no ratings) look wrong.
+- The reverse mistake exists as well: 16 SKF rows typed Cylindrical Roller
+  carry spherical roller designations (`21305 CC`, `21308 E` ...).
+
+Record counts are unchanged by Q18: 3,672 raw rows, 3,654 searchable.
