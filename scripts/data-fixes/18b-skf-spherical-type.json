@@ -1,0 +1,18 @@
+[
+  { "id": "SKF-21305_CC", "op": "set", "fields": { "type": "Spherical Roller" } },
+  { "id": "SKF-21306_CC", "op": "set", "fields": { "type": "Spherical Roller" } },
+  { "id": "SKF-21307_CC", "op": "set", "fields": { "type": "Spherical Roller" } },
+  { "id": "SKF-21308_E", "op": "set", "fields": { "type": "Spherical Roller" } },
+  { "id": "SKF-21309_E", "op": "set", "fields": { "type": "Spherical Roller" } },
+  { "id": "SKF-21310_E", "op": "set", "fields": { "type": "Spherical Roller" } },
+  { "id": "SKF-21311_E", "op": "set", "fields": { "type": "Spherical Roller" } },
+  { "id": "SKF-21312_E", "op": "set", "fields": { "type": "Spherical Roller" } },
+  { "id": "SKF-21313_E", "op": "set", "fields": { "type": "Spherical Roller" } },
+  { "id": "SKF-21314_E", "op": "set", "fields": { "type": "Spherical Roller" } },
+  { "id": "SKF-21315_E", "op": "set", "fields": { "type": "Spherical Roller" } },
+  { "id": "SKF-21316_E", "op": "set", "fields": { "type": "Spherical Roller" } },
+  { "id": "SKF-21317_E", "op": "set", "fields": { "type": "Spherical Roller" } },
+  { "id": "SKF-21318_E", "op": "set", "fields": { "type": "Spherical Roller" } },
+  { "id": "SKF-21319_E", "op": "set", "fields": { "type": "Spherical Roller" } },
+  { "id": "SKF-21320_E", "op": "set", "fields": { "type": "Spherical Roller" } }
+]

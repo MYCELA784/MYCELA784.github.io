@@ -35,7 +35,7 @@ not corrected.
 | Q15 | `NTN-32217U` | `cr` 36 kN against SKF 32217's 263; **logged, not changed** |
 | Q16 | `SKF-24013-2RS5W` | `sealing` Open → Sealed (**corrected**: the designation's `2RS5` is SKF's sealed suffix) |
 | Q17 | 60 SKF rows | `type` **corrected**: 53 self-aligning ball rows typed Angular Contact Ball, 7 `511/…` thrust ball rows typed Self-Aligning Ball; 20 `22xx EC`/`23xx EC` rows typed Spherical Roller Thrust **logged, not changed** |
-| Q18 | 162 SKF rows typed Spherical Roller Thrust that are not | **logged, not changed**: cylindrical roller rows with a lost `NU` prefix (`2228 EC`, `206 EC` ...). Checked for duplicates of spherical roller rows: none, so none deleted. Rename and retype wait for the owner's OK |
+| Q18 | 162 SKF rows typed Spherical Roller Thrust that are not; 16 SKF `213xx` rows typed Cylindrical Roller; `SKF-22264_CC_W33` | `type` **corrected** on 2026-10-10: the 162 to Cylindrical Roller (Q18a), the 16 to Spherical Roller (Q18b); impossible `c0r` set to null (Q18c). No row deleted or renamed. The 162 still need their real designation (lost `NU` / `NJ` / `NUP` prefix, cage suffix) from SKF's catalogue. 98 more large SKF spherical roller rows typed Cylindrical Roller **logged, not changed** (Q18d) |
 
 Record count: 3715 extracted → **3706** after Q3 → **3684** after Q6 →
 **3672** after Q13. After `js/db.js`'s load-time sanity filter drops 18
@@ -904,7 +904,72 @@ none of the 60 was or became Deep Groove Ball (`tests/dgbb.js` still reports
 
 ---
 
-## Q18: SKF cylindrical roller rows with a lost prefix, typed Spherical Roller Thrust  (no changeset: nothing deleted, nothing renamed)
+## Q18: SKF cylindrical roller rows with a lost prefix, typed Spherical Roller Thrust  (changesets `18a`, `18b`, `18c`: types corrected, nothing deleted, nothing renamed)
+
+### Status, 2026-10-10
+
+Changed, with `scripts/apply-data-fixes.js`:
+
+| fix | changeset | rows | change |
+|---|---|---|---|
+| Q18a | `scripts/data-fixes/18a-skf-cylindrical-type.json` | 162 | `type` Spherical Roller Thrust to Cylindrical Roller |
+| Q18b | `scripts/data-fixes/18b-skf-spherical-type.json` | 16 | `type` Cylindrical Roller to Spherical Roller |
+| Q18c | `scripts/data-fixes/18c-skf-22264-c0r.json` | 1 | `SKF-22264_CC_W33` `c0r` 49000001101.1 to null (unknown, no value guessed) |
+
+Rows per type, before and after (searchable catalogue, 3,654 rows; the raw
+file stays at 3,672):
+
+| type | before | after | change |
+|---|---|---|---|
+| Cylindrical Roller | 213 | 359 | +146 (+162, -16) |
+| Spherical Roller | 368 | 384 | +16 |
+| Spherical Roller Thrust | 225 | 63 | -162 |
+| every other type | | | unchanged |
+
+**Q18a, the evidence.** All 162 rows listed below (103 `NNN EC` / `NNNN EC`,
+12 `NN / NNN EC`, 22 bare numbers, 25 `NJG ... VH`). Their sizes are those
+of radial ISO series (02, 03, 10, 22, 23 ...), `c0r` is close to `cr` where
+a real spherical roller thrust row has `c0r` three to four times `cr`
+(`29230 E`: 408 / 1600), and for 63 of them an `NU` / `NJ` row of exactly
+the same size is in the catalogue. The 63 rows left with the type are all
+real `29xxx` / `294/xxx` bearings. The tables below still say "kept,
+logged" in the action column: that was the state before this fix.
+
+**Q18b, the evidence.** `21305 CC`, `21306 CC`, `21307 CC` and
+`21308 E` to `21320 E`. Series 213 with a `CC` or `E` suffix is SKF's
+spherical roller series, the sizes are the 213 sizes, and the ratings are
+not those of the cylindrical roller row of the same size, which is in the
+catalogue too (`21305 CC` 49.1 / 41.5 against `305 EC` 46.5 / 36.5). The
+pairs with the same ratings (`21310 E` and `21311 E`, `21314 E` and
+`21315 E`, `21316 E` and `21317 E`, `21319 E` and `21320 E`) are the same
+in SKF's catalogue, not an extraction fault. All 16 fit; none was unclear.
+
+**Still to do, needs SKF's catalogue.**
+
+- The real designation of the 137 Q18a rows without a prefix: which of
+  `NU`, `NJ` or `NUP` was lost, and the cage suffix after `EC`. Until then
+  they are found by size and by type but not by their real part number.
+- Their `apps` list is still the thrust one ("vertical shaft applications",
+  "extruders", "mixers", "heavy axial loads"). Not changed: the task was
+  `type` only.
+- `SKF-22264_CC_W33` `c0r` (null now; the value should be near 4900).
+- `2088 EC` has `speed_ref` 8500 against `rpm` 1300, where its neighbours
+  have 750 to 850. Not changed.
+
+**Q18d, found while doing Q18b, not changed.** The "16 rows" count was
+short. Another 98 SKF rows typed Cylindrical Roller carry large spherical
+roller designations: series `230/`, `231/`, `232/`, `238/`, `239/`,
+`240/`, `241/`, `248/`, `249/` from bore 500 mm up, with `CA/W33`,
+`ECA/W33`, `CAF/W33`, `CAMA/W20` and similar suffixes (`230/ 500 CA/W33`
+... `249 / 1320 CAF/W33`). The type correction in `js/db.js` misses them
+because of the slash. They are outside the 16 the fix was approved for, so
+they wait for the owner's OK; the change would be `type` to Spherical
+Roller on all 98.
+
+The three NTN rows below (`NTN-22256BK`, `NTN-22264BK`, `NTN-1080`) are
+left as they are, already logged.
+
+### As first logged
 
 Follow-up to the 20 rows Q17 logged and did not change (`2228 EC` to
 `2276 EC`, `2304 EC` to `2312 EC`), plus `SKF-206_EC` (30 × 62 × 16) and
@@ -935,8 +1000,7 @@ carry the same dimensions and ratings, so the data cannot say which prefix
 was lost, and the cage suffix after `EC` (P, J, M, ML) is missing too. To
 do with the owner's OK, against SKF's catalogue: set `pn` (and `id`), set
 `type` to Cylindrical Roller as Q5 did, and replace the thrust `apps` list.
-Until then these rows stay searchable under the broken designation and the
-wrong type.
+The `type` part of that was done on 2026-10-10 (Q18a, above); the rest waits.
 
 **The rows named in the request (21).**
 
@@ -1133,4 +1197,5 @@ wrong type.
 - The reverse mistake exists as well: 16 SKF rows typed Cylindrical Roller
   carry spherical roller designations (`21305 CC`, `21308 E` ...).
 
-Record counts are unchanged by Q18: 3,672 raw rows, 3,654 searchable.
+Record counts are unchanged by Q18, Q18a, Q18b and Q18c: 3,672 raw rows,
+3,654 searchable.
