@@ -3,6 +3,8 @@
  *   setCatalog(rows)  install the published catalogue as MYCELA.DB / DB_MAP
  *   hasCatalog()      true once setCatalog() has run
  *   runSearch(q)      → { results, note, stage, count }
+ *   getParts(ids)     → the published rows for those ids, in the order asked
+ *   catalogCount()    → how many parts the published catalogue holds
  *
  * Adapter only: the search itself is the website's own code in js/ and
  * schemas/, imported here unchanged, in the same order as index.html.
@@ -67,3 +69,18 @@ export function runSearch(q) {
   const results = hits.slice(0, MAX_RESULTS).map(publish);
   return { results, note, stage, count: results.length };
 }
+
+// The published rows for these ids, in the order asked, each once. An id
+// that is not in the catalogue is simply left out.
+export function getParts(ids) {
+  const seen = new Set();
+  const out = [];
+  ids.forEach(id => {
+    if (seen.has(id)) return;
+    seen.add(id);
+    if (Object.prototype.hasOwnProperty.call(NS.DB_MAP, id)) out.push(publish(NS.DB_MAP[id]));
+  });
+  return out;
+}
+
+export function catalogCount() { return hasCatalog() ? NS.DB.length : 0; }

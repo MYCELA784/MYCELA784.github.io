@@ -15,11 +15,13 @@ It is a Cloudflare Worker: a small program that, once deployed, runs in
 Cloudflare's data centres close to each visitor (including in India), so
 answers come back quickly.
 
-It answers two addresses and nothing else:
+It answers four addresses and nothing else. All of them only read:
 
 | Request | Answer |
 |---|---|
 | `GET /search?q=6205 skf` | `{ "results": [...], "note": ..., "stage": ..., "count": 5 }` |
+| `GET /parts?ids=SKF-6205,NTN-6205` | `{ "parts": [...], "count": 2 }`: those parts, in the order asked. Up to 50 ids. An id that is not in the catalogue is simply left out. Used for the list ("basket"), part details and same-fit links. |
+| `GET /stats` | `{ "count": 3654 }`: how many parts the catalogue holds |
 | `GET /health` | `{ "ok": true }`, a simple "I am running" check |
 
 - **results**: the matching bearings, in the same order the website shows
@@ -37,9 +39,10 @@ Errors:
 | When | Status | Body |
 |---|---|---|
 | `q` missing, empty, or longer than 200 characters (after trimming spaces) | 400 | `{ "error": "..." }` |
+| `ids` missing, more than 50 ids, or an id with characters no part id has | 400 | `{ "error": "..." }` |
 | any other address | 404 | `{ "error": "not found" }` |
 | anything but `GET` (for example `POST`) | 405 | `{ "error": "method not allowed" }` |
-| more than 60 searches in a minute from one visitor (IP address) | 429 | `{ "error": "too many requests, try again in a minute" }` |
+| more than 60 requests in a minute from one visitor (IP address), counting `/search`, `/parts` and `/stats` together | 429 | `{ "error": "too many requests, try again in a minute" }` |
 | the catalogue has not been loaded into storage | 503 | `{ "error": "catalogue not available" }` |
 
 Only these websites may call it from a browser: `https://mycela.in`,
@@ -48,9 +51,10 @@ Plain `http://` versions of the site and look-alike addresses are refused.
 
 ### Rate limit
 
-Each visitor (counted by IP address) may make 60 searches per minute. After
-that, searches get a 429 answer with a `Retry-After: 60` header until the
-minute is up. `/health` is never limited. It uses Cloudflare's Rate Limiting
+Each visitor (counted by IP address) may make 60 requests per minute to
+`/search`, `/parts` and `/stats` together. After that, they get a 429 answer
+with a `Retry-After: 60` header until the minute is up. `/health` is never
+limited. It uses Cloudflare's Rate Limiting
 binding (`SEARCH_LIMITER` in `wrangler.toml`). Cloudflare counts separately
 in each of its data centres and the count is approximate, so a visitor may
 get a few more than 60 before the limit starts. If the limiter itself ever

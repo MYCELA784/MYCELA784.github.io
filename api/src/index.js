@@ -1,21 +1,28 @@
 /*
  * MYCELA search API (Cloudflare Worker).
  *
- *   GET /search?q=...  → { results, note, stage, count }
- *   GET /health        → { ok: true }
+ *   GET /search?q=...     → { results, note, stage, count }
+ *   GET /parts?ids=a,b,c  → { parts, count }  the published rows for up to
+ *                           50 ids; an id not in the catalogue is left out
+ *   GET /stats            → { count }  parts in the published catalogue
+ *   GET /health           → { ok: true }
  *   other paths 404, other methods 405.
- *   /search is rate limited per visitor IP (binding SEARCH_LIMITER,
- *   wrangler.toml): over the limit → 429.
+ *   /search, /parts and /stats share one rate limit per visitor IP (binding
+ *   SEARCH_LIMITER, wrangler.toml): over the limit → 429.
  *
  * The published catalogue is read from Workers KV (binding CATALOG): the
  * key named by published/current, kept in memory per Worker instance and
  * re-checked at most once a minute, so a search never waits on storage.
  * This Worker only reads KV and has no database binding. See api/README.md.
  */
-import { setCatalog, hasCatalog, runSearch } from './search.js';
+import { setCatalog, hasCatalog, runSearch, getParts, catalogCount } from './search.js';
 
 const POINTER_KEY = 'published/current';
 const MAX_Q = 200;
+const MAX_IDS = 50;
+// The id rule of the master database (admin/src/validate.js).
+const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_.\/-]{0,63}$/;
+const PATHS = ['/search', '/parts', '/stats', '/health'];
 const ORIGINS = ['https://mycela.in', 'https://www.mycela.in'];
 const LOCALHOST = /^http:\/\/localhost(:\d{1,5})?$/;
 
@@ -82,7 +89,7 @@ export default {
     const url = new URL(request.url);
     const origin = allowedOrigin(request.headers.get('Origin'));
 
-    if (url.pathname !== '/search' && url.pathname !== '/health') {
+    if (!PATHS.includes(url.pathname)) {
       return json({ error: 'not found' }, 404, origin);
     }
     if (request.method !== 'GET') {
@@ -92,6 +99,22 @@ export default {
 
     if (await overLimit(request, env)) {
       return json({ error: 'too many requests, try again in a minute' }, 429, origin, { 'Retry-After': '60' });
+    }
+
+    if (url.pathname === '/stats') {
+      if (!(await ensureCatalog(env))) return json({ error: 'catalogue not available' }, 503, origin);
+      return json({ count: catalogCount() }, 200, origin);
+    }
+
+    if (url.pathname === '/parts') {
+      const rawIds = url.searchParams.get('ids');
+      if (rawIds == null || rawIds === '') return json({ error: 'ids is required' }, 400, origin);
+      const ids = rawIds.split(',');
+      if (ids.length > MAX_IDS) return json({ error: `at most ${MAX_IDS} ids` }, 400, origin);
+      if (!ids.every(id => ID_PATTERN.test(id))) return json({ error: 'ids must be part ids separated by commas' }, 400, origin);
+      if (!(await ensureCatalog(env))) return json({ error: 'catalogue not available' }, 503, origin);
+      const parts = getParts(ids);
+      return json({ parts, count: parts.length }, 200, origin);
     }
 
     const raw = url.searchParams.get('q');

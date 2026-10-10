@@ -8,6 +8,8 @@
  * - Parity: for every query in tests/search-cases.json, GET /search returns
  *   the same ids in the same order, the same note and the same stage as the
  *   browser's doSearch() steps (fast, then fallback when fast is empty).
+ * - /parts and /stats: rows by id (order kept, unknown ids left out, over
+ *   50 ids or a malformed id 400), the catalogue count.
  * - Validation: missing / empty / blank / 201-char q is 400, unknown path
  *   404, POST 405, /health { ok: true }, empty KV 503.
  * - Allowlist: no response carries a field outside api/published-fields.json.
@@ -104,6 +106,58 @@ const EXCLUDED = Object.keys(FIELDS.excluded);
   ok((await empty.get('/health')).status === 200, '/health does not need the catalogue');
   await empty.stop();
 
+  // 2b. /parts and /stats
+  const byId = Object.fromEntries(api.catalog.rows.map(r => [r.id, r]));
+  const parts = async (ids, init) => {
+    const res = await api.get('/parts?ids=' + ids, init);
+    return { status: res.status, headers: res.headers, body: await res.json() };
+  };
+  const want3 = ['NTN-6205', 'SKF-6205', 'SKF-6206'];
+  const p3 = await parts(want3.join(','));
+  ok(p3.status === 200 && Object.keys(p3.body).join() === 'parts,count' && p3.body.count === 3,
+     '/parts answers exactly { parts, count }');
+  ok(JSON.stringify(p3.body.parts) === JSON.stringify(want3.map(id => byId[id])),
+     '/parts returns the published rows for the ids, in the order asked');
+  const pUnknown = await parts('SKF-6205,NO-SUCH-PART,NTN-6205');
+  ok(pUnknown.status === 200 && pUnknown.body.parts.map(p => p.id).join() === 'SKF-6205,NTN-6205' && pUnknown.body.count === 2,
+     '/parts: an unknown id is simply missing from the answer');
+  const pNone = await parts('NO-SUCH-PART');
+  ok(pNone.status === 200 && pNone.body.count === 0 && pNone.body.parts.length === 0, '/parts: only unknown ids -> 200 with no parts');
+  const pDup = await parts('SKF-6205,SKF-6205');
+  ok(pDup.body.count === 1, '/parts: an id asked twice comes back once');
+  const pSlash = api.catalog.rows.find(r => r.id.includes('/'));
+  ok(!pSlash || (await parts(encodeURIComponent(pSlash.id))).body.count === 1, '/parts finds an id with a slash in it' + (pSlash ? ' (' + pSlash.id + ')' : ''));
+  const fifty = api.catalog.rows.slice(0, 50).map(r => r.id);
+  const p50 = await parts(fifty.map(encodeURIComponent).join(','));
+  ok(p50.status === 200 && p50.body.count === 50, '/parts: 50 ids -> 200 with 50 parts');
+  const p51 = await parts(api.catalog.rows.slice(0, 51).map(r => encodeURIComponent(r.id)).join(','));
+  ok(p51.status === 400 && typeof p51.body.error === 'string' && Object.keys(p51.body).length === 1, '/parts: 51 ids -> 400  ' + JSON.stringify(p51.body));
+  ok(await status('/parts') === 400, '/parts without ids -> 400');
+  ok(await status('/parts?ids=') === 400, '/parts with empty ids -> 400');
+  for (const [label, v] of [['an empty id between commas', 'SKF-6205,,NTN-6205'], ['markup', encodeURIComponent('<img src=x onerror=alert(1)>')],
+                            ['a space', 'SKF%206205'], ['a quote', "SKF-6205'"], ['a 65-character id', 'A'.repeat(65)],
+                            ['an id starting with a dash', '-SKF-6205'], ['an id starting with an underscore', '__proto__']]) {
+    ok(await status('/parts?ids=' + v) === 400, `/parts: ${label} -> 400`);
+  }
+  ok((await parts('constructor,toString,hasOwnProperty')).body.count === 0, '/parts: object method names are not parts');
+  ok(await status('/parts?ids=SKF-6205', { method: 'POST' }) === 405, 'POST /parts -> 405');
+  responses.push({ results: p3.body.parts.concat(p50.body.parts), count: 53, lookup: true });
+
+  const stats = await api.get('/stats');
+  const statsBody = await stats.json();
+  ok(stats.status === 200 && JSON.stringify(statsBody) === JSON.stringify({ count: api.catalog.count }),
+     `/stats answers exactly { count: ${api.catalog.count} }`);
+  ok(await status('/stats', { method: 'POST' }) === 405, 'POST /stats -> 405');
+  const pe = await H.start({ seed: false, catalog: api.catalog, prebuilt: true });
+  ok((await pe.get('/parts?ids=SKF-6205')).status === 503 && (await pe.get('/stats')).status === 503,
+     '/parts and /stats on a KV without a catalogue -> 503');
+  await pe.stop();
+  const lookupOrigin = { headers: { Origin: 'https://www.mycela.in' } };
+  ok((await parts('SKF-6205', lookupOrigin)).headers.get('access-control-allow-origin') === 'https://www.mycela.in' &&
+     (await api.get('/stats', lookupOrigin)).headers.get('access-control-allow-origin') === 'https://www.mycela.in' &&
+     (await parts('SKF-6205', { headers: { Origin: 'https://evil.example' } })).headers.get('access-control-allow-origin') === null,
+     '/parts and /stats follow the same CORS rule');
+
   // 3. CORS
   const acao = async origin => (await api.get('/search?q=6205', { headers: { Origin: origin } })).headers.get('access-control-allow-origin');
   ok(await acao('https://www.mycela.in') === 'https://www.mycela.in', 'CORS allows https://www.mycela.in');
@@ -129,6 +183,8 @@ const EXCLUDED = Object.keys(FIELDS.excluded);
   ok(limited.status === 429 && typeof limitedBody.error === 'string' && Object.keys(limitedBody).length === 1,
      'a 429 body is a short JSON error  ' + JSON.stringify(limitedBody));
   ok((await api.get('/health', { headers: ip })).status === 200, '/health is not rate limited');
+  ok((await api.get('/parts?ids=SKF-6205', { headers: ip })).status === 429 && (await api.get('/stats', { headers: ip })).status === 429,
+     '/parts and /stats count against the same limit');
   ok((await api.get('/search?q=6205', { headers: { 'CF-Connecting-IP': '203.0.113.8' } })).status === 200,
      'another IP is not affected');
 
@@ -142,8 +198,9 @@ const EXCLUDED = Object.keys(FIELDS.excluded);
   ok(EXCLUDED.every(k => !keys.has(k)), `allowlist: no excluded field (${EXCLUDED.join(', ')}) in any response`);
   ok(EXCLUDED.every(k => api.catalog.rows.every(r => !(k in r))), 'allowlist: no excluded field in the published catalogue');
   ok(api.catalog.rows.every(r => Object.keys(r).every(k => FIELDS.record.includes(k))), 'allowlist: the catalogue carries record fields only');
-  const most = Math.max(...responses.map(r => r.results.length));
-  ok(responses.every(r => r.results.length <= 40 && r.count === r.results.length), `cap: no response over 40 results (largest ${most})`);
+  const searches = responses.filter(r => !r.lookup);
+  ok(searches.every(r => r.results.length <= 40 && r.count === r.results.length),
+     `cap: no search response over 40 results (largest ${Math.max(...searches.map(r => r.results.length))})`);
 
   await api.stop();
   console.log(failures ? `\n${failures} failure(s)` : '\nall passed');

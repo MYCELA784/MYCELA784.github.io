@@ -55,6 +55,15 @@ function mockLimiter() {
   ok(codes.slice(0, LIMIT).every(c => c === 200), `the first ${LIMIT} searches from one IP succeed`);
   ok(codes.slice(LIMIT).every(c => c === 429), `searches ${LIMIT + 1} to 70 from that IP get 429`);
   ok(lim.calls.every(k => k === '198.51.100.1'), 'the limiter is keyed on CF-Connecting-IP');
+  ok((await call(env, '/parts?ids=SKF-6205', from('198.51.100.1'))).status === 429 &&
+     (await call(env, '/stats', from('198.51.100.1'))).status === 429,
+     '/parts and /stats from that IP get 429 too: one allowance for all three');
+  const mixed = mockLimiter();
+  const mixedEnv = { CATALOG: kv, SEARCH_LIMITER: mixed };
+  const mixedCodes = [];
+  for (let i = 0; i < 63; i++) mixedCodes.push((await call(mixedEnv, ['/search?q=6205', '/parts?ids=SKF-6205', '/stats'][i % 3], from('198.51.100.9'))).status);
+  ok(mixedCodes.slice(0, LIMIT).every(c => c === 200) && mixedCodes.slice(LIMIT).every(c => c === 429),
+     `a mix of searches, part lookups and stats: the first ${LIMIT} succeed, the rest get 429`);
 
   const r = await call(env, '/search?q=6205', from('198.51.100.1', { Origin: 'https://www.mycela.in' }));
   const body = await r.json();
