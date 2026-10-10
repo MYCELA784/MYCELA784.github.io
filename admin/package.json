@@ -1,0 +1,16 @@
+{
+  "name": "mycela-admin",
+  "private": true,
+  "type": "module",
+  "description": "MYCELA admin Worker: imports into the private master database (D1) and publishes the catalogue to Workers KV.",
+  "scripts": {
+    "migrate": "wrangler d1 migrations apply mycela-master --local",
+    "seed": "node ../scripts/seed-master.js",
+    "backup": "node ../scripts/backup-master.js",
+    "dev": "wrangler dev --port 8788",
+    "test": "node ../tests/admin.js"
+  },
+  "devDependencies": {
+    "wrangler": "4.147.0"
+  }
+}

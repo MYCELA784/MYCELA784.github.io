@@ -39,7 +39,10 @@ function mockLimiter() {
 (async () => {
   const catalog = JSON.parse(JSON.stringify(build()));
   const worker = (await import(pathToFileURL(path.join(__dirname, '..', 'api', 'src', 'index.js')).href)).default;
-  const kv = { async get(key, type) { return key === 'published/v1' && type === 'json' ? catalog : null; } };
+  const kv = { async get(key, type) {
+    if (key === 'published/current') return 'published/v1';
+    return key === 'published/v1' && type === 'json' ? catalog : null;
+  } };
 
   const call = (env, p, init) => worker.fetch(new Request('https://api.mycela.in' + p, init), env);
   const from = (ip, extra) => ({ headers: Object.assign(ip ? { 'CF-Connecting-IP': ip } : {}, extra) });

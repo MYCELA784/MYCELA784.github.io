@@ -1,0 +1,26 @@
+# MYCELA admin Worker: the only Worker bound to the master database (D1)
+# and allowed to write the published catalogue (KV). Local only for now:
+# nothing here has been deployed. See docs/data-pipeline.md.
+name = "mycela-admin"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+send_metrics = false
+
+# Cloudflare Access. Every request must carry a valid Cf-Access-Jwt-Assertion
+# for this team and application, or it is refused. Fill both in at deploy:
+# the team domain (e.g. "mycela.cloudflareaccess.com") and the Access
+# application's audience (AUD) tag. Left empty, every request is refused.
+[vars]
+ACCESS_TEAM_DOMAIN = ""
+ACCESS_AUD = ""
+
+[[d1_databases]]
+binding = "DB"
+database_name = "mycela-master"
+database_id = "local-placeholder-replace-before-deploy"
+migrations_dir = "../db/migrations"
+
+# The same KV namespace the search Worker reads (api/wrangler.toml).
+[[kv_namespaces]]
+binding = "CATALOG"
+id = "local-placeholder-replace-before-deploy"

@@ -8,3 +8,4 @@ api/.build/
 
 # OEM / supplier source files. Never committed, see docs/architecture.md
 data/private/
+admin/node_modules/

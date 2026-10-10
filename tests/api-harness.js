@@ -23,7 +23,7 @@ if (!fs.existsSync(WRANGLER)) {
   process.exit(1);
 }
 const { createTestHarness } = require(path.join(API, 'node_modules', 'wrangler'));
-const { build, KEY } = require(path.join(ROOT, 'scripts', 'build-published.js'));
+const { build, KEY, POINTER } = require(path.join(ROOT, 'scripts', 'build-published.js'));
 
 function bundle() {
   const r = spawnSync(process.execPath, [WRANGLER, 'deploy', '--dry-run', '--outdir', BUNDLE_DIR],
@@ -45,6 +45,7 @@ async function start(opts) {
   if (opts.seed !== false) {
     const env = await server.getWorker().getEnv();
     await env.CATALOG.put(KEY, JSON.stringify(catalog));
+    await env.CATALOG.put(POINTER, KEY);
   }
   // The Worker rate limits /search per CF-Connecting-IP (60 a minute).
   // Unless a test sets that header itself, each request gets its own

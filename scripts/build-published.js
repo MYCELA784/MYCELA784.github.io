@@ -6,22 +6,30 @@
  *   node scripts/build-published.js            build, then seed local KV
  *   node scripts/build-published.js --no-seed  build only
  *
- * Runs the site's own js/db.js over bearings_db.js (the same type
- * normalisation and sanity filter the browser applies), then keeps only the
- * fields listed in api/published-fields.json. Writes
- * api/.build/published-v1.json (git-ignored) and, unless --no-seed, puts it
- * into the Worker's LOCAL KV store (binding CATALOG, key published/v1) for
- * `wrangler dev`. It never writes to Cloudflare: the KV call is --local.
+ * Quick start for the search Worker without the master database: builds
+ * the published catalogue straight from bearings_db.js with
+ * scripts/lib/published-catalog.js (the same function the admin Worker's
+ * publish uses), writes api/.build/published-v1.json (git-ignored) and,
+ * unless --no-seed, puts it into the LOCAL KV store as published/v1 with
+ * published/current pointing at it. It never writes to Cloudflare: the KV
+ * calls are --local, into admin/.wrangler/state.
  */
 const fs = require('fs');
 const path = require('path');
+const vm = require('vm');
 const { spawnSync } = require('child_process');
+const { buildCatalog } = require('./lib/published-catalog.js');
 
 const ROOT = path.join(__dirname, '..');
 const API = path.join(ROOT, 'api');
 const OUT_DIR = path.join(API, '.build');
 const OUT = path.join(OUT_DIR, 'published-v1.json');
 const KEY = 'published/v1';
+const POINTER = 'published/current';
+// One local state folder for both Workers: the admin Worker's own (where
+// wrangler keeps its local D1 and KV), which the search Worker's
+// `npm run dev` also uses. So a local publish is what local search serves.
+const STATE = path.join(ROOT, 'admin', '.wrangler', 'state');
 
 const FIELDS = JSON.parse(fs.readFileSync(path.join(API, 'published-fields.json'), 'utf8'));
 
@@ -36,14 +44,19 @@ function build() {
   } finally {
     console.log = log;
   }
-  const rows = global.MYCELA.DB.map(b => {
-    const out = {};
-    FIELDS.record.forEach(k => { if (b[k] !== undefined) out[k] = b[k]; });
-    return out;
-  });
-  const leaked = Object.keys(FIELDS.excluded).filter(k => rows.some(r => k in r));
-  if (leaked.length) throw new Error('excluded field(s) in output: ' + leaked.join(', '));
-  return { version: 'v1', count: rows.length, fields: FIELDS.record, rows };
+  // The raw rows, as js/db.js found them before its own pass. buildCatalog
+  // runs that same pass (prepareDB) on a copy.
+  const raw = loadRawRows();
+  return Object.assign({ version: 1 }, buildCatalog(raw, { fields: FIELDS, prepareDB: global.MYCELA.prepareDB }));
+}
+
+// bearings_db.js evaluated in its own sandbox, so the rows are untouched
+// by js/db.js (which corrects types in place on the copy the site uses).
+function loadRawRows() {
+  const sandbox = { window: {} };
+  vm.createContext(sandbox);
+  vm.runInContext(fs.readFileSync(path.join(ROOT, 'bearings_db.js'), 'utf8'), sandbox);
+  return JSON.parse(JSON.stringify(sandbox.window.MYCELA_DB));
 }
 
 if (require.main === module) {
@@ -55,11 +68,15 @@ if (require.main === module) {
 
   if (!process.argv.includes('--no-seed')) {
     const wrangler = path.join(API, 'node_modules', 'wrangler', 'bin', 'wrangler.js');
-    const r = spawnSync(process.execPath, [wrangler, 'kv', 'key', 'put', KEY, '--path', OUT, '--binding', 'CATALOG', '--local'],
-                        { cwd: API, stdio: 'inherit' });
-    if (r.status !== 0) { console.error('Seeding local KV failed (is wrangler installed? run npm install in api/).'); process.exit(1); }
-    console.log(`Seeded local KV: CATALOG ${KEY}`);
+    const put = args => spawnSync(process.execPath, [wrangler, 'kv', 'key', 'put', ...args,
+                                  '--binding', 'CATALOG', '--local', '--persist-to', STATE],
+                                  { cwd: API, stdio: 'inherit' });
+    if (put([KEY, '--path', OUT]).status !== 0 || put([POINTER, KEY]).status !== 0) {
+      console.error('Seeding local KV failed (is wrangler installed? run npm install in api/).');
+      process.exit(1);
+    }
+    console.log(`Seeded local KV: CATALOG ${KEY}, and ${POINTER} -> ${KEY}`);
   }
 }
 
-module.exports = { build, OUT, KEY };
+module.exports = { build, loadRawRows, OUT, KEY, POINTER, STATE };
