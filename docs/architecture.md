@@ -1,9 +1,10 @@
 # MYCELA architecture
 
 How the pieces fit once the search API is live. The search API, the admin
-API, the master database and the publish step are built and run locally;
-nothing is deployed yet, and the website does not use them yet. Steps marked
-*later* are planned, not built.
+API, the master database and the publish step are built and run locally, and
+on the `site-switch` branch the website uses the search API. Nothing is
+deployed yet: the live site still runs from `main` and still searches in the
+browser. Steps marked *later* are planned, not built.
 
 ```
  visitor's browser
@@ -11,9 +12,9 @@ nothing is deployed yet, and the website does not use them yet. Steps marked
         ▼
  Cloudflare edge (mycela.in DNS, proxied)
         │
-        ├── website pages ──────────► GitHub Pages (this repository, main branch)
+        ├── website pages ──────────► the public files only (dist/); today GitHub Pages
         │
-        ├── /search ────────────────► search API (Cloudflare Worker, api/)
+        ├── /search /parts /stats ──► search API (Cloudflare Worker, api/)
         │                                  │ reads, re-checks once a minute
         │                                  ▼
         │                            published catalogue (Workers KV)
@@ -32,14 +33,26 @@ through Cloudflare first, which is where edge rate limits and access rules
 (*later*) will sit. The search API already limits each visitor to 60
 searches a minute itself (Cloudflare's Rate Limiting binding).
 
-**Website.** Still the static site in this repository, served by GitHub
-Pages from the `main` branch. Today it loads the whole catalogue
-(`bearings_db.js`) into the browser and searches there. Once the API is
-deployed, the site will send the search text to the API instead and stop
-shipping the catalogue to every visitor.
+**Website.** A static site. The live one is served by GitHub Pages from the
+`main` branch, loads the whole catalogue (`bearings_db.js`) into the browser
+and searches there. On the `site-switch` branch that is replaced: the page
+sends the search text to the API and receives only the matching parts (a few
+KB a search, against 1.1 MB for the catalogue), and the catalogue is never
+sent to a visitor. Part details, the list, compare, the load calculator and
+the catalogue count all use what the API sends (`/search`, `/parts`,
+`/stats`). Everything shown is escaped (`js/escape.js`). Try it locally:
+[`local-preview.md`](local-preview.md).
 
-**Search API** (`api/`, built in Phase 1). A Cloudflare Worker answering
-`GET /search` and `GET /health` only. It runs the website's own search code
+**What gets published.** Not the repository. `scripts/build-site.js` copies
+an explicit list of public files (pages, styles, the browser scripts) into
+`dist/`, and that folder is what Cloudflare Pages will publish at go-live.
+`bearings_db.js`, `docs/`, `tests/`, `scripts/`, `schemas/`, `admin/`, `api/`
+and `db/` are not on the list, and `tests/build-site.js` fails if any of
+them, or anything shaped like a catalogue row, turns up in `dist/`.
+
+**Search API** (`api/`). A Cloudflare Worker answering `GET /search`,
+`GET /parts` (parts by id), `GET /stats` (the catalogue count) and
+`GET /health` only, all read-only. It runs the website's own search code
 (one source of truth, no copy), holds the published catalogue in memory,
 and never queries a database per search. Target: under 100 ms per search for
 visitors in India, of which the search itself takes under 10 ms. See

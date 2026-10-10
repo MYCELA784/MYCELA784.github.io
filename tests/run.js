@@ -7,8 +7,11 @@
  *   node tests/run.js -v         also print the top-3 for every case
  *   node tests/run.js "6205 skf" ad-hoc: just print the ranked results
  *
- * Loads the same files, in the same order, as index.html, with a minimal
- * window shim. Exits non-zero if any case fails.
+ * Loads the search engine's files in the same order as the search API
+ * (api/src/search.js), with a minimal window shim. The website no longer
+ * runs this engine in the browser: it gets these results through the API,
+ * and tests/site-search.js checks that the page shows the same parts for
+ * every case here. Exits non-zero if any case fails.
  */
 const fs = require('fs');
 const path = require('path');

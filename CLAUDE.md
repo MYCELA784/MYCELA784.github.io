@@ -4,17 +4,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-MYCELA is a static GitHub Pages site (deployed at `www.mycela.in`) — an industrial bearing parts intelligence tool. No build system, no package manager, no framework. Vanilla HTML/CSS/JS.
+MYCELA is a static site (live at `www.mycela.in`, GitHub Pages from `main`) — an industrial bearing parts intelligence tool. No framework, no bundler. Vanilla HTML/CSS/JS.
+
+**On this branch (`site-switch`) the browser no longer receives the catalogue.** The page asks the search API (`api/`) and gets only matching parts. `index.html` and `about.html` do not load `bearings_db.js`, `js/db.js`, `js/schema-registry.js` or `js/search/*`; those now run only inside the API Worker and in Node tests. Nothing is deployed: `main` and the live site are unchanged and still search in the browser.
 
 ## Running locally
 
 ```
-python -m http.server 8080
-# or
-npx serve .
+node scripts/preview.js     # builds dist/, search API on :8787, site on :8080
 ```
 
-No compilation, no install step. Open `index.html` in a browser or serve from root.
+Needs `npm install` in `api/` once. Plain steps: `docs/local-preview.md`. The
+page needs the API: opened without it (a bare `python -m http.server`, or
+`file://`) it loads but every search shows "Search is not available right
+now".
 
 ## Architecture
 
@@ -22,36 +25,84 @@ No compilation, no install step. Open `index.html` in a browser or serve from ro
 
 All modules attach to a single shared global: `window.MYCELA = window.MYCELA || {}`. Each file does `(function(ns){ ... })(window.MYCELA = window.MYCELA || {})` and attaches one object (e.g. `ns.Router`, `ns.SearchEngine`, `ns.Renderer`). `js/app.js` is loaded last and wires everything together, then assigns thin `window.*` aliases for HTML `onclick` attributes.
 
-### Script load order (dependency chain)
+### Script load order in the browser (dependency chain)
 
 ```
-bearings_db.js          → sets window.MYCELA_DB (raw array)
-js/config.js            → MYCELA.CONFIG  (all tunable values)
-js/constants.js         → MYCELA.BC, MYCELA.TI
-js/db.js                → MYCELA.DB, MYCELA.DB_MAP
-js/search/parsers.js    → MYCELA.SearchEngine.parse()
-js/search/rules.js      → MYCELA.SearchEngine.EnvironmentRules / ApplicationRules
-js/search/scoring.js    → MYCELA.SearchEngine.Scorers
-js/search/fallback.js   → MYCELA.SearchEngine.fallback()
-js/search/engine.js     → MYCELA.SearchEngine.fast()
-js/tables/dgbb_tables.js     → MYCELA.DGBB_TABLES (SKF catalogue tables, pure data)
-js/tables/fag_tables.js      → MYCELA.FAG_TABLES (FAG's own factor table, pure data)
+site.js                 → header, theme (all pages)
+js/config.js            → MYCELA.CONFIG  (all tunable values; CONFIG.api.baseUrl)
+js/escape.js            → MYCELA.esc()   (the one HTML escape function)
+js/constants.js         → MYCELA.BC, MYCELA.TI, BRAND_COLORS, SUFFIX_CODES
+js/api.js               → MYCELA.Api.*   (search API client and the parts the page has been sent)
+js/tables/dgbb_tables.js → MYCELA.DGBB_TABLES (SKF catalogue tables, pure data)
+js/tables/fag_tables.js  → MYCELA.FAG_TABLES (FAG's own factor table, pure data)
 js/dgbb_calc.js         → MYCELA.DGBBCalc.* (modal load calculator)
 js/renderer.js          → MYCELA.Renderer.*
 js/router.js            → MYCELA.Router.showPage()
 js/supplier-form.js     → MYCELA.SupplierForm.submit()
+js/features.js          → MYCELA.Basket (the inquiry list)
 js/canvas.js            → self-initialising IIFE (no exposed API)
 js/app.js               → wires all modules, sets window.* shims
 ```
 
 Order matters. Never reorder these `<script>` tags.
 
-### Search pipeline (`js/app.js` → `doSearch()`)
+The search engine keeps its own order, loaded by the API Worker
+(`api/src/search.js`) and by `tests/run.js`, not by any page:
+`js/config.js`, `js/constants.js`, `js/schema-registry.js`,
+`js/search/parsers.js`, `rules.js`, `scoring.js`, `fallback.js`,
+`engine.js`. `bearings_db.js` and `js/db.js` (`MYCELA.prepareDB`) are read
+only by the build and seed scripts and by tests.
 
-1. **`MYCELA.SearchEngine.fast(q)`** — instant local search. Calls `parse()` to extract structured intent (bore/OD/width in mm, load ratings, type, brand, sealing, application tags, environment notes), then scores every bearing in `MYCELA.DB` using `Scorers.*`. Returns up to `CONFIG.search.maxResults` results, each with `_score`, `_matchType`, `_breakdown`.
+### No catalogue in the browser
+
+There is no `MYCELA.DB` or `MYCELA.DB_MAP` on the page. `MYCELA.Api`
+(`js/api.js`) is the only source of parts:
+
+- `Api.search(q)` → `GET /search`; answers are kept per query for the page's
+  lifetime, so a repeated search makes no request.
+- `Api.parts(ids)` → `GET /parts` (50 ids a request), for the stored list,
+  `alt` ("Same fit") equivalents and opening one part by id.
+- `Api.stats()` → `GET /stats`, for the catalogue count on `index.html` and
+  `about.html` (the literal in the markup shows until it answers).
+- `Api.known(id)` is what the modal, compare, calculator and list read. A
+  part exists on the page only if the API has sent it.
+
+Things that used to scan the whole catalogue now ask the API: the modal's
+same-size list searches for `"25x52x15"` and keeps results within 0.5 mm;
+autocomplete is the first 6 results of the search itself whose part number
+contains the typed text. Do not reintroduce a catalogue download to restore
+a feature; add to the API instead.
+
+### Escaping
+
+Everything shown on the page that comes from a part, the visitor or an error
+goes through `MYCELA.esc()` before `innerHTML`, or is set with
+`textContent`. Part ids go into `data-` attributes and are acted on by
+delegated listeners in `js/app.js` (`data-info`, `data-add`, `data-cmp`,
+`data-x`, `data-open`, `data-inq`, `data-q`, `data-rm`); never build an
+inline `onclick` from data. `node tests/escape.js` feeds the page parts made
+of `<img src=x onerror=alert(1)>` and fails if any reaches the page as markup.
+
+### Search pipeline
+
+In the browser (`js/app.js` → `doSearch()`): typing waits
+`CONFIG.api.debounceMs` (150 ms) after the last keystroke, then one
+`Api.search(q)`; Enter, example buttons and "Find by size" do not wait. A
+newer search aborts the request in flight (AbortController) and a sequence
+number makes sure an older answer is never shown over a newer one.
+"Searching..." appears only if a request takes over `CONFIG.api.slowMs`
+(300 ms). If the API cannot be reached, or answers 429, the grid shows a
+plain message (`Api.message()`), with "Try again" unless rate limited.
+
+In the API (`api/src/search.js` → `runSearch()`), the same two steps the
+browser used to run:
+
+1. **`MYCELA.SearchEngine.fast(q)`** — calls `parse()` to extract structured intent (bore/OD/width in mm, load ratings, type, brand, sealing, application tags, environment notes), then scores every bearing in `MYCELA.DB` using `Scorers.*`. Returns up to `CONFIG.search.maxResults` results, each with `_score`, `_matchType`, `_breakdown` (never sent to the browser).
 2. **`MYCELA.SearchEngine.fallback(q)`** — if step 1 returns zero results, progressively relaxes constraints through 4 stages (tolerances in `CONFIG.fallback`). It needs a bore (stages 1–3) or a bearing type (stage 4) to relax from; any other query (gibberish, a bare brand, an application word, an unknown designation) gets no results and the empty state. The old stage 5, which filled that case with the first 6 deep groove rows in the DB, was removed 2026-09-27.
 
-Zero-result queries (step 1 empty, whatever the fallback then supplies) are also POSTed to the telemetry endpoint as the catalogue-gap signal, but only when the user presses Enter or once typing pauses for `CONFIG.search.zeroReportIdleMs` (2 s), whichever comes first; a newer query or clearing the box cancels the pending report, the query and stage are read at send time, and each query is sent at most once per session. The payload carries `fallbackStage`: 1–4 when the fallback relaxed a real size or type into results ("no such size"), 0 when the query had a size or type but nothing was within tolerance, `null` when there was nothing parsable to relax from. Reports sent before 2026-09-27 have no such field. `node tests/search-debounce.js` pins this.
+The answer's `stage` is `"exact"` when step 1 answered, otherwise the fallback's stage.
+
+Zero-result queries (`stage` not `"exact"`, whatever the fallback then supplied) are also POSTed to the telemetry endpoint as the catalogue-gap signal, but only when the user presses Enter or once typing pauses for `CONFIG.search.zeroReportIdleMs` (2 s), whichever comes first; a newer query or clearing the box cancels the pending report, a report that falls due before the API has answered waits for the answer, and each query is sent at most once per session. A failed search is never reported. The payload carries `fallbackStage`, taken from the API's `stage`: 1–4 when the fallback relaxed a real size or type into results ("no such size"), 0 when the query had a size or type but nothing was within tolerance, `null` when there was nothing parsable to relax from. Reports sent before 2026-09-27 have no such field. `node tests/search-debounce.js` pins the request and telemetry behaviour; `node tests/site-search.js` checks, against the real Worker, that the page shows the engine's parts, order, note and stage for every `tests/search-cases.json` query.
 
 **AI refiner removed 2026-09-27.** Search used to have a third step, `MYCELA.AIRefiner.refine(q)` (`js/ai-refiner.js`), which POSTed the query to `https://mycela-backend.onrender.com/search`. It was turned off and the file deleted because it had not been working: the backend only ever saw 50 bearings, its own index had 1,719 rows against the live catalogue's 3,666 at the time (the catalogue itself was never 1,719), that index predates the June rebuild, and free-tier cold starts exceed the 12-second client timeout. `CONFIG.search.backendUrl` and `aiTimeoutMs` are kept in `js/config.js`, commented as unused.
 
@@ -106,7 +157,7 @@ copies cannot drift.
 
 ### Debug mode
 
-Append `?debug=1` to the URL. `app.js` logs to console: parsed intent object, per-result score breakdowns, and AI response payload. No visible UI change.
+Append `?debug=1` to the URL. `app.js` logs the API's answer for each search to the console. No visible UI change. The parsed intent and score breakdowns stay on the API side; use `node tests/run.js "6205 skf"` to see them.
 
 ### Page routing
 
@@ -116,9 +167,11 @@ Three pages (`home`, `search`, `suppliers`) as `<div id="page-*">` elements. `MY
 
 All styles in `css/styles.css`. CSS variables on `:root` (warm off-white palette: `--bg`, `--bg2`–`--bg4`, `--rule`, `--gold`, `--border`, `--border2`, `--faint`, `--muted`, `--white`). Written compact/minified. Fonts: Syncopate (headings), Jost (body), JetBrains Mono (part numbers/data).
 
-## Search API (`api/`, Phase 1, local only)
+## Search API (`api/`, local only)
 
-A Cloudflare Worker that answers `GET /search?q=` and `GET /health` from a
+A Cloudflare Worker that answers `GET /search?q=`, `GET /parts?ids=` (up to
+50 ids, each matching the id rule; unknown ids are left out), `GET /stats`
+(`{ count }`) and `GET /health` from a
 published catalogue in Workers KV (binding `CATALOG`: `published/current`
 names the live key, e.g. `published/v2`), held in memory and re-checked at
 most once a minute. It only reads KV and has no D1 binding; never give it
@@ -126,12 +179,16 @@ one (`tests/admin.js` fails if `api/wrangler.toml` gains one). It imports the si
 `js/constants.js` and `schemas/` through `api/src/search.js`; never copy
 search logic into `api/`. Returned record fields are exactly those in
 `api/published-fields.json` (`scripts/build-published.js` builds the
-catalogue with the same list). Not deployed; the site does not call it yet.
+catalogue with the same list). `/search`, `/parts` and `/stats` share one
+rate limit (60 a minute per IP). Not deployed. On this branch the site calls
+it: `http://localhost:8787` when the page is on localhost or 127.0.0.1,
+`https://api.mycela.in` otherwise (`CONFIG.api.baseUrl`).
 `npm install` in `api/` once, then `node tests/api.js` (parity with the
 browser engine on every `tests/search-cases.json` query, validation, CORS,
 allowlist, 40 cap, rate limit), `node tests/api-ratelimit.js` (60 a minute
 per IP on /search via the `SEARCH_LIMITER` binding, mocked) and
-`node tests/api-speed.js` (1,000 queries, p95 under 10 ms). OEM source files go in `data/private/` (git-ignored) and never into
+`node tests/api-speed.js` (1,000 queries, p95 under 10 ms), and
+`node tests/site-search.js` (the page's own code against the Worker). OEM source files go in `data/private/` (git-ignored) and never into
 the repository. See `api/README.md` and `docs/architecture.md`.
 
 ## Master database and admin Worker (`admin/`, `db/`, local only)
@@ -176,6 +233,19 @@ bad files, SQL text in a designation, audit log protection, bad Access
 tokens, publish and rollback seen through the search Worker with the clock
 moved forward, backup and restore).
 
+## Publishing: only the public file list
+
+`node scripts/build-site.js` copies the public website into `dist/`
+(git-ignored): exactly the files named one by one in `PUBLIC_FILES` in that
+script, nothing by pattern or folder. `dist/` is what Cloudflare Pages will
+publish at go-live. To publish a new file, add it to the list; the build
+stops if a page refers to a local file that is not listed. No schema file is
+published (the browser does not need one), and the calculator tables live in
+`js/tables/` so that no `data/` folder is published. `node tests/build-site.js`
+fails if `dist/` holds `bearings_db.js`, `data/`, `docs/`, `tests/`,
+`admin/`, `api/`, `db/`, `scripts/`, `schemas/`, any `.md` file, or anything
+shaped like a catalogue row.
+
 ## Deployment
 
-Push to `main` → GitHub Pages deploys automatically to `www.mycela.in`. No CI, no preview environments.
+Push to `main` → GitHub Pages deploys the repository root automatically to `www.mycela.in`. No CI, no preview environments. **Do not merge `site-switch` into `main` before go-live**: the site on this branch needs the search API deployed at `https://api.mycela.in`, and GitHub Pages would publish the whole repository, `bearings_db.js` included. Go-live publishes `dist/` instead.

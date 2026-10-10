@@ -1,12 +1,14 @@
 # MYCELA search API
 
-A small web service that answers bearing searches. Today the website does every
+A small web service that answers bearing searches. The live website does every
 search inside the visitor's browser, which means every visitor downloads the
-whole catalogue (`bearings_db.js`, about 1.2 MB). This service will let the
-website send the search text instead and get back only the matching parts.
+whole catalogue (`bearings_db.js`, about 1.1 MB). With this service the
+website sends the search text instead and gets back only the matching parts.
 
-It is **Phase 1, local only**: it runs on your own computer. Nothing here has
-been deployed, and the live site does not use it yet. See
+It is **local only**: it runs on your own computer. Nothing here has been
+deployed, and the live site does not use it yet. On the `site-switch` branch
+the website does use it: see
+[`docs/local-preview.md`](../docs/local-preview.md) to try that, and
 [`docs/architecture.md`](../docs/architecture.md) for where it fits.
 
 ## What it does
@@ -139,9 +141,10 @@ From the repo root, after `npm install` in `api/`:
 node tests/api.js            # answers, errors, allowed fields, CORS, rate limit, 40-result cap
 node tests/api-ratelimit.js  # the rate limit in detail, with a stand-in limiter
 node tests/api-speed.js      # 1,000 searches: speed, catalogue size, memory
+node tests/site-search.js    # the website's own code, through this API: same parts as the engine
 ```
 
-or `npm test` inside `api/` for all three.
+or `npm test` inside `api/` for the first three.
 
 - `tests/api.js` bundles the Worker exactly as a deploy would (without
   uploading), runs it in Cloudflare's local runtime, and checks every query
