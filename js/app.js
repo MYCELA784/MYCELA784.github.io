@@ -478,7 +478,7 @@
   // #sendBtn swaps the basket sheet's item list for a small inquiry form;
   // "Ask us to source it" (zero-results state) opens the same form directly.
   function basketItemsPayload() {
-    // Only resolvable entries: never send a dealer a line with a blank
+    // Only resolvable entries: never send a line with a blank
     // brand and an internal id in place of a part number. Same source as
     // the renderers and the nav badge.
     return ns.Basket.resolvedItems().map(it => ({
@@ -498,7 +498,7 @@
         <div class="frm-row"><label for="inq-city">City</label><input id="inq-city" name="city" type="text"></div>
         <div class="frm-row"><label for="inq-msg">Message</label><textarea id="inq-msg" name="message" placeholder="Quantities, delivery location, or whatever else is useful."></textarea></div>
         <input class="hp" name="website" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
-        <button class="btn" style="width:100%" type="submit">Send inquiry</button>
+        <button class="btn" style="width:100%" type="submit">Send enquiry</button>
         <button class="btn btn-line" style="width:100%;margin-top:8px" type="button" id="inqBack">← Back to list</button>
         <p id="inq-status" role="status"></p>
       </form>`;
@@ -555,7 +555,7 @@
             Object.keys(ns.Basket.items()).forEach(id => ns.Basket.remove(id));
             document.querySelectorAll('[data-add].added').forEach(el => { el.classList.remove('added'); el.textContent = 'Add to list'; });
             updateBCount();
-            $('bBody').innerHTML = `<div class="sh-empty"><p style="margin:0">✓ Inquiry sent. We'll reply within a working day.</p></div>`;
+            $('bBody').innerHTML = `<div class="sh-empty"><p style="margin:0">✓ Enquiry sent. We'll reply within a working day.</p></div>`;
           } else {
             say((res && res.error) || 'Something went wrong. Please try again.', true);   // say() sets textContent
           }

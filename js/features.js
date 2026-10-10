@@ -67,9 +67,9 @@
   function modalBtnHTML(b) {
     var id = ns.esc(b.id);
     if (has(b.id)) {
-      return '<button id="m-inq-btn" class="inq-btn inq-remove" data-inq="' + id + '">✕ Remove from inquiry</button>';
+      return '<button id="m-inq-btn" class="inq-btn inq-remove" data-inq="' + id + '">✕ Remove from enquiry</button>';
     }
-    return '<button id="m-inq-btn" class="inq-btn" data-inq="' + id + '">+ Add to inquiry</button>';
+    return '<button id="m-inq-btn" class="inq-btn" data-inq="' + id + '">+ Add to enquiry</button>';
   }
 
   ns.Basket = { count: count, has: has, add: add, remove: remove, setQty: setQty,
