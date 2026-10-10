@@ -6,6 +6,7 @@
   "scripts": {
     "quickstart": "node ../scripts/build-published.js",
     "dev": "wrangler dev --persist-to ../admin/.wrangler/state",
+    "preview": "node ../scripts/preview.js",
     "test": "node ../tests/api.js && node ../tests/api-ratelimit.js && node ../tests/api-speed.js"
   },
   "devDependencies": {
