@@ -9,3 +9,6 @@ api/.build/
 # OEM / supplier source files. Never committed, see docs/architecture.md
 data/private/
 admin/node_modules/
+
+# The built public website (scripts/build-site.js). Never committed.
+dist/
