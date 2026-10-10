@@ -38,7 +38,11 @@ async function main() {
   const { getPlatformProxy } = require(wranglerEntry);
   const pipeline = await import(pathToFileURL(path.join(ADMIN, 'src', 'pipeline.js')).href);
 
-  const proxy = await getPlatformProxy({ configPath });
+  // Say where the data is: left to itself the proxy uses .wrangler/state in
+  // the folder the script was started from, not the one next to the config
+  // that `wrangler d1 migrations apply` and `wrangler dev` use.
+  const persist = { path: path.join(path.dirname(configPath), '.wrangler', 'state', 'v3') };
+  const proxy = await getPlatformProxy({ configPath, persist });
   const env = proxy.env;
   try {
     const hasTable = await env.DB.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'import_batches'").first();

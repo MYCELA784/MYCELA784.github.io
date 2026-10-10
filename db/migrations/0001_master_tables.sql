@@ -2,6 +2,24 @@
 -- `wrangler d1 migrations apply` from admin/. Never edit a migration that
 -- has been applied anywhere: add a new numbered file instead.
 
+-- import_batches comes first: parts and staged_parts refer to it, and a
+-- backup (wrangler d1 export) lists tables in the order they were created,
+-- so it only loads back into an empty database if this one is created first.
+-- One row per uploaded file, whatever happened to it.
+CREATE TABLE import_batches (
+  id           INTEGER PRIMARY KEY,
+  source_name  TEXT NOT NULL,
+  file_name    TEXT,
+  file_sha256  TEXT NOT NULL,
+  uploaded_by  TEXT NOT NULL,
+  uploaded_at  TEXT NOT NULL,
+  row_count    INTEGER NOT NULL,
+  status       TEXT NOT NULL CHECK (status IN ('staged', 'committed', 'rejected')),
+  error_report TEXT,
+  committed_by TEXT,
+  committed_at TEXT
+);
+
 -- One row per bearing: every field we hold, published or not.
 -- apps and alt are JSON arrays stored as text.
 CREATE TABLE parts (
@@ -29,21 +47,6 @@ CREATE TABLE parts (
   updated_at      TEXT NOT NULL
 );
 CREATE INDEX parts_brand_pn ON parts (brand, pn);
-
--- One row per uploaded file, whatever happened to it.
-CREATE TABLE import_batches (
-  id           INTEGER PRIMARY KEY,
-  source_name  TEXT NOT NULL,
-  file_name    TEXT,
-  file_sha256  TEXT NOT NULL,
-  uploaded_by  TEXT NOT NULL,
-  uploaded_at  TEXT NOT NULL,
-  row_count    INTEGER NOT NULL,
-  status       TEXT NOT NULL CHECK (status IN ('staged', 'committed', 'rejected')),
-  error_report TEXT,
-  committed_by TEXT,
-  committed_at TEXT
-);
 
 -- Rows of a staged batch, waiting for commit. Same fields as parts.
 CREATE TABLE staged_parts (

@@ -119,8 +119,10 @@ All styles in `css/styles.css`. CSS variables on `:root` (warm off-white palette
 ## Search API (`api/`, Phase 1, local only)
 
 A Cloudflare Worker that answers `GET /search?q=` and `GET /health` from a
-published catalogue in Workers KV (binding `CATALOG`, key `published/v1`),
-held in memory. It imports the site's own `js/search/*`, `js/config.js`,
+published catalogue in Workers KV (binding `CATALOG`: `published/current`
+names the live key, e.g. `published/v2`), held in memory and re-checked at
+most once a minute. It only reads KV and has no D1 binding; never give it
+one (`tests/admin.js` fails if `api/wrangler.toml` gains one). It imports the site's own `js/search/*`, `js/config.js`,
 `js/constants.js` and `schemas/` through `api/src/search.js`; never copy
 search logic into `api/`. Returned record fields are exactly those in
 `api/published-fields.json` (`scripts/build-published.js` builds the
@@ -131,6 +133,48 @@ allowlist, 40 cap, rate limit), `node tests/api-ratelimit.js` (60 a minute
 per IP on /search via the `SEARCH_LIMITER` binding, mocked) and
 `node tests/api-speed.js` (1,000 queries, p95 under 10 ms). OEM source files go in `data/private/` (git-ignored) and never into
 the repository. See `api/README.md` and `docs/architecture.md`.
+
+## Master database and admin Worker (`admin/`, `db/`, local only)
+
+The private master database is D1 `mycela-master` (`db/migrations/`: `parts`,
+`import_batches`, `staged_parts`, append-only `audit_log`, `publishes`, view
+`staged_vs_master`). `admin/` is the only Worker bound to it and the only
+writer of the published catalogue. Endpoints: `POST /admin/import` (CSV or
+JSON, checked by `admin/src/validate.js`, any bad row rejects the whole
+file), `GET /admin/import/:id` (error report or diff preview),
+`POST /admin/import/:id/commit`, `POST /admin/publish` (writes
+`published/v<N>`, moves `published/current`), `POST /admin/rollback/:version`
+(moves the pointer only, master data unchanged), `GET /admin/audit`. Not
+deployed; the ids in `admin/wrangler.toml` are placeholders. How to use it:
+`docs/data-pipeline.md`.
+
+- Every request must pass the Cloudflare Access JWT check in
+  `admin/src/access.js`. There is no bypass, not even locally: do not add
+  one. Tests sign their own tokens and stub the certs fetch.
+- All SQL lives in the `SQL` table in `admin/src/pipeline.js` as fixed text
+  with `?N` placeholders; values are only ever bound. Multi-step changes run
+  as one `db.batch`.
+- The published catalogue has one definition,
+  `scripts/lib/published-catalog.js`, used by publish and by
+  `scripts/build-published.js`. `js/db.js` exposes `MYCELA.prepareDB` (type
+  correction and sanity filter) for it; the website's behaviour is unchanged.
+- Migrations: add a new numbered file, never edit one that has been applied.
+  `import_batches` is created before `parts` on purpose: a backup lists
+  tables in creation order and would not restore otherwise.
+- `scripts/seed-master.js` loads `bearings_db.js` as batch 0 through the same
+  import path; `scripts/backup-master.js` exports to `data/private/backups/`.
+  Local state for both Workers is `admin/.wrangler/state`. Scripts that use
+  wrangler's `getPlatformProxy` must pass `persist` explicitly: its default
+  is the folder the script was started from, not the one next to the config.
+- Upload validation blocks `< > " \`` in text because `js/renderer.js` does
+  not escape what it displays (`docs/todo-security.md`). That is a stopgap,
+  not the fix.
+
+`npm install` in `admin/` once, then `node tests/admin.js` (about half a
+minute, on a throwaway database in a temp folder: migrations, seed, good and
+bad files, SQL text in a designation, audit log protection, bad Access
+tokens, publish and rollback seen through the search Worker with the clock
+moved forward, backup and restore).
 
 ## Deployment
 

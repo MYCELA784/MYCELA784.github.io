@@ -1,7 +1,9 @@
-# MYCELA architecture: Phase 1
+# MYCELA architecture
 
-How the pieces fit once the search API is live. Phase 1 builds the search API
-and runs it locally; the steps marked *later* are planned, not built.
+How the pieces fit once the search API is live. The search API, the admin
+API, the master database and the publish step are built and run locally;
+nothing is deployed yet, and the website does not use them yet. Steps marked
+*later* are planned, not built.
 
 ```
  visitor's browser
@@ -12,15 +14,15 @@ and runs it locally; the steps marked *later* are planned, not built.
         ├── website pages ──────────► GitHub Pages (this repository, main branch)
         │
         ├── /search ────────────────► search API (Cloudflare Worker, api/)
-        │                                  │ reads once at start
+        │                                  │ reads, re-checks once a minute
         │                                  ▼
         │                            published catalogue (Workers KV)
         │                                  ▲
-        │                                  │ publish step (later: from D1)
-        └── admin (later) ──────────► admin API (Worker, behind Cloudflare Access)
+        │                                  │ publish, rollback
+        └── admin ──────────────────► admin API (Worker, behind Cloudflare Access)
                                            │
                                            ▼
-                                     master database (D1, private, later)
+                                     master database (D1, private)
 ```
 
 ## The parts
@@ -43,29 +45,45 @@ and never queries a database per search. Target: under 100 ms per search for
 visitors in India, of which the search itself takes under 10 ms. See
 [`api/README.md`](../api/README.md).
 
-**Admin API** (*later*). A separate Worker for editing the catalogue,
-reachable only through Cloudflare Access (signed-in staff). It writes to the
-master database and triggers publishing. The public search API never has
-write access.
+**Admin API** (`admin/`, built, local only). A separate Worker for loading
+files into the catalogue and publishing it. Every request must carry a valid
+Cloudflare Access token (signed-in staff), which the Worker checks itself;
+there is no way to switch that off, so it refuses everything until it is
+deployed behind Access. It is the only program bound to the master database
+and the only one that writes the published catalogue. The search API has no
+database binding and never writes. How to use it:
+[`data-pipeline.md`](data-pipeline.md).
 
 ## Two kinds of data
 
-**Master data** (*later*: Cloudflare D1, a private database). The complete
-record for each bearing, including fields that are never shown publicly:
-sources, internal notes, supplier and OEM details, prices. Only the admin API
-can read or change it.
+**Master data** (Cloudflare D1 database `mycela-master`, private; tables in
+`db/migrations/`). The complete record for each bearing, including fields
+that are never shown publicly, and where each row came from (source, file,
+import). Only the admin API can read or change it. Changes arrive as
+uploaded files: each file is checked row by row and rejected whole if any row
+is wrong, then previewed, then committed. Every upload, commit, changed
+bearing, publish and rollback is written to an audit log that the database
+itself refuses to update or delete. Today the database holds what
+`bearings_db.js` holds (loaded by `scripts/seed-master.js`); internal
+notes, supplier details and prices are *later*.
 
-**Published data** (Workers KV, key `published/v1`). A copy built from the
-master data with **only** the fields listed in
+**Published data** (Workers KV, keys `published/v1`, `published/v2`, ...).
+A copy built from the master data with **only** the fields listed in
 [`api/published-fields.json`](../api/published-fields.json). This is the only
 data the search API can see, so a field that is not on that list cannot
-leak through a search, whatever the code does. Until D1 exists, it is built
-from `bearings_db.js` by `scripts/build-published.js`.
+leak through a search, whatever the code does. One function builds it
+(`scripts/lib/published-catalog.js`), whether from the master database (the
+admin API's publish) or straight from `bearings_db.js`
+(`scripts/build-published.js`, a quick start without the database), and
+`tests/admin.js` checks the two give the same catalogue.
 
-To publish a change: update the master data, rebuild the published
-catalogue, write it to KV under a new version key, then point the API at it.
-Keeping each version under its own key means a bad publish can be undone by
-pointing back at the previous key.
+To publish a change: load it into the master data, then publish. The admin
+API writes the catalogue to KV under the next version key and moves the key
+`published/current` to point at it. The search API re-reads that pointer at
+most once a minute, so a publish is live within a minute with no redeploy.
+Each version stays under its own key, so a bad publish is undone by pointing
+`published/current` back at an older one (rollback). A rollback does not
+change the master data.
 
 ## Backups
 
@@ -74,8 +92,10 @@ pointing back at the previous key.
   `scripts/data-fixes/`.
 - **Published catalogue**: rebuildable at any time from the master data; old
   versions stay in KV under their version keys.
-- **Master database** (*later*): D1's built-in point-in-time recovery, plus a
-  regular export to private storage outside this repository.
+- **Master database**: `npm run backup` in `admin/` writes a full SQL export
+  to `data/private/backups/` (git-ignored), which loads back into an empty
+  database. *Later*, once deployed: D1's built-in point-in-time recovery,
+  plus a regular export to private storage outside this repository.
 
 ## Rule: OEM data never enters this repository
 
@@ -88,6 +108,9 @@ Files received from manufacturers, distributors or other OEM sources
   tests or commit messages.
 - What goes public is decided field by field through the published
   catalogue's allowlist, never by committing a source file.
+- They are loaded into the master database through the admin API
+  ([`data-pipeline.md`](data-pipeline.md)). Backups of that database go in
+  `data/private/backups/` and are never committed either.
 
 This repository is public (GitHub Pages), and anything committed stays in its
 history even after deletion.

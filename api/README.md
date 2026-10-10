@@ -69,9 +69,12 @@ here too, and `tests/api.js` checks that both give the same answers.
 
 The Worker keeps a **published catalogue** in memory: the bearings after the
 website's own clean-up (`js/db.js`), with only the fields the website shows.
-It is read once from Cloudflare's key-value storage (Workers KV, binding
-`CATALOG`, key `published/v1`) when the Worker starts, so no search waits on
-storage.
+It is read from Cloudflare's key-value storage (Workers KV, binding
+`CATALOG`): the key `published/current` names the live copy (for example
+`published/v2`). The Worker loads that copy when it starts and checks the
+pointer again at most once a minute, so no search waits on storage and a
+publish or rollback goes live within a minute. The Worker only reads: it has
+no database and never writes to storage.
 
 The allowed fields are listed in [`published-fields.json`](published-fields.json),
 the one place to change them:
@@ -91,8 +94,9 @@ locally; nothing logs in to Cloudflare or uploads anything.
 
 ```sh
 cd api
-npm install        # once: installs wrangler, Cloudflare's local tool
-npm run dev        # builds the catalogue, loads it into local storage, starts the API
+npm install          # once: installs wrangler, Cloudflare's local tool
+npm run quickstart   # builds the catalogue from bearings_db.js and loads it into local storage
+npm run dev          # starts the API
 ```
 
 Then open, for example:
@@ -101,18 +105,25 @@ Then open, for example:
 - http://localhost:8787/search?q=6205%20skf
 - http://localhost:8787/search?q=bore%2012%20od%2090
 
-`npm run dev` runs `scripts/build-published.js`, which:
+`npm run quickstart` runs `scripts/build-published.js`, which:
 
 1. runs the website's `js/db.js` over `bearings_db.js`,
 2. keeps only the allowed fields,
 3. writes `api/.build/published-v1.json`, and
-4. puts it into wrangler's **local** storage (`api/.wrangler/`).
+4. puts it into wrangler's **local** storage as `published/v1`, with
+   `published/current` pointing at it.
+
+Local storage is `admin/.wrangler/state`, shared with the admin Worker, so
+the search API also serves whatever was last published locally from the
+master database. If you have set that up (`npm run seed -- --publish` in
+`admin/`, see [`docs/data-pipeline.md`](../docs/data-pipeline.md)), skip the
+quickstart: it would overwrite `published/v1`.
 
 Run it again after `bearings_db.js` changes. To build the file without
 touching storage: `node scripts/build-published.js --no-seed` (from the repo
 root).
 
-The generated files (`api/.build/`, `api/.wrangler/`, `api/node_modules/`)
+The generated files (`api/.build/`, any `.wrangler/` folder, `node_modules/`)
 are not committed.
 
 ## Testing it
@@ -149,8 +160,9 @@ unchanged and still apply.
 | `src/globals.js` | Gives the website's scripts the `window.MYCELA` they expect. |
 | `../scripts/build-published.js` | Builds the published catalogue and seeds local storage. |
 
-## Not in Phase 1
+## Not built yet
 
-Deploying, the private master database (D1) and the admin API behind
-Cloudflare Access come later. See
+Deploying, and switching the website over to this API. The private master
+database (D1) and the admin API that publishes the catalogue are built and
+run locally: see [`docs/data-pipeline.md`](../docs/data-pipeline.md) and
 [`docs/architecture.md`](../docs/architecture.md).

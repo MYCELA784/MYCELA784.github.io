@@ -7,7 +7,9 @@ compatibility_date = "2025-09-01"
 send_metrics = false
 
 # The published catalogue. For `wrangler dev` this is a local, on-disk store
-# in api/.wrangler/ (seeded by scripts/build-published.js); the id below is
+# in admin/.wrangler/state, shared with the admin Worker (`npm run dev` here
+# points at it; filled by a local publish or scripts/build-published.js).
+# This Worker has no database binding and must never get one. The id below is
 # only a placeholder and must be replaced with the real namespace id when
 # the Worker is first deployed.
 [[kv_namespaces]]
