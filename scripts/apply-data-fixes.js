@@ -22,7 +22,9 @@
  * run: overwrite with "set" instead), the key must be a plain identifier, and
  * the value must be null, a finite number or a string. Because it can only
  * add, re-running the same changeset aborts rather than double-applying.
- * A "set" value may be null, a finite number, or a string. Every field must
+ * A "set" value may be null, a finite number, or a string (the value it
+ * replaces may also be a list of texts, so a list can be set to null, not
+ * to another list). Every field must
  * resolve to exactly one `"field":<value>` inside that record's span or the
  * run aborts with no file written. "delete" requires the id to be unique;
  * "delete_all" removes every row carrying the id (for duplicate-id
@@ -101,7 +103,8 @@ changes.forEach(ch => {
       const isNum = typeof nv === 'number' && isFinite(nv);
       const isStr = typeof nv === 'string';
       if (nv !== null && !isNum && !isStr) die(`${ch.id}.${f}: bad value ${JSON.stringify(nv)}`);
-      const re = new RegExp(`("${f}":)("(?:[^"\\\\]|\\\\.)*"|-?\\d+(?:\\.\\d+)?|null)`);
+      // the value being replaced may also be a flat list of texts ("apps":["a","b"])
+      const re = new RegExp(`("${f}":)("(?:[^"\\\\]|\\\\.)*"|-?\\d+(?:\\.\\d+)?|null|\\[(?:"(?:[^"\\\\]|\\\\.)*"|[\\s,])*\\])`);
       const m = re.exec(span);
       if (!m) die(`${ch.id}: field "${f}" not found in span`);
       if (re.exec(span.slice(m.index + m[0].length))) die(`${ch.id}: field "${f}" appears more than once`);

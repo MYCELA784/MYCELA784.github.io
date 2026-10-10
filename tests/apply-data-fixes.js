@@ -123,6 +123,18 @@ aborted(run(BASE, [
   ok(r.out === dbText([R1, R2.replace('"cr":14.8', '"cr":99.5').replace('"Open"', '"Shielded"'), R4]), 'set and delete: output is byte-identical apart from the intended edits');
 }
 
+// ── 8. set can replace a list of texts (with null, a number or a string) ───
+{
+  const LIST = '"apps":["extruders","a ] and a \\"quote\\"","mixers"]';
+  const L = '{"id":"SKF-206_EC","brand":"SKF","pn":"206 EC","type":"Cylindrical Roller","bore":30,' + LIST + ',"alt":[],"source":"SKF"}';
+  const r = run(dbText([R1, L, R4]), [{ id: 'SKF-206_EC', op: 'set', fields: { apps: null } }]);
+  const recs = r.out && parse(r.out);
+  ok(r.code === 0 && recs && recs.length === 3 && recs[1].apps === null && Array.isArray(recs[1].alt) && recs[1].source === 'SKF',
+     'set: a list of texts can be set to null, and the fields after it are untouched');
+  ok(r.out === dbText([R1, L.replace(LIST, '"apps":null'), R4]), 'set on a list: output is byte-identical apart from the intended edit');
+  aborted(run(dbText([R1, L, R4]), [{ id: 'SKF-206_EC', op: 'set', fields: { apps: ['pumps'] } }]), 'set: a list as the new value still aborts');
+}
+
 fs.rmSync(TMP, { recursive: true, force: true });
 console.log(`\n${failures ? failures + ' FAILED' : 'all passed'}`);
 process.exit(failures ? 1 : 0);
